@@ -9,28 +9,29 @@
 struct sqlite3;
 struct sqlite3_stmt;
 namespace gnu {
-struct DBRow;
-typedef std::vector<DBRow>      DBRowVector;
-struct DBRow {
+namespace db {
+struct Row;
+typedef std::vector<Row> Rows;
+struct Row {
     std::string                 key;
     char*                       value;
     size_t                      size;
     int64_t                     time;
-                                DBRow()
+                                Row()
                                     { value = nullptr; size = 0; time = -1; }
-                                DBRow(std::string KEY, char* VALUE, size_t SIZE, int64_t TIME = -1)
+                                Row(std::string KEY, char* VALUE, size_t SIZE, int64_t TIME = -1)
                                     { key = KEY; value = VALUE; size = SIZE; time = TIME; }
-                                DBRow(std::string key, const char* value, size_t size, int64_t time = -1);
-                                DBRow(const DBRow& r);
-                                DBRow(DBRow&& r)
+                                Row(std::string key, const char* value, size_t size, int64_t time = -1);
+                                Row(const Row& r);
+                                Row(Row&& r)
                                     { key = r.key; size = r.size; time = r.time; value = r.value; r.value = nullptr; }
-    virtual                     ~DBRow()
+    virtual                     ~Row()
                                     { free(value); }
-    DBRow&                      operator=(const DBRow& r);
-    DBRow&                      operator=(DBRow&& r)
+    Row&                        operator=(const Row& r);
+    Row&                        operator=(Row&& r)
                                     { free(value); key = r.key; size = r.size; time = r.time; value = r.value; r.value = nullptr; return *this; }
     void                        debug(bool print_value = false) const;
-    static void                 Debug(const DBRowVector& v, bool print_value = false);
+    static void                 Debug(const Rows& v, bool print_value = false);
 };
 class DB {
 public:
@@ -54,10 +55,10 @@ public:
     bool                        execute(std::string sql);
     std::string                 filename() const
                                     { return _filename; }
-    DBRow                       get(std::string key);
-    DBRowVector                 get_all(std::string key = "", int64_t from_time = -1, int64_t to_time = -1)
+    Row                         get(std::string key);
+    Rows                        get_all(std::string key = "", int64_t from_time = -1, int64_t to_time = -1)
                                     { return _get_all(key, "", from_time, to_time); }
-    DBRowVector                 get_all(std::string key, std::string remove_string_from_key, int64_t from_time = -1, int64_t to_time = -1)
+    Rows                        get_all(std::string key, std::string remove_string_from_key, int64_t from_time = -1, int64_t to_time = -1)
                                     { return _get_all(key, remove_string_from_key, from_time, to_time); }
     sqlite3*                    handle()
                                     { return _sql; }
@@ -66,15 +67,15 @@ public:
     bool                        is_open() const
                                     { return _sql != nullptr; }
     bool                        key(std::string key);
-    DBRowVector                 keys(std::string key = "", int64_t from_time = -1, int64_t to_time = -1)
+    Rows                        keys(std::string key = "", int64_t from_time = -1, int64_t to_time = -1)
                                     { return _keys(key, "", from_time, to_time); }
-    DBRowVector                 keys(std::string key, std::string remove, int64_t from_time = -1, int64_t to_time = -1)
+    Rows                        keys(std::string key, std::string remove, int64_t from_time = -1, int64_t to_time = -1)
                                     { return _keys(key, remove, from_time, to_time); }
     bool                        open(std::string filename);
     bool                        put(std::string key, const char* in, size_t in_size, int64_t time = -1);
     bool                        put(std::string key, std::string value, int64_t time = -1)
                                     { return put(key, value.c_str(), value.length(), time); }
-    bool                        put(const DBRow& r)
+    bool                        put(const Row& r)
                                     { return put(r.key, r.value, r.size, r.time); }
     bool                        remove(std::string key)
                                     { return _remove(key, false) == 1; }
@@ -88,19 +89,19 @@ public:
     int64_t                     size()
                                     { return _count("size"); }
     static bool                 Defrag(std::string& err, std::string filename);
-    static DBRow                Load(std::string& err, std::string filename, std::string key);
-    static DBRowVector          LoadRows(std::string& err, std::string filename, std::string key);
-    static bool                 Save(std::string& err, std::string filename, const DBRow& row);
+    static Row                  Load(std::string& err, std::string filename, std::string key);
+    static Rows                 LoadRows(std::string& err, std::string filename, std::string key);
+    static bool                 Save(std::string& err, std::string filename, const Row& row);
     static bool                 Save(std::string& err, std::string filename, std::string key, const char* value, size_t size, int64_t time = -1);
-    static bool                 SaveRows(std::string& err, std::string filename, const DBRowVector& rows);
+    static bool                 SaveRows(std::string& err, std::string filename, const Rows& rows);
     static std::string          Version();
 private:
     bool                        _clear_error_and_free_stmt();
     int                         _clear_error_and_free_stmt_and_return_changes();
     int64_t                     _count(std::string what);
     bool                        _error_invalid_arguments();
-    DBRowVector                 _get_all(std::string key, std::string remove_string_from_key, int64_t from_time = -1, int64_t to_time = -1);
-    DBRowVector                 _keys(std::string key, std::string remove_string_from_key, int64_t from_time = -1, int64_t to_time = -1);
+    Rows                        _get_all(std::string key, std::string remove_string_from_key, int64_t from_time = -1, int64_t to_time = -1);
+    Rows                        _keys(std::string key, std::string remove_string_from_key, int64_t from_time = -1, int64_t to_time = -1);
     bool                        _prepare(const char* sql);
     int                         _remove(std::string key, bool many);
     bool                        _set_error_and_close_db();
@@ -110,60 +111,116 @@ private:
     std::string                 _filename;
 };
 }
+}
 #endif
 #ifdef GNU_USE_PCRE
+#include <cassert>
+#include <cstring>
 #include <string>
 #include <vector>
 namespace gnu {
+namespace pcre8 {
+class Match {
+public:
+                                Match()
+                                    { _start = _count = 0; }
+                                Match(const std::string& word, int start, int count, const std::string& name = "")
+                                    { _word = word; _start = start; _count = count; _name = name; assert(start >= 0 && count >= 0);  }
+    bool                        operator==(const Match& m) const
+                                    { return _word == m._word && _start == m._start && _count == m._count; }
+    int                         count() const
+                                    { return _count; }
+    void                        count(size_t count)
+                                    { _count = count; }
+    int                         end() const
+                                    { return _start + _count; }
+    const std::string&          name() const
+                                    { return _name; }
+    void                        print(int i = 0) const;
+    void                        set_name(const std::string& name)
+                                    { _name = name; }
+    void                        set_word(const std::string& word)
+                                    { _word = word; }
+    int                         start() const
+                                    { return _start; }
+    const std::string&          word() const
+                                    { return _word; }
+    static void                 Print(const std::vector<Match>& vec);
+private:
+    int                         _count;
+    int                         _start;
+    std::string                 _name;
+    std::string                 _word;
+};
+std::string                     escape(std::string string);
+std::string                     format512(const char* format, ...);
+std::string                     replace(const std::string& subject, const Match& match);
+std::string                     replace(const std::string& subject, const std::vector<Match>& matches, bool subpattern_only = true);
+std::string                     replace_all(const std::string& string, const std::string& find, const std::string& replace = "");
+std::string                     version();
 class PCRE {
 public:
                                 PCRE(const PCRE&) = delete;
     PCRE&                       operator=(const PCRE&) = delete;
                                 PCRE();
+    explicit                    PCRE(const std::string& pattern, bool useutf = false);
                                 PCRE(PCRE&& other);
-    explicit                    PCRE(std::string pattern, bool utf = false);
                                 ~PCRE();
     PCRE&                       operator=(PCRE&& other);
+    std::vector<Match>          capture_all(const std::string& subject, const std::vector<std::string>& names = std::vector<std::string>());
     void                        clear();
-    bool                        compile(std::string pattern, bool utf = false);
-    void                        debug();
-    int                         end(size_t match)
-                                    { auto r = (match >= _matches) ? -1 : _off[match * 2 + 1]; return (r < 0 && r > (int) _subject.length()) ? -1 : r;}
-    std::string                 error()
+    std::string                 compile(const std::string& pattern, bool useutf = false);
+    void                        debug(bool print_matches = false);
+    const std::string&          err() const
                                     { return _error; }
-    size_t                      exec(std::string subject, bool not_bol = false, bool not_eol = false);
-    size_t                      exec_next();
+    std::vector<Match>          exec(const char* subject, size_t length);
+    std::vector<Match>          exec(const std::string& subject)
+                                    { return exec(subject.c_str(), subject.length()); }
+    std::vector<Match>          exec_next(const Match& last);
+    bool                        find(const char* subject)
+                                    { return exec(subject, strlen(subject)).size() > 0; }
+    bool                        find(const std::string& subject)
+                                    { return exec(subject.c_str(), subject.length()).size() > 0; }
     bool                        has_error() const
-                                    { return _error.length() > 0; }
+                                    { return _error != ""; }
     bool                        is_compiled() const
                                     { return _pcre != nullptr; }
     bool                        has_utf() const
                                     { return _utf; }
-    size_t                      matches() const
+    Match                       match(const std::string& name) const;
+    std::vector<Match>          matches() const
                                     { return _matches; }
-    std::string                 pattern() const
+    PCRE&                       notbol(bool val = false)
+                                    { _notbol = val; return *this; }
+    PCRE&                       noteol(bool val = false)
+                                    { _noteol = val; return *this; }
+    PCRE&                       notempty(bool val = false)
+                                    { _notempty = val; return *this; }
+    const std::string&          pattern() const
                                     { return _pattern; }
-    bool                        offset(size_t match, int& start, int& end);
-    bool                        offset(std::string name, int& start, int& end);
-    std::string                 replace(size_t match, std::string replace);
-    std::string                 replace(std::vector<std::string> replace, std::string skip = "");
-    int                         start(size_t match)
-                                    { auto r = (match >= _matches) ? -1 : _off[match * 2]; return (r < 0 && r > (int) _subject.length()) ? -1 : r;}
-    std::string                 substr(size_t match);
-    std::string                 substr(std::string name);
+    PCRE&                       reset_options()
+                                    { _notbol = _noteol = _notempty = false; return *this; }
+    PCRE&                       set_names(const std::vector<std::string>& names)
+                                    { _names = names; return *this; }
+    const std::string&          subject() const
+                                    { return _subject; }
     std::string                 to_string() const;
-    static std::string          Escape(std::string string);
-    static std::string          Version();
 private:
-    static const size_t         MAX_CAPTURES = 60;
-    int                         _off[MAX_CAPTURES];
+    std::vector<Match>          _set_matches(int count);
+    static const size_t         SIZE_OFF = 60;
+    bool                        _notbol;
+    bool                        _notempty;
+    bool                        _noteol;
+    int                         _off[SIZE_OFF];
     int                         _utf;
-    size_t                      _matches;
     std::string                 _error;
     std::string                 _pattern;
     std::string                 _subject;
+    std::vector<Match>          _matches;
+    std::vector<std::string>    _names;
     void*                       _pcre;
 };
+}
 }
 #endif
 #include <cstdint>
@@ -171,25 +228,26 @@ private:
 #include <string>
 #include <vector>
 namespace gnu {
-struct PileBuf {
+namespace pile {
+struct Buf {
     char*                       p;
     size_t                      s;
-                                PileBuf()
+                                Buf()
                                     { p = nullptr; s = 0; }
-    explicit                    PileBuf(size_t S);
-                                PileBuf(const char* p, size_t s);
-                                PileBuf(const PileBuf& b);
-                                PileBuf(PileBuf&& b)
+    explicit                    Buf(size_t S);
+                                Buf(const char* p, size_t s);
+                                Buf(const Buf& b);
+                                Buf(Buf&& b)
                                     { p = b.p; s = b.s; b.p = nullptr; }
-    PileBuf&                    operator=(const PileBuf& b);
-    PileBuf&                    operator=(PileBuf&& b)
+    Buf&                        operator=(const Buf& b);
+    Buf&                        operator=(Buf&& b)
                                     { free(p); p = b.p; s = b.s; b.p = nullptr; return *this; }
-    PileBuf&                    operator+=(const PileBuf& b);
-    bool                        operator==(const PileBuf& other) const;
-    virtual                     ~PileBuf()
+    Buf&                        operator+=(const Buf& b);
+    bool                        operator==(const Buf& other) const;
+    virtual                     ~Buf()
                                     { free(p); }
-    static inline PileBuf       Grab(char* P, size_t S)
-                                    { auto res = PileBuf(); res.p = P; res.s = S; return res; }
+    static inline Buf           Grab(char* P, size_t S)
+                                    { auto res = Buf(); res.p = P; res.s = S; return res; }
 };
 class Pile {
 public:
@@ -199,7 +257,7 @@ public:
                                     { _values.clear(); }
     void                        debug() const;
     std::string                 export_data() const;
-    PileBuf                     get_buf(std::string section, std::string key) const;
+    Buf                         get_buf(std::string section, std::string key) const;
     double                      get_double(std::string section, std::string key, double def = 0.0) const;
     int64_t                     get_int(std::string section, std::string key, int64_t def = 0) const;
     std::string                 get_string(std::string section, std::string key, std::string def = "") const;
@@ -208,19 +266,20 @@ public:
     std::vector<std::string>    keys(std::string section) const;
     std::vector<std::string>    sections() const;
     bool                        set(std::string section, std::string key, const char* value, size_t len);
-    bool                        set_buf(std::string section, std::string key, const PileBuf& buf)
+    bool                        set_buf(std::string section, std::string key, const Buf& buf)
                                     { return set(section, key, buf.p, buf.s); }
     bool                        set_double(std::string section, std::string key, double value)
-                                    { snprintf(_buf, 200, "%f", value); return set_string(section, key, _buf); }
+                                    { snprintf(_buf, 500, "%f", value); return set_string(section, key, _buf); }
     bool                        set_int(std::string section, std::string key, int64_t value)
-                                    { snprintf(_buf, 200, "%lld", (long long int) value); return set_string(section, key, _buf); }
+                                    { snprintf(_buf, 500, "%lld", (long long int) value); return set_string(section, key, _buf); }
     bool                        set_string(std::string section, std::string key, std::string value);
     size_t                      size() const
                                     { return _values.size(); }
 private:
     std::map<std::string, std::string> _values;
-    char                            _buf[200];
+    char                            _buf[500];
 };
+}
 }
 #include <cstdint>
 #include <string>
@@ -229,25 +288,27 @@ namespace gnu {
 namespace str {
 std::string                     format(const char* format, ...);
 std::string                     format_int(int64_t num, char del = ' ');
-inline std::string              grab_string(char* cstr)
-                                    { std::string res = (cstr != nullptr) ? cstr : ""; free(cstr); return res;}
+std::string                     format_double(double num, size_t decimals, char del = ' ');
+inline std::string              grab(char* str)
+                                    { std::string res = (str != nullptr) ? str : ""; free(str); return res;}
 bool                            is_whitespace(const std::string& str);
-size_t                          list_append(std::vector<std::string>& strings, std::string string, size_t max_size);
-size_t                          list_insert(std::vector<std::string>& strings, std::string string, size_t max_size);
-std::string&                    replace(std::string& str, std::string find, std::string replace = "", size_t max = 999'999'999);
-std::string                     replace_const(const std::string& str, std::string find, std::string replace = "", size_t max = 999'999'999);
+size_t                          list_append(std::vector<std::string>& strings, const std::string& string, size_t max_size);
+size_t                          list_insert(std::vector<std::string>& strings, const std::string& string, size_t max_size);
+std::string&                    replace(std::string& str, const std::string& find, const std::string& replace = "", size_t max = -1);
+std::string                     replace_const(const std::string& str, const std::string& find, const std::string& = "", size_t max = -1);
+std::string                     replace_std(const std::string& string, const std::string& find, const std::string& replace);
 const char*                     reverse(char* str, size_t len);
 inline std::string&             reverse(std::string& str)
                                     { reverse(const_cast<char*>(str.c_str()), str.length()); return str; }
-std::vector<std::string>        split(const std::string& str, char del);
+std::vector<std::string>        split(const std::string& str, std::string split);
 std::vector<const char*>        split_fast(char* cstr, char split);
-std::vector<std::string>        split_std(const std::string& str, std::string split);
-std::string                     substr(const std::string& in, std::string::size_type pos, std::string::size_type size = std::string::npos, std::string def = "");
-double                          to_double(std::string str, double def = 0.0);
-long long int                   to_int(std::string str, long long int def = 0);
+std::string                     substr(const std::string& in, std::string::size_type pos, std::string::size_type size = std::string::npos, const std::string& def = "");
+double                          to_double(const std::string& str, double def = 0.0);
+long long int                   to_int(const std::string& str, long long int def = 0);
 inline std::string              to_string(const char* cstr)
                                     { return (cstr != nullptr) ? cstr : ""; }
 std::string&                    trim(std::string& str);
+std::string                     trim_const(const std::string& str);
 size_t                          utf_len(const char* p);
 }
 }
@@ -298,64 +359,17 @@ private:
 #include <string>
 #include <vector>
 namespace gnu {
+namespace file {
 class File;
+class Buf;
 typedef bool (*CallbackCopy)(int64_t size, int64_t copied, void* data);
-typedef std::vector<File> FileVector;
-struct FileBuf {
-    char*                       p;
-    size_t                      s;
-                                FileBuf()
-                                    { p = nullptr; s = 0; }
-    explicit                    FileBuf(size_t S);
-                                FileBuf(const char* P, size_t S);
-                                FileBuf(const FileBuf& b);
-                                FileBuf(FileBuf&& b)
-                                    { p = b.p; s = b.s; b.p = nullptr; }
-                                FileBuf(const std::string& S)
-                                    { p = nullptr; add(S.c_str(), S.length()); }
-    virtual                     ~FileBuf()
-                                    { free(p); }
-    FileBuf&                    operator=(const FileBuf& b)
-                                    { return set(b.p, b.s); }
-    FileBuf&                    operator=(FileBuf&& b)
-                                    { free(p); p = b.p; s = b.s; b.p = nullptr; return *this; }
-    FileBuf&                    operator=(const std::string& S)
-                                    { free(p); p = nullptr; add(S.c_str(), S.length()); return *this; }
-    FileBuf&                    operator+=(const FileBuf& b)
-                                    { return add(b.p, b.s); }
-    bool                        operator==(const FileBuf& other) const;
-    bool                        operator!=(const FileBuf& other) const
-                                    { return (*this == other) == false; }
-    FileBuf&                    add(const char* P, size_t S);
-    void                        clear()
-                                    { free(p); p = nullptr; s = 0; }
-    void                        count(size_t count[257]) const
-                                    { FileBuf::Count(p, s, count); }
-    void                        debug() const
-                                    { printf("gnu::FileBuf(0x%p, %u)\n", p, (unsigned) s); }
-    uint64_t                    fletcher64() const
-                                    { return FileBuf::Fletcher64(p, s); }
-    FileBuf&                    grab(char* P, size_t S)
-                                    { free(p); p = P; s = S; return *this; }
-    FileBuf                     insert_cr(bool dos = true, bool trailing = false) const
-                                    { return FileBuf::InsertCR(p, s, dos, trailing); }
-    char*                       release()
-                                    { auto res = p; p = nullptr; s = 0; return res; }
-    FileBuf                     remove_cr() const
-                                    { return FileBuf::RemoveCR(p, s); }
-    FileBuf&                    set(const char* P, size_t S);
-    bool                        write(std::string filename) const;
-    static void                 Count(const char* P, size_t S, size_t count[257]);
-    static uint64_t             Fletcher64(const char* p, size_t s);
-    static inline FileBuf       Grab(char* P)
-                                    { auto res = FileBuf(); res.p = P; res.s = strlen(P); return res; }
-    static inline FileBuf       Grab(char* P, size_t S)
-                                    { auto res = FileBuf(); res.p = P; res.s = S; return res; }
-    static FileBuf              InsertCR(const char* P, size_t S, bool dos, bool trailing = false);
-    static FileBuf              RemoveCR(const char* P, size_t S);
+typedef std::vector<File> Files;
+enum class TYPE {
+                                MISSING,
+                                DIR,
+                                FILE,
+                                OTHER,
 };
-class File {
-public:
 #ifdef _WIN32
     static const int            DEFAULT_DIR_MODE  = 0x00000080;
     static const int            DEFAULT_FILE_MODE = 0x00000080;
@@ -363,13 +377,91 @@ public:
     static const int            DEFAULT_DIR_MODE  = 0755;
     static const int            DEFAULT_FILE_MODE = 0664;
 #endif
-    enum class TYPE {
-                                MISSING,
-                                DIR,
-                                FILE,
-                                OTHER,
-    };
-    File::TYPE                  type;
+char*                           allocate(char* resize_or_null, size_t size, bool exception = true);
+std::string                     canonical_name(std::string filename);
+bool                            chdir(std::string path);
+std::string                     check_filename(std::string filename);
+bool                            chmod(std::string path, int mode);
+Buf                             close_stderr();
+Buf                             close_stdout();
+bool                            copy(std::string from, std::string to, CallbackCopy callback = nullptr, void* data = nullptr);
+uint64_t                        fletcher64(const char* p, size_t s);
+File                            home_dir();
+bool                            mkdir(std::string path);
+bool                            mod_time(std::string path, int64_t time);
+FILE*                           open(std::string path, std::string mode);
+std::string                     os();
+FILE*                           popen(std::string cmd, bool write = false);
+Buf                             read(std::string path);
+Buf*                            read2(std::string path);
+Files                           read_dir(std::string path);
+Files                           read_dir_rec(std::string path);
+bool                            redirect_stderr();
+bool                            redirect_stdout();
+bool                            remove(std::string path);
+bool                            remove_rec(std::string path);
+bool                            rename(std::string from, std::string to);
+int                             run(std::string cmd, bool background, bool hide_win32_window = false);
+File                            tmp_dir();
+File                            tmp_file(std::string prepend = "");
+File                            work_dir();
+bool                            write(std::string filename, const char* in, size_t in_size);
+bool                            write(std::string filename, const Buf& b);
+struct Buf {
+    char*                       p;
+    size_t                      s;
+                                Buf()
+                                    { p = nullptr; s = 0; }
+    explicit                    Buf(size_t S);
+                                Buf(const char* P, size_t S);
+                                Buf(const Buf& b);
+                                Buf(Buf&& b)
+                                    { p = b.p; s = b.s; b.p = nullptr; }
+                                Buf(const std::string& S)
+                                    { p = nullptr; add(S.c_str(), S.length()); }
+    virtual                     ~Buf()
+                                    { free(p); }
+    Buf&                        operator=(const Buf& b)
+                                    { return set(b.p, b.s); }
+    Buf&                        operator=(Buf&& b)
+                                    { free(p); p = b.p; s = b.s; b.p = nullptr; return *this; }
+    Buf&                        operator=(const std::string& S)
+                                    { free(p); p = nullptr; add(S.c_str(), S.length()); return *this; }
+    Buf&                        operator+=(const Buf& b)
+                                    { return add(b.p, b.s); }
+    bool                        operator==(const Buf& other) const;
+    bool                        operator!=(const Buf& other) const
+                                    { return (*this == other) == false; }
+    Buf&                        add(const char* P, size_t S);
+    void                        clear()
+                                    { free(p); p = nullptr; s = 0; }
+    void                        count(size_t count[257]) const
+                                    { Buf::Count(p, s, count); }
+    void                        debug() const
+                                    { printf("gnu::Buf(0x%p, %u)\n", p, (unsigned) s); }
+    uint64_t                    fletcher64() const
+                                    { return file::fletcher64(p, s); }
+    Buf&                        grab(char* P, size_t S)
+                                    { free(p); p = P; s = S; return *this; }
+    Buf                         insert_cr(bool dos = true, bool trailing = false) const
+                                    { return Buf::InsertCR(p, s, dos, trailing); }
+    char*                       release()
+                                    { auto res = p; p = nullptr; s = 0; return res; }
+    Buf                         remove_cr() const
+                                    { return Buf::RemoveCR(p, s); }
+    Buf&                        set(const char* P, size_t S);
+    bool                        write(std::string filename) const;
+    static void                 Count(const char* P, size_t S, size_t count[257]);
+    static inline Buf           Grab(char* P)
+                                    { auto res = Buf(); res.p = P; res.s = strlen(P); return res; }
+    static inline Buf           Grab(char* P, size_t S)
+                                    { auto res = Buf(); res.p = P; res.s = S; return res; }
+    static Buf                  InsertCR(const char* P, size_t S, bool dos, bool trailing = false);
+    static Buf                  RemoveCR(const char* P, size_t S);
+};
+class File {
+public:
+    TYPE                        type;
     bool                        link;
     int                         mode;
     int64_t                     ctime;
@@ -395,10 +487,12 @@ public:
                                     { return filename <= other.filename; }
     const char*                 c_str() const
                                     { return filename.c_str(); }
-    std::string                 canonicalname() const
-                                    { return File::CanonicalName(filename); }
+    std::string                 canonical_name() const
+                                    { return file::canonical_name(filename); }
     void                        debug(bool short_version = true) const
                                     { printf("%s\n", to_string(short_version).c_str()); fflush(stdout); }
+    bool                        exist() const
+                                    { return type != TYPE::MISSING; }
     bool                        is_circular() const;
     bool                        is_dir() const
                                     { return type == TYPE::DIR; }
@@ -414,39 +508,10 @@ public:
     std::string                 name_without_ext() const;
     File&                       update();
     File&                       update(std::string in, bool realpath = false);
-    std::string                 type_name() const;
     std::string                 to_string(bool short_version = true) const;
-    static char*                Allocate(char* resize_or_null, size_t size, bool exception = true);
-    static std::string          CanonicalName(std::string filename);
-    static bool                 ChDir(std::string path);
-    static std::string          CheckFilename(std::string filename);
-    static bool                 ChMod(std::string path, int mode);
-    static FileBuf              CloseStderr();
-    static FileBuf              CloseStdout();
-    static bool                 Copy(std::string from, std::string to, CallbackCopy callback = nullptr, void* data = nullptr);
-    static File                 HomeDir();
-    static bool                 MkDir(std::string path);
-    static bool                 ModTime(std::string path, int64_t time);
-    static FILE*                Open(std::string path, std::string mode);
-    static std::string          OS();
-    static FILE*                Popen(std::string cmd, bool write = false);
-    static FileBuf              Read(std::string path);
-    static FileBuf*             Read2(std::string path);
-    static FileVector           ReadDir(std::string path);
-    static FileVector           ReadDirRec(std::string path);
-    static bool                 RedirectStderr();
-    static bool                 RedirectStdout();
-    static bool                 Remove(std::string path);
-    static bool                 RemoveRec(std::string path);
-    static bool                 Rename(std::string from, std::string to);
-    static int                  Run(std::string cmd, bool background, bool hide_win32_window = false);
-    static File                 TmpDir();
-    static File                 TmpFile(std::string prepend = "");
-    static File                 WorkDir();
-    static bool                 Write(std::string filename, const char* in, size_t in_size);
-    static inline bool          Write(std::string filename, const FileBuf& b)
-                                    { return Write(filename, b.p, b.s); }
-    };
+    std::string                 type_name() const;
+};
+}
 }
 #include <string>
 #include <vector>
@@ -574,7 +639,7 @@ namespace theme {
     void                        load_fonts(bool iso8859_only = true);
     void                        load_icon(Fl_Window* win, int win_resource, const char** xpm_resource = nullptr, const char* name = nullptr);
     void                        load_theme_pref(Fl_Preferences& pref);
-    void                        load_win_pref(Fl_Preferences& pref, Fl_Window* window, int show_0_1_2 = 1, int defw = 800, int defh = 600, std::string basename = "gui.");
+    void                        load_win_pref(Fl_Preferences& pref, Fl_Window* window, bool show = true, int defw = 800, int defh = 600, std::string basename = "gui.");
     bool                        parse(int argc, const char** argv);
     void                        save_theme_pref(Fl_Preferences& pref);
     void                        save_win_pref(Fl_Preferences& pref, Fl_Window* window, std::string basename = "gui.");
@@ -1051,15 +1116,16 @@ class FindReplace;
 class Message;
 class TextBuffer;
 class View;
-typedef std::vector<int>                        IntVector;
-typedef std::set<std::string>                   StringSet;
-typedef std::unordered_map<std::string, int>    StringIntHash;
-typedef std::unordered_set<std::string>         StringHash;
-typedef std::vector<Message*>                   MessageVector;
+typedef std::vector<int>                        FLEIntVector;
+typedef std::set<std::string>                   FLEStringSet;
+typedef std::unordered_map<std::string, int>    FLEStringIntHash;
+typedef std::unordered_set<std::string>         FLEStringHash;
+typedef std::vector<Message*>                   FLEMessageVector;
 enum class FBINFILE {
     NO,
     TEXT,
-    HEX,
+    HEX_16,
+    HEX_32,
 };
 enum class FCASE {
     LOWER,
@@ -1266,6 +1332,7 @@ namespace info {
     constexpr const char* NO_STRINGS_REPLACED  = "unable to replace <%s> with <%s>";
     constexpr const char* NO_STRING_FOUND      = "unable to find <%s>";
     constexpr const char* NO_TABS_REPLACED     = "unable to convert tabs to spaces!";
+    constexpr const char* PAIRS                = "could not found matching pairs";
     constexpr const char* REDID_CHANGES        = "redid %d changes";
     constexpr const char* REMOVED_TRAILING     = "removed whitespace from %u lines";
     constexpr const char* REPLACED_STRINGS     = "replaced %u strings in %d mS";
@@ -1277,6 +1344,7 @@ namespace info {
     constexpr const char* UNDO_MEMORY          = "warning: memory usage for undo has reached %lld bytes";
 }
 namespace message {
+    const std::string CUSTOM_AUTOCOMPLETE     = "message: custom wordfile has changed settings";
     const std::string DND_EVENT               = "message: editor has received an dnd event (p = bool*)";
     const std::string EDITOR_FOCUS            = "message: editor has focus (p = Editor*)";
     const std::string FILE_LOADED             = "message: editor has loaded a file (p = Editor*)";
@@ -1407,7 +1475,7 @@ public:
     size_t                      update(int pos, int inserted, int deleted);
 private:
     Editor*                     _editor;
-    IntVector                   _vec;
+    FLEIntVector                _vec;
 };
 struct Config {
     Editor*                     active;
@@ -1423,7 +1491,7 @@ struct Config {
     bool                        pref_insert;
     bool                        pref_linenumber;
     bool                        pref_statusbar;
-    gnu::File                   pref_backup;
+    gnu::file::File             pref_backup;
     int                         pref_cursor;
     int                         pref_shrink_status;
     int                         pref_tmp_fontsize;
@@ -1432,6 +1500,7 @@ struct Config {
     unsigned                    pref_wrap;
     std::vector<std::string>    find_list;
     std::vector<std::string>    replace_list;
+    FLEStringSet                custom_words;
                                 Config();
                                 Config(const Config&) = delete;
                                 Config(Config&&) = delete;
@@ -1442,6 +1511,7 @@ struct Config {
     bool                        add_replace_word(std::string word, bool append = false);
     std::string                 backup_name(std::string filename);
     void                        debug() const;
+    size_t                      load_custom_wordlist(const std::string& filename);
     void                        load_pref(Fl_Preferences& preferences, FindReplace* findreplace = nullptr);
     void                        remove_receiver(const Message* object);
     void                        save_pref(Fl_Preferences& preferences, FindReplace* findreplace = nullptr);
@@ -1449,7 +1519,7 @@ struct Config {
 private:
     int                         _id;
     bool                        _del;
-    MessageVector               _list;
+    FLEMessageVector               _list;
 };
 struct CursorPos {
     int                         pos1;
@@ -1502,7 +1572,7 @@ struct EditorFlags {
 struct FileInfo {
     FLINEENDING                 flineending;
     bool                        binary;
-    gnu::File                   fi;
+    gnu::file::File             fi;
     int64_t                     reload_time;
     uint64_t                    fletcher64;
                                 FileInfo();
@@ -1574,18 +1644,18 @@ struct StatusBarInfo {
                                     { return start != end; }
 };
 namespace string {
-    gnu::FileBuf                binary_to_hex(const char* in, size_t in_size);
-    gnu::FileBuf                binary_to_text(const char* in, size_t in_size);
+    gnu::file::Buf              binary_to_hex(const char* in, size_t in_size, bool wide = false);
+    gnu::file::Buf              binary_to_text(const char* in, size_t in_size);
     std::string                 fnltab(std::string text);
     bool                        is_one_char(const char* in);
+    int                         make_word_list(const char* text, FLEStringSet& words, const FLEStringSet& custom = FLEStringSet());
     void                        replace_char(char* in, char find, char replace);
     int                         toints(const std::string& string, int numbers[], int size, int def = -1);
     std::string                 tolower(std::string in);
-    int                         wordlist(const char* text, StringSet& words);
 }
 class Token {
 public:
-    enum TYPE {
+    enum TYPE : uint16_t {
                                 NIL           =     0,
                                 CTRL          =     1,
                                 NEWLINE       =     2,
@@ -1607,10 +1677,12 @@ public:
                                 Token(Token&& other);
     Token&                      operator=(const Token& other);
     Token&                      operator=(Token&& other);
-    int                         operator[](uint8_t index) const
+    uint16_t                    operator[](uint8_t index) const
                                     { return _char[index]; }
-    int                         get(uint8_t index) const
+    uint16_t                    get(uint8_t index) const
                                     { return _char[index]; }
+    uint16_t                    get_first(const char* in) const;
+    uint16_t                    get_last(const char* in, int len) const;
     Token&                      set(uint8_t index, uint16_t value);
     Token&                      set(uint8_t index_from, uint8_t index_to, uint16_t value);
     static void                 Debug(unsigned t);
@@ -1753,9 +1825,6 @@ extern const char*              TEXT;
 extern const char*              TS;
 extern FTAB                     TS_TAB;
 extern unsigned                 TS_TAB_WIDTH;
-extern const char*              WREN;
-extern FTAB                     WREN_TAB;
-extern unsigned                 WREN_TAB_WIDTH;
 }
 class Style {
 public:
@@ -1794,13 +1863,13 @@ public:
     void                        tab_width(unsigned width);
     int                         update();
     virtual int                 update(int pos, int inserted_size, int deleted_size, const char* deleted_text, const char* deleted_style, Editor* editor);
-    StringSet                   words()
+    FLEStringSet                   words()
                                     { return _words; }
 protected:
     static const size_t         MAX_RAW = 5;
-    StringIntHash               _lookup;
-    StringSet                   _custom;
-    StringSet                   _words;
+    FLEStringIntHash            _lookup;
+    FLEStringSet                _custom;
+    FLEStringSet                _words;
     TextBuffer*                 _style;
     TextBuffer*                 _text;
     Token                       _tokens;
@@ -1900,10 +1969,6 @@ class StyleTS : public StyleJS {
 public:
                                 StyleTS();
 };
-class StyleWren : public StyleDef {
-public:
-                                StyleWren();
-};
 struct StyleProp {
     Fl_Color                    color_d;
     Fl_Color                    color_u;
@@ -1932,7 +1997,7 @@ const Style_Table_Entry*        get_table(std::string scheme, Fl_Fontsize fs);
 inline unsigned                 index(STYLE style)
                                     { assert(style < STYLE_INIT); return style - STYLE_FG; }
 void                            load_pref(Fl_Preferences& preferences);
-Style*                          make_from_file(const gnu::File& file);
+Style*                          make_from_file(const gnu::file::File& file);
 Style*                          make_from_name(std::string name);
 void                            reset_all_styles();
 void                            reset_style(std::string scheme);
@@ -1942,29 +2007,39 @@ void                            set_tab_width(std::string name, unsigned width);
 }
 }
 namespace fle {
-class UndoEvent {
+namespace undo {
+enum class EVENT : uint8_t {
+                                NIL       =   0,
+                                INSERT    =   1,
+                                ERASED    =   2,
+                                REPLACE   =   4,
+                                BACKSPACE =   8,
+                                SELECTED  =  16,
+                                CUSTOM1   =  32,
+                                CUSTOM2   =  64,
+};
+enum class STATUS : unsigned {
+                                INIT,
+                                ADDED,
+                                APPENDED,
+                                REMOVED,
+};
+class Event {
+    friend class VectorStore;
 public:
-    enum {
-                                FLAG_NIL       =   0,
-                                FLAG_INSERT    =   1,
-                                FLAG_DELETE    =   2,
-                                FLAG_REPLACE   =   4,
-                                FLAG_BACKSPACE =   8,
-                                FLAG_SELECTED  =  16,
-                                FLAG_CUSTOM1   =  32,
-                                FLAG_CUSTOM2   =  64,
-    };
-                                UndoEvent()
-                                    { _flag = 0; _group = 0; _pos = 0; }
-                                UndoEvent(uint8_t flag, uint16_t group, int pos, const char* str1, const char* str2 = "") : _str1(str1), _str2(str2 ? str2 : "")
+                                Event()
+                                    { _flag = static_cast<uint8_t>(EVENT::NIL); _group = 0; _pos = 0; }
+                                Event(uint8_t flag, uint16_t group, int pos, const char* str1, const char* str2 = "") : _str1(str1), _str2(str2 ? str2 : "")
                                     { _flag = flag; _group = group; _pos = pos; }
     void                        append_str1(const char* in)
                                     { _str1 += in; }
+    void                        append_str2(const char* in)
+                                    { _str2 += in; }
     const char*                 c_str1() const
                                     { return _str1.c_str(); }
     const char*                 c_str2() const
                                     { return _str2.c_str(); }
-    void                        debug(int buffer_pos = 0, int count = 0) const;
+    void                        debug(ssize_t buffer_pos = 0, int count = 0) const;
     uint8_t                     flag() const
                                     { return _flag; }
     void                        flag(uint8_t flag)
@@ -1974,21 +2049,23 @@ public:
     void                        insert_str1(const char* in)
                                     { _str1 = in + _str1; }
     bool                        is_backspace() const
-                                    { return _flag & FLAG_BACKSPACE; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::BACKSPACE); }
     bool                        is_custom1() const
-                                    { return _flag & FLAG_CUSTOM1; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::CUSTOM1); }
     bool                        is_custom2() const
-                                    { return _flag & FLAG_CUSTOM2; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::CUSTOM2); }
     bool                        is_delete() const
-                                    { return _flag & FLAG_DELETE; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::ERASED); }
     bool                        is_insert() const
-                                    { return _flag & FLAG_INSERT; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::INSERT); }
+    bool                        is_nil() const
+                                    { return _flag == static_cast<uint8_t>(EVENT::NIL); }
     bool                        is_null() const
                                     { return _str1.length() == 0; }
     bool                        is_replace() const
-                                    { return _flag & FLAG_REPLACE; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::REPLACE); }
     bool                        is_selected() const
-                                    { return _flag & FLAG_SELECTED; }
+                                    { return _flag & static_cast<uint8_t>(EVENT::SELECTED); }
     int                         len1() const
                                     { return (int) _str1.length(); }
     int                         len2() const
@@ -1998,7 +2075,7 @@ public:
     void                        pos(int32_t pos)
                                     { _pos = pos; }
     uint32_t                    size() const
-                                    { return (uint32_t) (UndoEvent::NumberSize() + _str1.length() + 1 + _str2.length() + 1); }
+                                    { return static_cast<uint32_t>(Event::NumberSize() + _str1.length() + 1 + _str2.length() + 1); }
     std::string                 str1() const
                                     { return _str1; }
     void                        str1(const char* in)
@@ -2012,60 +2089,136 @@ public:
     int                         str2_toint(int r[3]) const
                                     { return string::toints(_str2, r, 3); }
     static inline uint32_t      NumberSize()
-                                    { return (uint32_t) (sizeof(_flag) + sizeof(_group) + sizeof(_pos)); }
+                                    { return static_cast<uint32_t>(sizeof(_flag) + sizeof(_group) + sizeof(_pos)); }
 private:
+    ssize_t                     _capacity() const;
     uint8_t                     _flag;
     uint16_t                    _group;
     int32_t                     _pos;
     std::string                 _str1;
     std::string                 _str2;
 };
-class UndoBuffer {
-friend class Undo;
+class Store {
+    friend class Undo;
 public:
-                                UndoBuffer(const UndoBuffer&) = delete;
-                                UndoBuffer(UndoBuffer&&) = delete;
-    UndoBuffer&                 operator=(const UndoBuffer&) = delete;
-    UndoBuffer&                 operator=(UndoBuffer&&) = delete;
-                                UndoBuffer()
+                                Store(const Store&) = delete;
+                                Store(Store&&) = delete;
+    Store&                      operator=(const Store&) = delete;
+    Store&                      operator=(Store&&) = delete;
+                                Store()
+                                    { ; }
+    virtual                     ~Store()
+                                    { ; }
+    virtual ssize_t             capacity() const = 0;
+    virtual void                clear() = 0;
+    virtual ssize_t             cursor() const = 0;
+    virtual ssize_t             debug(bool all = false) const = 0;
+    virtual const Event         get_node() const = 0;
+    virtual const Event         get_node(ssize_t cursor) const = 0;
+    virtual bool                go_left() = 0;
+    virtual bool                go_left(ssize_t& cursor) const = 0;
+    virtual bool                go_right() = 0;
+    virtual bool                go_right(ssize_t& cursor) const = 0;
+    virtual void                go_right_before_cut() = 0;
+    virtual bool                has_left() const = 0;
+    virtual bool                has_right() const = 0;
+    virtual bool                is_cursor_at_end() const = 0;
+    virtual const Event         peek_left() const = 0;
+    virtual const Event         peek_right() const = 0;
+    virtual void                pop() = 0;
+    virtual void                set_node(const Event& node) = 0;
+    virtual ssize_t             size() const = 0;
+protected:
+    enum class MOVE : int {
+                                LEFT  = -1,
+                                END   = 0,
+                                RIGHT = 1,
+    };
+};
+class BufferStore : public Store {
+    friend class Undo;
+public:
+                                BufferStore(const BufferStore&) = delete;
+                                BufferStore(BufferStore&&) = delete;
+    BufferStore&                operator=(const BufferStore&) = delete;
+    BufferStore&                operator=(BufferStore&&) = delete;
+                                BufferStore()
                                     { _buf = nullptr; clear(); }
-                                ~UndoBuffer()
+                                ~BufferStore()
                                     { free(_buf); }
-    bool                        buffer_decrease();
-    bool                        buffer_increase(int64_t requested_bcap);
-    int64_t                     capacity() const
+    ssize_t                     capacity() const override
                                     { return _bcap; }
-    void                        clear();
-    int64_t                     cursor() const
-                                    { auto left = _bcur; go_left(left); return _move < UndoBuffer::MOVING_RIGHT ? left : _bcur; }
-    int64_t                     debug(int all = 0) const;
-    const UndoEvent             get_node() const
+    void                        clear() override;
+    ssize_t                     cursor() const override
+                                    { auto left = _bcur; go_left(left); return (_move < MOVE::RIGHT) ? left : _bcur; }
+    ssize_t                     debug(bool all = false) const override;
+    const Event                 get_node() const override
                                     { return get_node(_bcur); }
-    const UndoEvent             get_node(int64_t cursor) const;
-    bool                        go_left();
-    bool                        go_left(int64_t& cursor) const;
-    bool                        go_right();
-    bool                        go_right(int64_t& cursor) const;
-    void                        go_right_before_cut();
-    bool                        has_left() const
-                                    { auto test = _bcur; go_left(test); return _move == UndoBuffer::MOVING_RIGHT || test >= 0; }
-    bool                        has_right() const
-                                    { auto test = _bcur; go_right(test); return _move == UndoBuffer::MOVING_LEFT || test < _bend; }
-    bool                        is_cursor_at_end() const
+    const Event                 get_node(ssize_t cursor) const override;
+    bool                        go_left() override;
+    bool                        go_left(ssize_t& cursor) const override;
+    bool                        go_right() override;
+    bool                        go_right(ssize_t& cursor) const override;
+    void                        go_right_before_cut() override;
+    bool                        has_left() const override
+                                    { auto test = _bcur; go_left(test); return _move == MOVE::RIGHT || test >= 0; }
+    bool                        has_right() const override
+                                    { auto test = _bcur; go_right(test); return _move == MOVE::LEFT || test < _bend; }
+    bool                        is_cursor_at_end() const override
                                     { return _bcur == _bend; }
-    const UndoEvent             peek_left() const;
-    const UndoEvent             peek_right() const;
-    void                        pop();
-    void                        set_node(const UndoEvent& node);
+    const Event                 peek_left() const override;
+    const Event                 peek_right() const override;
+    void                        pop() override;
+    void                        set_node(const Event& node) override;
+    ssize_t                     size() const override
+                                    { return _bcur; }
 private:
-    static const int            MOVING_LEFT  = -1;
-    static const int            MOVING_END   =  0;
-    static const int            MOVING_RIGHT =  1;
+    bool                        _buffer_decrease();
+    bool                        _buffer_increase(ssize_t requested_bcap);
     char*                       _buf;
-    int                         _move;
-    int64_t                     _bcap;
-    int64_t                     _bcur;
-    int64_t                     _bend;
+    MOVE                        _move;
+    ssize_t                     _bcap;
+    ssize_t                     _bcur;
+    ssize_t                     _bend;
+};
+class VectorStore : public Store {
+    friend class Undo;
+public:
+                                VectorStore(const VectorStore&) = delete;
+                                VectorStore(VectorStore&&) = delete;
+    VectorStore&                operator=(const VectorStore&) = delete;
+    VectorStore&                operator=(VectorStore&&) = delete;
+                                VectorStore()
+                                    { clear(); }
+    ssize_t                     capacity() const override;
+    void                        clear() override;
+    ssize_t                     cursor() const override
+                                    { auto left = _cur; go_left(left); return (_move < MOVE::RIGHT) ? left : _cur; }
+    ssize_t                     debug(bool all = false) const override;
+    const Event                 get_node() const override
+                                    { return get_node(_cur); }
+    const Event                 get_node(ssize_t cursor) const override;
+    bool                        go_left() override;
+    bool                        go_left(ssize_t& cursor) const override;
+    bool                        go_right() override;
+    bool                        go_right(ssize_t& cursor) const override;
+    void                        go_right_before_cut() override;
+    bool                        has_left() const override
+                                    { auto test = _cur; go_left(test); return _move == MOVE::RIGHT || test >= 0; }
+    bool                        has_right() const override
+                                    { auto test = _cur; go_right(test); return _move == MOVE::LEFT || test < static_cast<ssize_t>(_events.size()); }
+    bool                        is_cursor_at_end() const override
+                                    { return _cur == static_cast<ssize_t>(_events.size()); }
+    const Event                 peek_left() const override;
+    const Event                 peek_right() const override;
+    void                        pop() override;
+    void                        set_node(const Event& node) override;
+    ssize_t                     size() const override
+                                    { return _cur; }
+private:
+    std::vector<Event>          _events;
+    ssize_t                     _cur;
+    MOVE                        _move;
 };
 class Undo {
 public:
@@ -2073,16 +2226,20 @@ public:
                                 Undo(Undo&&) = delete;
     Undo&                       operator=(const Undo&) = delete;
     Undo&                       operator=(Undo&&) = delete;
-                                Undo();
-    void                        add(FDELKEY delkey, bool selection, int pos, const char* inserted_text, const int inserted_size, const char* deleted_text = nullptr, const int deleted_size = 0);
+                                Undo(Store* store);
+                                ~Undo()
+                                    { delete _store; }
+    [[nodiscard]] STATUS        add(FDELKEY delkey, bool selection, int pos, const char* inserted_text, const int inserted_size, const char* deleted_text = nullptr, const int deleted_size = 0);
     void                        add_custom1(std::string str1)
-                                    { auto custom = UndoEvent(UndoEvent::FLAG_CUSTOM1, _group, -1, str1.c_str()); _push_node_to_buf(custom); }
-    int64_t                     capacity() const
-                                    { return _buf.capacity(); }
+                                    { auto custom = Event(static_cast<uint8_t>(EVENT::CUSTOM1), _group, -1, str1.c_str()); _push_node_to_buf(custom); }
+    ssize_t                     capacity() const
+                                    { return _store->capacity(); }
     void                        clear();
     void                        clear_custom1()
-                                    { _custom1 = UndoEvent(); }
-    int64_t                     debug(int all = 0);
+                                    { _custom1 = Event(); }
+    ssize_t                     debug(bool all = false);
+    void                        disable_type(uint16_t counter)
+                                    { _disable_type = counter; }
     void                        group_add()
                                     { if (_group_lock == false) _group++; }
     void                        group_lock()
@@ -2092,42 +2249,48 @@ public:
     void                        group_unlock_and_add()
                                     { _group_lock = false; _group++; }
     bool                        has_redo() const
-                                    { return _buf.has_right(); }
+                                    { return _store->has_right(); }
     bool                        has_undo() const
-                                    { return _buf.has_left(); }
+                                    { return _store->has_left(); }
     bool                        is_at_save_point() const
-                                    { return _save_point == _buf.cursor(); }
+                                    { return _save_point == _store->cursor(); }
     bool                        is_group_locked() const
                                     { return _group_lock; }
-    UndoEvent                   peek_redo() const
-                                    { return _buf.peek_right(); }
-    UndoEvent                   peek_undo() const
-                                    { return _buf.peek_left(); }
+    Event                       peek_redo() const
+                                    { return _store->peek_right(); }
+    Event                       peek_undo() const
+                                    { return _store->peek_left(); }
     void                        prepare_custom1(std::string str1)
-                                    { _custom1 = UndoEvent(UndoEvent::FLAG_CUSTOM1, _group, -1, str1.c_str()); }
+                                    { _custom1 = Event(static_cast<uint8_t>(EVENT::CUSTOM1), _group, -1, str1.c_str()); }
     void                        prepare_custom2(const char* str2)
                                     { _custom2 = str2; }
-    UndoEvent                   redo()
-                                    { _prev_type = Token::NIL; return (_buf.go_right() == true) ? _buf.get_node() : UndoEvent(); }
+    Event                       redo()
+                                    { _prev_type = Token::NIL; return (_store->go_right() == true) ? _store->get_node() : Event(); }
     void                        set_save_point()
-                                    { _save_point = _buf.cursor(); }
-    UndoEvent                   undo()
-                                    { _prev_type = Token::NIL; return (_buf.go_left() == true) ? _buf.get_node() : UndoEvent(); }
+                                    { _save_point = _store->cursor(); }
+    ssize_t                     size() const
+                                    { return _store->size(); }
+    Event                       undo()
+                                    { _prev_type = Token::NIL; return (_store->go_left() == true) ? _store->get_node() : Event(); }
 private:
-    void                        _add(UndoEvent* last, uint8_t flag, int pos, const char* str1, const char* str2 = "");
-    bool                        _append_to_node(UndoEvent* last, uint8_t flag, int pos, const char* str1);
+    static const uint16_t       BREAK_APPEND_AT = 8;
+    STATUS                      _add(Event* last, uint8_t flag, int pos, const char* str1, const char* str2 = "");
+    STATUS                      _append_to_node(Event* last, uint8_t flag, int pos, const char* str);
     bool                        _is_cursor_at_end() const
-                                    { return _buf.is_cursor_at_end(); }
-    void                        _push_node_to_buf(UndoEvent node);
+                                    { return _store->is_cursor_at_end(); }
+    void                        _push_node_to_buf(Event node);
     Token                       _tokens;
-    UndoBuffer                  _buf;
-    UndoEvent                   _custom1;
-    bool                        _group_lock;
-    int                         _prev_type;
-    int64_t                     _save_point;
+    Store*                      _store;
+    Event                       _custom1;
+    ssize_t                     _save_point;
     std::string                 _custom2;
+    bool                        _group_lock;
+    uint8_t                     _append_len;
+    uint16_t                    _disable_type;
     uint16_t                    _group;
+    uint16_t                    _prev_type;
 };
+}
 }
 #include <FL/Fl_Text_Buffer.H>
 namespace fle {
@@ -2186,15 +2349,16 @@ public:
     int                         delete_indent(int pos, FTAB ftab, unsigned tab_width);
     int                         delete_text_left(int pos, FDELTEXT del);
     int                         delete_text_right(int pos, FDELTEXT del);
+    void                        disable_undo_type(uint16_t counter);
     CursorPos                   duplicate_text();
     Editor*                     editor()
                                     { return _editor; }
-    size_t                      find_lines(std::string filename, std::string find, gnu::PCRE* re, FTRIM ftrim, std::vector<std::string>& out);
+    size_t                      find_lines(std::string filename, std::string find, gnu::pcre8::PCRE* re, FTRIM ftrim, std::vector<std::string>& out);
     CursorPos                   find_replace(std::string find, const char* replace, FSEARCHDIR fsearchdir, FCASECOMPARE fcasecompare, FWORDCOMPARE fwordcompare, FNLTAB fnltab);
     CursorPos                   find_replace_all(std::string find, std::string replace, FSELECTION fselection, FCASECOMPARE fcase, FWORDCOMPARE fword, FNLTAB fnltab);
     CursorPos                   find_replace_regex(std::string find, const char* replace, FNLTAB fnltab);
-    CursorPos                   find_replace_regex_all(gnu::PCRE* regex, std::string replace, FSELECTION fselection, FNLTAB fnltab);
-    gnu::FileBuf                get(FLINEENDING flineending = FLINEENDING::UNIX, bool trim_whitespace = false) const;
+    CursorPos                   find_replace_regex_all(gnu::pcre8::PCRE* regex, std::string replace, FSELECTION fselection, FNLTAB fnltab);
+    gnu::file::Buf              get(FLINEENDING flineending = FLINEENDING::UNIX, bool trim_whitespace = false) const;
     std::string                 get_first(int pos) const;
     std::string                 get_indent(int pos) const;
     std::string                 get_line(int pos) const;
@@ -2205,7 +2369,7 @@ public:
     bool                        get_selection(int& start, int& end, bool expand);
     std::string                 get_text_range_string(int start, int end) const;
     int                         get_word_end(int pos) const;
-    char*                       get_word_left(int pos) const;
+    std::string                 get_word_left(int pos) const;
     int                         get_word_start(int pos, bool move_left) const;
     bool                        has_callback() const
                                     { return mModifyProcs != nullptr; }
@@ -2223,12 +2387,14 @@ public:
     bool                        is_dirty() const
                                     { return _dirty; }
     bool                        is_word(int start, int end, int word_type);
+    void                        lock_undo_tmp()
+                                    { _hack_undo = 2; }
     CursorPos                   move_line(FMOVEV move);
     int                         peek_token(int pos) const;
     CursorPos                   sort(FSORT order);
     CursorPos                   select_color();
     CursorPos                   select_line(bool exclude_newline);
-    CursorPos                   select_pair(bool move_cursor);
+    CursorPos                   select_pair(bool move_cursor, bool& found);
     CursorPos                   select_word();
     void                        set(const char* text, uint64_t fletcher64);
     void                        set_backspace_key()
@@ -2237,11 +2403,11 @@ public:
                                     { _fdelkey = FDELKEY::DEL; }
     void                        set_dirty(bool value, bool force_send = false);
     int                         token(const char* string) const;
-    Undo*                       undo()
+    undo::Undo*                 undo()
                                     { return _undo; }
     CursorPos                   undo_back(bool all, CursorPos cursor);
     bool                        undo_check_save_point();
-    void                        undo_cursor_move_to_statusbar_row(CursorPos& cursor, const UndoEvent& node, bool undo);
+    void                        undo_cursor_move_to_statusbar_row(CursorPos& cursor, const undo::Event& node, bool undo);
     CursorPos                   undo_forward(bool all, CursorPos cursor);
     FUNDO                       undo_mode() const
                                     { return (_undo != nullptr) ? FUNDO::FLE : (mCanUndo != 0) ? FUNDO::FLTK : FUNDO::NONE; }
@@ -2329,23 +2495,24 @@ public:
                                     { return _word.get(c); }
     static void                 CallbackUndo(const int pos, const int inserted_size, const int deleted_size, const int restyled_size, const char* deleted_text, void* v);
 #ifdef DEBUG
-    CursorPos                   _find_replace_regex(gnu::PCRE* regex, const std::string replace, int from, int to, FREGEXTYPE fregextype, bool selection);
+    CursorPos                   _find_replace_regex_all(gnu::pcre8::PCRE* regex, const std::string replace, int from, int to, FREGEXTYPE fregextype, bool selection);
 #endif
 private:
 #ifndef DEBUG
-    CursorPos                   _find_replace_regex(gnu::PCRE* regex, const std::string replace, int from, int to, FREGEXTYPE fregextype, bool selection);
+    CursorPos                   _find_replace_regex_all(gnu::pcre8::PCRE* regex, const std::string replace, int from, int to, FREGEXTYPE fregextype, bool selection);
 #endif
     Config&                     _config;
     Editor*                     _editor;
     FDELKEY                     _fdelkey;
     Token                       _word;
-    Undo*                       _undo;
+    undo::Undo*                 _undo;
     bool                        _dirty;
     bool                        _has_selection;
     bool                        _pause_undo;
     bool                        _style_text;
     char                        _buf[256];
     int                         _count_changes;
+    int                         _hack_undo;
     uint64_t                    _fletcher64;
 };
 }
@@ -2355,16 +2522,23 @@ namespace fle {
 class Editor;
 class FindReplace;
 class StatusBar;
-class AutoCompleteDialog : public Fl_Double_Window {
+class AutoCompleteWin : public Fl_Double_Window {
 public:
-    explicit                    AutoCompleteDialog(Fl_Fontsize fontsize);
+    explicit                    AutoCompleteWin();
     int                         handle(int event) override;
-    int                         populate(const StringSet& words, std::string word);
+    int                         populate(Fl_Fontsize fontsize, const std::set<std::string>& words, std::string word, int word_pos);
     void                        resize(int X, int Y, int W, int H) override;
-    std::string                 run(int x, int y, int w, int h);
-    static void                 Callback(Fl_Widget* w, void* o);
+    std::string                 selected() const;
+    void                        show() override;
+    std::string                 word() const
+                                    { return _word; }
+    int                         word_pos() const
+                                    { return _word_pos; }
 private:
+    Editor*                     _parent;
     Fl_Hold_Browser*            _browser;
+    int                         _word_pos;
+    std::string                 _word;
 };
 class FindBar : public Fl_Group {
 public:
@@ -2472,16 +2646,15 @@ private:
     flw::InputMenu*             _find_input;
     flw::InputMenu*             _replace_input;
 };
-class LineNumDialog : public Fl_Double_Window {
+class GotoLineWin : public Fl_Double_Window {
 public:
-                                LineNumDialog();
+                                GotoLineWin();
     int                         handle(int event) override;
-    void                        resize(int X, int Y, int W, int H) override;
-    int                         run();
-    static void                 Callback(Fl_Widget* w, void* o);
+    int                         line() const;
+    void                        popup(int fs, int X, int Y, int W, int H);
+    void                        set_callback(Fl_Callback* cb, void* editor);
 private:
     Fl_Int_Input*               _input;
-    int                         _line;
 };
 class ReplaceDialog : public Fl_Double_Window {
 public:
@@ -2599,10 +2772,12 @@ public:
                                     { return _bookmarks; }
     TextBuffer&                 buffer()
                                     { return *_buf1; }
+    void                        callback_autocomplete();
     void                        callback_connect()
                                     { _view1->callback_connect(); _buf1->callback_connect(); }
     void                        callback_disconnect()
                                     { _view1->callback_disconnect(); _buf1->callback_disconnect(); }
+    void                        callback_goto();
     void                        callback_output(int add_line = 0);
     Config&                     config()
                                     { return _config; }
@@ -2635,7 +2810,7 @@ public:
                                     { return text_is_dirty() == false && _file_info.fi.filename == ""; }
     FLINEENDING                 file_line_ending() const
                                     { return _file_info.flineending; }
-    std::string                 file_load(std::string filename);
+    std::string                 file_load(std::string filename, bool force_hex = false);
     uint64_t                    file_mtime() const
                                     { return _file_info.fi.mtime; }
     std::string                 file_name() const
@@ -2701,9 +2876,9 @@ public:
     void                        text_cut_to_clipboard() const
                                     { auto text1 = _buf1->selection_text(); _buf1->remove_selection(); Fl::copy(text1, strlen(text1), 2); free(text1); }
     void                        text_duplicate_line_or_selection();
-    gnu::FileBuf                text_get_buffer() const
+    gnu::file::Buf              text_get_buffer() const
                                     { return _buf1->get(); }
-    gnu::FileBuf                text_get_buffer_with_trim_and_line() const
+    gnu::file::Buf              text_get_buffer_with_trim_and_line() const
                                     { return _buf1->get(_file_info.flineending, false); }
     char*                       text_get_selection() const
                                     { return _buf1->selection_text(); }
@@ -2747,8 +2922,8 @@ public:
                                     { return _editor_flags.tab_width; }
     void                        text_to_space();
     void                        text_to_tab();
-    void                        undo_back(bool all = false);
-    void                        undo_forward(bool all = false);
+    int                         undo_back(bool all = false);
+    int                         undo_forward(bool all = false);
     FUNDO                       undo_mode() const
                                     { return _buf1->undo_mode(); }
     void                        update_after_focus();
@@ -2791,8 +2966,14 @@ public:
     static inline void          ShowTweaks()
                                     { dlg::tweaks(); }
 private:
-    static void                 CallbackFind(Fl_Widget* sender, void* data);
+    void                        _remove_autocomplete();
+    int                         _tmp_fixed_fontsize() const
+                                    { return (_config.pref_tmp_fontsize > 0) ? _config.pref_tmp_fontsize : flw::PREF_FIXED_FONTSIZE; }
+    static void                 CallbackAutoComplete(Fl_Widget* sender, void* o);
+    static void                 CallbackFind(Fl_Widget* sender, void* o);
+    static void                 CallbackGoto(Fl_Widget* sender, void* o);
     static void                 CallbackOutput(Fl_Widget* w, void* o);
+    AutoCompleteWin*            _autocomplete;
     Bookmarks                   _bookmarks;
     Config&                     _config;
     CursorPos                   _saved_cursor;
@@ -2800,8 +2981,9 @@ private:
     FileInfo                    _file_info;
     FindBar*                    _findbar;
     Fl_Menu_Button*             _menu;
+    GotoLineWin*                _goto;
     StatusBarInfo               _statusbar_info;
-    StringSet                   _words;
+    FLEStringSet                _words;
     Style*                      _style;
     TextBuffer*                 _buf1;
     TextBuffer*                 _buf2;
@@ -2811,7 +2993,7 @@ private:
     flw::ScrollBrowser*         _output;
     flw::SplitGroup*            _editors;
     flw::SplitGroup*            _main;
-    gnu::PCRE*                  _regex;
+    gnu::pcre8::PCRE*           _regex;
     std::string                 _scheme;
 };
 }
@@ -2821,6 +3003,7 @@ private:
 #include <sys/timeb.h>
 #include <time.h>
 namespace gnu {
+namespace db {
 static int64_t _db_secs_since_epoch() {
 #ifdef _WIN32
     struct timeb timeVal;
@@ -2832,7 +3015,7 @@ static int64_t _db_secs_since_epoch() {
     return ts.tv_sec;
 #endif
 }
-DBRow::DBRow(const std::string KEY, const char* VALUE, const size_t SIZE, const int64_t TIME) {
+Row::Row(const std::string KEY, const char* VALUE, const size_t SIZE, const int64_t TIME) {
     value = nullptr;
     size  = SIZE;
     key   = KEY;
@@ -2846,7 +3029,7 @@ DBRow::DBRow(const std::string KEY, const char* VALUE, const size_t SIZE, const 
     }
     memcpy(value, VALUE, SIZE);
 }
-DBRow::DBRow(const DBRow& r) {
+Row::Row(const Row& r) {
     value = nullptr;
     size  = r.size;
     key   = r.key;
@@ -2860,7 +3043,7 @@ DBRow::DBRow(const DBRow& r) {
     }
     memcpy(value, r.value, r.size);
 }
-DBRow& DBRow::operator=(const DBRow& r) {
+Row& Row::operator=(const Row& r) {
     if (this == &r) {
         return *this;
     }
@@ -2879,12 +3062,12 @@ DBRow& DBRow::operator=(const DBRow& r) {
     memcpy(value, r.value, r.size);
     return *this;
 }
-void DBRow::debug(bool print_value) const {
-    printf("DBRow(%s): size(%u), time(%lld), value(%s)\n", key.c_str(), (unsigned) size, (long long int) time, (print_value == true) ? (value != nullptr) ? value : "NULL" : "not shown");
+void Row::debug(bool print_value) const {
+    printf("Row(%s): size(%u), time(%lld), value(%s)\n", key.c_str(), (unsigned) size, (long long int) time, (print_value == true) ? (value != nullptr) ? value : "NULL" : "not shown");
     fflush(stdout);
 }
-void DBRow::Debug(const DBRowVector& v, bool print_value) {
-    printf("\nDBRow[%d]:\n", (int) v.size());
+void Row::Debug(const Rows& v, bool print_value) {
+    printf("\nRow[%d]:\n", (int) v.size());
     for (const auto& k : v) k.debug(print_value);
 }
 DB::DB() {
@@ -2986,31 +3169,31 @@ bool DB::execute(const std::string sql) {
     }
     return _clear_error_and_free_stmt();
 }
-DBRow DB::get(const std::string key) {
+Row DB::get(const std::string key) {
     if (_sql == nullptr || key == "") {
         _error_invalid_arguments();
-        return DBRow();
+        return Row();
     }
     if (_prepare("SELECT time, value FROM kv WHERE key = ?") == false) {
-        return DBRow();
+        return Row();
     }
     if (sqlite3_bind_text(_stmt, 1, key.c_str(), key.size(), SQLITE_STATIC) != SQLITE_OK) {
         _set_error_and_free_stmt();
-        return DBRow();
+        return Row();
     }
     if (sqlite3_step(_stmt) != SQLITE_ROW) {
         _set_error_and_free_stmt();
-        return DBRow();
+        return Row();
     }
     auto t = sqlite3_column_int64(_stmt, 0);
     auto s = sqlite3_column_bytes(_stmt, 1);
     auto v = static_cast<const char*>(sqlite3_column_blob(_stmt, 1));
-    auto r   = DBRow(key, v, s, t);
+    auto r   = Row(key, v, s, t);
     _clear_error_and_free_stmt();
     return r;
 }
-DBRowVector DB::_get_all(const std::string key, const std::string remove_string_from_key, const int64_t from_time, const int64_t to_time) {
-    auto res = DBRowVector();
+Rows DB::_get_all(const std::string key, const std::string remove_string_from_key, const int64_t from_time, const int64_t to_time) {
+    auto res = Rows();
     auto time = from_time >= 0 && to_time >= 0;
     if (_sql == nullptr) {
         _error_invalid_arguments();
@@ -3024,10 +3207,10 @@ DBRowVector DB::_get_all(const std::string key, const std::string remove_string_
         _set_error_and_free_stmt();
         return res;
     }
-    if (key == "" && time == false && _prepare("SELECT key, time, value FROM kv ORDER BY key") == false) {
+    else if (key == "" && time == false && _prepare("SELECT key, time, value FROM kv ORDER BY key") == false) {
         return res;
     }
-    if (key != "" && time == true && (
+    else if (key != "" && time == true && (
             _prepare("SELECT key, time, value FROM kv WHERE key like ? AND time >= ? AND time <= ? ORDER BY key") == false ||
             sqlite3_bind_text(_stmt, 1, key.c_str(), key.size(), SQLITE_STATIC) != SQLITE_OK ||
             sqlite3_bind_int64(_stmt, 2, from_time) != SQLITE_OK ||
@@ -3036,7 +3219,7 @@ DBRowVector DB::_get_all(const std::string key, const std::string remove_string_
         _set_error_and_free_stmt();
         return res;
     }
-    if (key != "" && time == false && (
+    else if (key != "" && time == false && (
             _prepare("SELECT key, time, value FROM kv WHERE key like ? ORDER BY key") == false ||
             sqlite3_bind_text(_stmt, 1, key.c_str(), key.size(), SQLITE_STATIC) != SQLITE_OK)
         ) {
@@ -3051,7 +3234,7 @@ DBRowVector DB::_get_all(const std::string key, const std::string remove_string_
         if (remove_string_from_key.length() > 0 && remove_string_from_key.length() < k.length() && k.find(remove_string_from_key) == 0) {
             k = k.substr(remove_string_from_key.length());
         }
-        res.push_back(DBRow(k, v, s, t));
+        res.push_back(Row(k, v, s, t));
     }
     if (res.size() == 0) {
         _set_error_and_free_stmt();
@@ -3079,8 +3262,8 @@ bool DB::key(const std::string key) {
     _clear_error_and_free_stmt();
     return true;
 }
-DBRowVector DB::_keys(const std::string key, const std::string remove_string_from_key, const int64_t from_time, const int64_t to_time) {
-    auto res = DBRowVector();
+Rows DB::_keys(const std::string key, const std::string remove_string_from_key, const int64_t from_time, const int64_t to_time) {
+    auto res = Rows();
     auto time = from_time >= 0 && to_time >= 0;
     if (_sql == nullptr) {
         _error_invalid_arguments();
@@ -3121,13 +3304,13 @@ DBRowVector DB::_keys(const std::string key, const std::string remove_string_fro
         if (remove_string_from_key.length() > 0 && remove_string_from_key.length() < k.length() && k.find(remove_string_from_key) == 0) {
             k = k.substr(remove_string_from_key.length());
         }
-        res.push_back(DBRow(k, (const char*) nullptr, (size_t) s, t));
+        res.push_back(Row(k, (const char*) nullptr, (size_t) s, t));
     }
     _clear_error_and_free_stmt();
     return res;
 }
-DBRow DB::Load(std::string& err, const std::string filename, const std::string key) {
-    auto res = DBRow();
+Row DB::Load(std::string& err, const std::string filename, const std::string key) {
+    auto res = Row();
     auto db = DB(filename);
     if (db.is_open() == true) {
         res = db.get(key);
@@ -3135,8 +3318,8 @@ DBRow DB::Load(std::string& err, const std::string filename, const std::string k
     err = db.err_msg;
     return res;
 }
-DBRowVector DB::LoadRows(std::string& err, const std::string filename, const std::string key) {
-    auto res = DBRowVector();
+Rows DB::LoadRows(std::string& err, const std::string filename, const std::string key) {
+    auto res = Rows();
     auto db = DB(filename);
     if (db.is_open() == true) {
         res = db.get_all(key);
@@ -3233,7 +3416,7 @@ bool DB::rename(const std::string key, const std::string new_key) {
     }
     return _clear_error_and_free_stmt_and_return_changes();
 }
-bool DB::Save(std::string& err, const std::string filename, const DBRow& row) {
+bool DB::Save(std::string& err, const std::string filename, const Row& row) {
     auto db  = DB(filename);
     auto res = false;
     if (db.is_open() == true) {
@@ -3251,7 +3434,7 @@ bool DB::Save(std::string& err, const std::string filename, const std::string ke
     err = db.err_msg;
     return res;
 }
-bool DB::SaveRows(std::string& err, const std::string filename, const DBRowVector& rows) {
+bool DB::SaveRows(std::string& err, const std::string filename, const Rows& rows) {
     auto db    = DB(filename);
     auto count = (size_t) 0;
     err = "";
@@ -3305,10 +3488,12 @@ std::string DB::Version() {
     return SQLITE_VERSION;
 }
 }
+}
 #endif
 #include <cstring>
 #include <assert.h>
 namespace gnu {
+namespace pile {
 static const char _PILE_SKEY = '#';
 static const char _PILE_SDAT = '=';
 static const char _PILE_TSTR = '^';
@@ -3344,15 +3529,15 @@ static bool _pile_check_escape(const std::string& str) {
     }
     return false;
 }
-static PileBuf _pile_from_hex(const char* value, size_t len) {
-    if (value == nullptr || len == 0) return PileBuf();
-    if (len % 2 != 0) return PileBuf();
-    auto   buf = PileBuf(len / 2);
+static Buf _pile_from_hex(const char* value, size_t len) {
+    if (value == nullptr || len == 0) return Buf();
+    if (len % 2 != 0) return Buf();
+    auto   buf = Buf(len / 2);
     size_t pos = 0;
     for (size_t f = 0; f < len; f += 2) {
         int8_t c1 = _PILE_BIN[(uint8_t) value[f]];
         int8_t c2 = _PILE_BIN[(uint8_t) value[f + 1]];
-        if (c1 < 0 || c2 < 0) return PileBuf();
+        if (c1 < 0 || c2 < 0) return Buf();
         buf.p[pos++] = c1 * 16 + c2;
     }
     return buf;
@@ -3416,14 +3601,14 @@ static std::vector<std::string> _pile_split(char* string, char split) {
     res.push_back(string);
     return res;
 }
-PileBuf::PileBuf(size_t S) {
+Buf::Buf(size_t S) {
     p = (S < SIZE_MAX) ? static_cast<char*>(calloc(S + 1, 1)) : nullptr;
     if (p == nullptr) {
         throw "error: memory allocation failed";
     }
     s = S;
 }
-PileBuf::PileBuf(const char* P, size_t S) {
+Buf::Buf(const char* P, size_t S) {
     if (P == nullptr) {
         p = nullptr;
         s = 0;
@@ -3437,7 +3622,7 @@ PileBuf::PileBuf(const char* P, size_t S) {
     memcpy(p, P, S);
     s = S;
 }
-PileBuf::PileBuf(const PileBuf& b) {
+Buf::Buf(const Buf& b) {
     if (b.p == nullptr) {
         p = nullptr;
         s = 0;
@@ -3451,7 +3636,7 @@ PileBuf::PileBuf(const PileBuf& b) {
     memcpy(p, b.p, b.s);
     s = b.s;
 }
-PileBuf& PileBuf::operator=(const PileBuf& b) {
+Buf& Buf::operator=(const Buf& b) {
     if (this == &b) {
         return *this;
     }
@@ -3471,7 +3656,7 @@ PileBuf& PileBuf::operator=(const PileBuf& b) {
     s = b.s;
     return *this;
 }
-PileBuf& PileBuf::operator+=(const PileBuf& b) {
+Buf& Buf::operator+=(const Buf& b) {
     if (b.p == nullptr) {
         return *this;
     }
@@ -3490,7 +3675,7 @@ PileBuf& PileBuf::operator+=(const PileBuf& b) {
     s += b.s;
     return *this;
 }
-bool PileBuf::operator==(const PileBuf& other) const {
+bool Buf::operator==(const Buf& other) const {
     return p != nullptr && s == other.s && memcmp(p, other.p, s) == 0;
 }
 void Pile::debug() const {
@@ -3517,11 +3702,11 @@ std::string Pile::export_data() const {
     }
     return res;
 }
-PileBuf Pile::get_buf(std::string section, std::string key) const {
-    if (_pile_check_key(section, key) == false) return PileBuf();
+Buf Pile::get_buf(std::string section, std::string key) const {
+    if (_pile_check_key(section, key) == false) return Buf();
     auto v = _values.find(section + _PILE_SKEY + key);
     if (v == _values.end() || v->second.length() == 0 || v->second.front() == _PILE_TSTR || v->second.front() == _PILE_TESC) {
-        return PileBuf();
+        return Buf();
     }
     return _pile_from_hex(v->second.c_str(), v->second.length());
 }
@@ -3643,277 +3828,268 @@ bool Pile::set_string(std::string section, std::string key, std::string value) {
     return true;
 }
 }
+}
 #ifdef GNU_USE_PCRE
 #include "pcre8.h"
-#include <algorithm>
-#include <cstring>
 #include <cstdarg>
 namespace gnu {
-static std::string _pcre_format(const char* format, ...) {
-    char buf[256];
+namespace pcre8 {
+std::string escape(const std::string& string) {
+    auto res = string;
+    res = pcre8::replace_all(res, "\\", "\\\\");
+    res = pcre8::replace_all(res, "$", "\\$");
+    res = pcre8::replace_all(res, "(", "\\(");
+    res = pcre8::replace_all(res, ")", "\\)");
+    res = pcre8::replace_all(res, "*", "\\*");
+    res = pcre8::replace_all(res, "+", "\\+");
+    res = pcre8::replace_all(res, "-", "\\-");
+    res = pcre8::replace_all(res, ".", "\\.");
+    res = pcre8::replace_all(res, "?", "\\?");
+    res = pcre8::replace_all(res, "[", "\\[");
+    res = pcre8::replace_all(res, "]", "\\]");
+    res = pcre8::replace_all(res, "^", "\\^");
+    res = pcre8::replace_all(res, "{", "\\{");
+    res = pcre8::replace_all(res, "|", "\\|");
+    res = pcre8::replace_all(res, "}", "\\}");
+    return string;
+}
+std::string format512(const char* format, ...) {
+    char buf[512];
     va_list args;
     va_start(args, format);
-    auto n = vsnprintf(buf, 256, format, args);
+    auto n = vsnprintf(buf, 512, format, args);
     va_end(args);
-    return (n < 0 || n >= 256) ? "" : buf;
+    return (n < 0 || n >= 512) ? "Error: to long error message...!" : buf;
 }
-void _pcre_replace(std::string& string, const std::string& find, const std::string& replace) {
-    size_t start = 0;
-    while ((start = string.find(find, start)) != std::string::npos) {
-        string.replace(start, find.length(), replace);
-        start += replace.length();
+std::string replace(const std::string& subject, const Match& match) {
+    std::string res = subject;
+    if (match.start() >= static_cast<int>(res.length())) {
+        return res;
+    }
+    try {
+        res.replace(match.start(), match.count(), match.word());
+    }
+    catch(...) {
+    }
+    return res;
+}
+std::string replace(const std::string& subject, const std::vector<Match>& matches, bool subpattern_only) {
+    if (matches.size() < static_cast<size_t>(1 + subpattern_only)) {
+        return subject;
+    }
+    auto s = subject;
+    for (auto it = matches.rbegin(); it != matches.rend() - subpattern_only; ++it) {
+        s = pcre8::replace(s, *it);
+    }
+    return s;
+}
+std::string replace_all(const std::string& string, const std::string& find, const std::string& replace) {
+    if (find == "") {
+        return string;
+    }
+    try {
+        auto res   = std::string();
+        auto start = (size_t) 0;
+        auto pos   = (size_t) 0;
+        while ((pos = string.find(find, start)) != std::string::npos) {
+            res   += string.substr(start, pos - start);
+            res   += replace;
+            pos   += find.length();
+            start  = pos;
+        }
+        res += string.substr(start);
+        return res;
+    }
+    catch(...) {
+        return string;
     }
 }
+std::string version() {
+    return pcre8::format512("%d.%d", PCRE_MAJOR, PCRE_MINOR);
+}
+void Match::print(int i) const {
+    printf("%3d:  %5d  %5d  %5d  %10s = <%s>\n", i, _start, _count, end(), _name.c_str(), _word.c_str());
+}
+void Match::Print(const std::vector<Match>& vec) {
+    int c = 0;
+    printf("\n---------------------------------------\n");
+    printf("%3s:  %s  %s  %s  %s %s\n", "NUM", "START", "COUNT", "  END", "      NAME =", "<WORD>");
+    printf("---------------------------------------\n");
+    for (auto& m : vec) {
+        m.print(c++);
+    }
+    fflush(stdout);
+}
 PCRE::PCRE() {
-    _pcre = nullptr;
-    clear();
+    _notbol   = false;
+    _notempty = false;
+    _noteol   = false;
+    _pcre     = nullptr;
     pcre_config(PCRE_CONFIG_UTF8, &_utf);
+}
+PCRE::PCRE(const std::string& pattern, bool useutf) {
+    _notbol   = false;
+    _notempty = false;
+    _noteol   = false;
+    _pcre     = nullptr;
+    pcre_config(PCRE_CONFIG_UTF8, &_utf);
+    compile(pattern, useutf);
 }
 PCRE::PCRE(PCRE&& other) {
-    _error   = other._error;
-    _matches = other._matches;
-    _pattern = other._pattern;
-    _pcre    = other._pcre;
-    _subject = other._subject;
-    _utf     = other._utf;
-    memcpy(other._off, _off, PCRE::MAX_CAPTURES * sizeof(int));
+    _error    = other._error;
+    _matches  = other._matches;
+    _notbol   = other._notbol;
+    _notempty = other._notempty;
+    _noteol   = other._noteol;
+    _pattern  = other._pattern;
+    _pcre     = other._pcre;
+    _subject  = other._subject;
+    _utf      = other._utf;
+    memcpy(_off, other._off, PCRE::SIZE_OFF * sizeof(int));
     other._pcre = nullptr;
-}
-PCRE::PCRE(std::string pattern, bool utf) {
-    _pcre = nullptr;
-    clear();
-    pcre_config(PCRE_CONFIG_UTF8, &_utf);
-    compile(pattern, utf);
 }
 PCRE::~PCRE() {
     pcre_free(_pcre);
 }
 PCRE& PCRE::operator=(PCRE&& other) {
     pcre_free(_pcre);
-    _error   = other._error;
-    _matches = other._matches;
-    _pattern = other._pattern;
-    _pcre    = other._pcre;
-    _subject = other._subject;
-    _utf     = other._utf;
-    memcpy(_off, other._off, PCRE::MAX_CAPTURES * sizeof(int));
+    _error    = other._error;
+    _matches  = other._matches;
+    _notbol   = other._notbol;
+    _notempty = other._notempty;
+    _noteol   = other._noteol;
+    _pattern  = other._pattern;
+    _pcre     = other._pcre;
+    _subject  = other._subject;
+    _utf      = other._utf;
+    memcpy(_off, other._off, PCRE::SIZE_OFF * sizeof(int));
     other._pcre = nullptr;
     return *this;
 }
+std::vector<Match> PCRE::capture_all(const std::string& subject, const std::vector<std::string>& names) {
+    auto res = std::vector<Match>();
+    set_names(names);
+    auto m = exec(subject);
+    while (m.size() > 1) {
+        for (auto it = m.begin() + 1; it != m.end(); ++it) {
+            res.push_back(*it);
+        }
+        m = exec_next(m.back());
+    }
+    return res;
+}
 void PCRE::clear() {
     pcre_free(_pcre);
-    memset(_off, 0, PCRE::MAX_CAPTURES * sizeof(int));
-    _matches = 0;
+    _matches.clear();
+    _names.clear();
+    _error   = "";
     _pattern = "";
     _pcre    = nullptr;
     _subject = "";
-    _error   = "";
 }
-bool PCRE::compile(std::string pattern, bool utf) {
+std::string PCRE::compile(const std::string& pattern, bool useutf) {
     clear();
-    if (_utf != 1 && utf == true) {
-        _error = "error: utf is requested but has not been turned on in library";
-        return false;
-    }
-    if (pattern == "") {
-        _error = "error: empty pattern string";
-        return false;
+    if (_utf != 1 && useutf == true) {
+        _error = "Error: utf is requested but has not been enabled in PCRE8!";
+        return _error;
     }
     auto error_str = (const char*) nullptr;
     auto error_off = 0;
-    auto flags     = (utf == true && _utf == 1) ? (PCRE_UTF8 | PCRE_UCP) : 0;
-    _pattern = pattern;
-    _pcre    = pcre_compile(pattern.c_str(), flags, &error_str, &error_off, nullptr);
+    auto flags     = (useutf == true && _utf == 1) ? (PCRE_UTF8 | PCRE_UCP) : 0;
+    _pcre = static_cast<::pcre*>(pcre_compile(pattern.c_str(), flags, &error_str, &error_off, nullptr));
     if (_pcre == nullptr) {
-        _error = _pcre_format("error: %s at char %d", error_str, error_off);
-        return false;
+        _error = pcre8::format512("Error: %s at char %d!", error_str, error_off);
+        return _error;
     }
-    return true;
+    _error = "";
+    _pattern = pattern;
+    return "";
 }
-void PCRE::debug() {
+void PCRE::debug(bool print_matches) {
     printf("PCRE(%d.%d):\n", PCRE_MAJOR, PCRE_MINOR);
-    printf("    compiled: %s\n", (is_compiled() == true) ? "true" : "false");
-    printf("    utf:      %s\n", _utf == 1 ? "true" : "false");
-    printf("    pattern:  \"%s\"\n", _pattern.c_str());
-    printf("    subject:  \"%s\"\n", _subject.c_str());
-    printf("    error:    %s\n", _error.c_str());
-    printf("    length:   %d\n", (int) _subject.length());
-    printf("    matches:  %u\n", (unsigned) _matches);
-    for (size_t f = 0; f < _matches; f++) {
-        auto Start = 0;
-        auto Stop  = 0;
-        offset(f, Start, Stop);
-        printf("    match:    %u: (%2d, %2d)  \"%s\"\n", (unsigned) f, Start, Stop, substr(f).c_str());
-    }
+    printf("    error:       %s\n", _error.c_str());
+    printf("    compiled:    %s\n", (is_compiled() == true) ? "true" : "false");
+    printf("    utf enabled: %s\n", _utf == 1 ? "true" : "false");
+    printf("    pattern:     \"%s\"\n", _pattern.c_str());
+    printf("    subject:     \"%s\"\n", _subject.c_str());
+    printf("    length:      %d\n", (int) _subject.length());
+    printf("    matches:     %d\n", (int) _matches.size());
+    printf("    names:       %d\n", (int) _names.size());
+    if (print_matches) Match::Print(_matches);
     printf("\n");
     fflush(stdout);
 }
-std::string PCRE::Escape(std::string string) {
-    _pcre_replace(string, "\\", "\\\\");
-    _pcre_replace(string, "$", "\\$");
-    _pcre_replace(string, "(", "\\(");
-    _pcre_replace(string, ")", "\\)");
-    _pcre_replace(string, "*", "\\*");
-    _pcre_replace(string, "+", "\\+");
-    _pcre_replace(string, "-", "\\-");
-    _pcre_replace(string, ".", "\\.");
-    _pcre_replace(string, "?", "\\?");
-    _pcre_replace(string, "[", "\\[");
-    _pcre_replace(string, "]", "\\]");
-    _pcre_replace(string, "^", "\\^");
-    _pcre_replace(string, "{", "\\{");
-    _pcre_replace(string, "|", "\\|");
-    _pcre_replace(string, "}", "\\}");
-    return string;
-}
-size_t PCRE::exec(std::string subject, bool not_bol, bool not_eol) {
-    _error   = "";
+std::vector<Match> PCRE::exec(const char* subject, size_t length) {
+    _matches.clear();
     _subject = "";
-    _matches = 0;
     if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        return 0;
+        _error = "Error: pcre is null!";
+        return _matches;
     }
-    memset(_off, 0, PCRE::MAX_CAPTURES * sizeof(int));
-    auto option  = ((not_bol == true) ? PCRE_NOTBOL : 0) | ((not_eol == true) ? PCRE_NOTEOL : 0);
-    auto Matches = pcre_exec(static_cast<pcre*>(_pcre), nullptr, subject.c_str(), subject.length(), 0,  option, _off, PCRE::MAX_CAPTURES);
-    if (Matches > 0) {
-        _subject = subject;
-        _matches = Matches;
+    memset(_off, 0, sizeof(int) * SIZE_OFF);
+    auto option = (_notbol == true ? PCRE_NOTBOL : 0) | (_noteol == true ? PCRE_NOTEOL : 0) | (_notempty == true ? PCRE_NOTEMPTY : 0);
+    auto count  = pcre_exec(static_cast<::pcre*>(_pcre), nullptr, subject, length, 0, option, _off, SIZE_OFF);
+    if (count == 0) {
+        return _matches;
     }
-    return _matches;
+    _subject = subject;
+    return _set_matches(count);
 }
-size_t PCRE::exec_next() {
-    _error = "";
+std::vector<Match> PCRE::exec_next(const Match& last) {
+    _matches.clear();
     if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        _matches = 0;
-        return 0;
+        _error = "Error: pcre is null!";
+        return _matches;
     }
-    if (_matches < 1) {
-        _error = "error: no matches";
-        _matches = 0;
-        return 0;
+    else if (last.end() >= static_cast<int>(_subject.length())) {
+        _error = pcre8::format512("Error: position is our of range (%d >= %d)!", last.end(), _subject.length());
+        return _matches;
     }
-    auto End = this->end(_matches - 1);
-    if (End < 0) {
-        _matches = 0;
-        return 0;
-    }
-    memset(_off, 0, PCRE::MAX_CAPTURES * sizeof(int));
-    auto option  = 0;
-    auto Matches = pcre_exec(static_cast<pcre*>(_pcre), nullptr, _subject.c_str(), _subject.length(), End, option, _off, PCRE::MAX_CAPTURES);
-    _matches = (Matches < 1) ? 0 : Matches;
-    return _matches;
+    memset(_off, 0, sizeof(int) * SIZE_OFF);
+    auto option = (_notbol == true ? PCRE_NOTBOL : 0) | (_noteol == true ? PCRE_NOTEOL : 0) | (_notempty == true ? PCRE_NOTEMPTY : 0);
+    auto count  = pcre_exec(static_cast<::pcre*>(_pcre), nullptr, _subject.c_str(), _subject.length(), last.end(), option, _off, SIZE_OFF);
+    return _set_matches(count);
 }
-bool PCRE::offset(size_t match, int& start, int& end) {
-    start = -1;
-    end   = -1;
-    _error = "";
-    if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        return false;
-    }
-    if (match >= _matches) {
-        _error = "error: match is out of range";
-        return false;
-    }
-    match *= 2;
-    start  = _off[match];
-    end    = _off[match + 1];
-    if (start < 0 || end < 0 || start > end || end > (int) _subject.length()) {
-        _error = "error: match is out of range";
-        start  = -1;
-        end    = -1;
-        return false;
-    }
-    return true;
-}
-bool PCRE::offset(std::string name, int& start, int& end) {
-    return offset(pcre_get_stringnumber(static_cast<pcre*>(_pcre), name.c_str()), start, end);
-}
-std::string PCRE::replace(size_t match, std::string replace) {
-    std::string res = _subject;
-    _error = "";
-    if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        return _subject;
-    }
-    try {
-        auto Start = 0;
-        auto Stop  = 0;
-        if (offset(match, Start, Stop) == true && Stop - Start > 0) {
-            res.replace(Start, Stop - Start, replace);
+Match PCRE::match(const std::string& name) const {
+    for (auto& m : _matches) {
+        if (m.name() == name) {
+            return m;
         }
-        return res;
     }
-    catch(...) {
-        return res;
-    }
+    return Match();
 }
-std::string PCRE::replace(std::vector<std::string> replace, std::string skip) {
-    std::string res = _subject;
-    _error = "";
-    if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        return _subject;
+std::vector<Match> PCRE::_set_matches(int count) {
+    for (int match = 0; match < count; match++) {
+        const char* cap;
+        if (pcre_get_substring(_subject.c_str(), _off, count, match, &cap) < 0) {
+            _error = pcre8::format512("Error: could not retrieve substring (%d)!", match);
+            _matches.clear();
+            return _matches;
+        }
+        auto start = _off[match * 2];
+        auto end   = _off[match * 2 + 1];
+        if (start >= 0 && end >= 0 && start <= end) {
+            _matches.push_back(Match(cap, start, end - start));
+        }
+        pcre_free_substring(cap);
     }
-    size_t match = replace.size();
-    std::reverse(replace.begin(), replace.end());
-    for (auto& s : replace) {
-        try {
-            auto Start = 0;
-            auto Stop  = 0;
-            if (skip.length() > 0 && s == skip) {
+    size_t i = 1;
+    for (const auto& name : _names) {
+        const char* cap;
+        if (pcre_get_named_substring(static_cast<::pcre*>(_pcre), _subject.c_str(), _off, _matches.size(), name.c_str(), &cap) >= 0) {
+            if (i < _matches.size()) {
+                _matches[i].set_name(name);
             }
-            else if (offset(match, Start, Stop) == true && Stop - Start > 0) {
-                res.replace(Start, Stop - Start, s);
-            }
+            i++;
+            pcre_free_substring(cap);
         }
-        catch(...) {
-            _error = "error: exception in replace";
-        }
-        match--;
     }
-    return res;
-}
-std::string PCRE::substr(size_t match) {
-    std::string res;
     _error = "";
-    if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        return "";
-    }
-    auto cap = (const char*) nullptr;
-    if (pcre_get_substring(_subject.c_str(), _off, _matches, match, &cap) < 0) {
-        _error = "error: string not found";
-        return "";
-    }
-    res = cap;
-    pcre_free_substring(cap);
-    return res;
-}
-std::string PCRE::substr(std::string name) {
-    std::string res;
-    _error = "";
-    if (_pcre == nullptr) {
-        _error = "error: pcre is null";
-        return "";
-    }
-    auto cap = (const char*) nullptr;
-    if (pcre_get_named_substring(static_cast<pcre*>(_pcre), _subject.c_str(), _off, _matches, name.c_str(), &cap) < 0) {
-        _error = "error: string not found";
-        return "";
-    }
-    res = cap;
-    pcre_free_substring(cap);
-    return res;
+    return _matches;
 }
 std::string PCRE::to_string() const {
-    return _pcre_format("PCRE(%s): matches=%d, error=%s", _pattern.c_str(), (int) _matches, _error.c_str());
+    return pcre8::format512("PCRE(%s): %s", _pattern.c_str(), _subject.c_str());
 }
-std::string PCRE::Version() {
-    return _pcre_format("%d.%d", PCRE_MAJOR, PCRE_MINOR);
 }
 }
 #endif
@@ -3923,31 +4099,76 @@ std::string PCRE::Version() {
 #include <cstdarg>
 #include <cmath>
 namespace gnu {
-static char* _str_replace(const char* in, size_t in_len, const std::string& find, const std::string& replace, size_t replacements) {
-    auto res      = (char*) nullptr;
+namespace str {
+static char* _format1(const char* format, va_list args, int& len) {
+    char buf[128];
+    len = vsnprintf(buf, 128, format, args);
+    va_end(args);
+    if (len <= 0) {
+        return strdup("");
+    }
+    else if (len < 128) {
+        return strdup(buf);
+    }
+    return nullptr;
+}
+static char* _format2(const char* format, va_list args, int len) {
+    char* buf  = nullptr;
+    int   len2 = 0;
+    len++;
+    buf = static_cast<char*>(malloc(len));
+    len2 = vsnprintf(buf, len, format, args);
+    va_end(args);
+    if (len <= 0 || len2 >= len) {
+        free(buf);
+        return strdup("");
+    }
+    return buf;
+}
+static char* _replace_short(const char* in, const size_t in_len, const char* find, const char* replace, const size_t replace_len, size_t max, size_t& replaced) {
+    assert(replace_len <= 1);
+    auto res      = static_cast<char*>(malloc(in_len + 1));
+    auto cur_len  = (size_t) 0;
+    auto iter     = in;
+    auto iter_end = in + in_len;
+    auto first    = *find;
+    replaced = 0;
+    if (res == nullptr) {
+        return nullptr;
+    }
+    while (iter < iter_end) {
+        if (*iter != first || max == 0) {
+            res[cur_len] = *iter;
+            cur_len++;
+        }
+        else {
+            if (replace_len == 1) {
+                res[cur_len] = *replace;
+                cur_len++;
+            }
+            replaced++;
+            max--;
+        }
+        iter++;
+    }
+    res[cur_len] = 0;
+    auto shrink = static_cast<char*>(realloc(res, cur_len + 1));
+    return (shrink != nullptr) ? shrink : res;
+}
+static char* _replace_long(const char* in, const size_t in_len, const char* find, const size_t find_len, const char* replace, const size_t replace_len, size_t max, size_t& replaced) {
+    auto res      = static_cast<char*>(malloc(in_len + 1));
     auto buf_len  = in_len;
     auto cur_len  = (size_t) 0;
     auto iter     = in;
     auto iter_end = in + in_len;
-    auto first    = *find.c_str();
-    auto f_len    = find.length();
-    auto f_str    = find.c_str();
-    auto r_len    = replace.length();
-    auto r_str    = replace.c_str();
-    auto count    = replacements;
-    if (in_len == 0 || f_len == 0) {
-        return (char*) calloc(1, 1);
-    }
-    if (r_len > f_len) {
-        buf_len *= 2;
-    }
-    res = static_cast<char*>(malloc(buf_len + 1));
+    auto first    = *find;
+    replaced = 0;
     if (res == nullptr) {
-        throw "error: memory allocation failed";
+        return nullptr;
     }
     while (iter < iter_end) {
-        if (count > 0 && *iter == first && strncmp(iter, f_str, f_len) == 0) {
-            size_t size = cur_len + r_len;
+        if (max > 0 && *iter == first && strncmp(iter, find, find_len) == 0) {
+            auto size = cur_len + replace_len;
             if (size >= buf_len) {
                 while (size >= buf_len) {
                     buf_len *= 2;
@@ -3955,16 +4176,22 @@ static char* _str_replace(const char* in, size_t in_len, const std::string& find
                 auto res2 = static_cast<char*>(realloc(res, buf_len));
                 if (res2 == nullptr) {
                     free(res);
-                    throw "error: memory allocation failed";
+                    return nullptr;
                 }
                 else {
                     res = res2;
                 }
             }
-            memcpy(res + cur_len, r_str, r_len);
-            count--;
-            cur_len += r_len;
-            iter += f_len;
+            if (replace_len > 1) {
+                memcpy(res + cur_len, replace, replace_len);
+            }
+            else {
+                *(res + cur_len) = *replace;
+            }
+            replaced += 1;
+            max      -= 1;
+            cur_len  += replace_len;
+            iter     += find_len;
         }
         else {
             if (cur_len + 1 >= buf_len) {
@@ -3972,7 +4199,7 @@ static char* _str_replace(const char* in, size_t in_len, const std::string& find
                 auto res2 = static_cast<char*>(realloc(res, buf_len));
                 if (res2 == nullptr) {
                     free(res);
-                    throw "error: memory allocation failed";
+                    return nullptr;
                 }
                 else {
                     res = res2;
@@ -3984,38 +4211,31 @@ static char* _str_replace(const char* in, size_t in_len, const std::string& find
         }
     }
     res[cur_len] = 0;
-    return res;
+    auto shrink = static_cast<char*>(realloc(res, cur_len + 1));
+    return (shrink != nullptr) ? shrink : res;
 }
-std::string str::format(const char* format, ...) {
-    assert(format);
-    int     l = 128;
-    int     n = 0;
+std::string format(const char* format, ...) {
+    int len = 0;
     va_list args;
-    char    buf1[128];
-    char*   buf2;
+    std::string res;
     va_start(args, format);
-    n = vsnprintf(buf1, l, format, args);
-    va_end(args);
-    if (n <= 0) {
-        return "";
+    auto buf = str::_format1(format, args, len);
+    if (buf != nullptr) {
+        res = buf;
+        free(buf);
+        return res;
     }
-    else if (n < l) {
-        return buf1;
-    }
-    l = n + 1;
-    buf2 = (char*) malloc(l);
     va_start(args, format);
-    n = vsnprintf(buf2, l, format, args);
-    va_end(args);
-    std::string res = buf2;
-    free(buf2);
+    buf = str::_format2(format, args, len);
+    res = buf;
+    free(buf);
     return res;
 }
-std::string str::format_int(const int64_t num, char del) {
+std::string format_int(const int64_t num, char del) {
     auto pos = 0;
     char tmp1[32];
     char tmp2[32];
-    if (del < 1) {
+    if (del < 32) {
         del = 32;
     }
     memset(tmp2, 0, 32);
@@ -4032,7 +4252,30 @@ std::string str::format_int(const int64_t num, char del) {
     std::reverse(r.begin(), r.end());
     return r;
 }
-size_t str::list_append(std::vector<std::string>& strings, std::string string, size_t max_size) {
+std::string format_double(const double num, size_t decimals, char del) {
+    if (num > 9'007'199'254'740'992.0) {
+        return "";
+    }
+    if (del < 32) {
+        del = 32;
+    }
+    if (decimals == 0 || decimals > 9) {
+        return str::format_int(static_cast<int64_t>(num), del);
+    }
+    char fr_str[100];
+    auto int_num    = static_cast<int64_t>(fabs(num));
+    auto double_num = static_cast<double>(fabs(num) - int_num);
+    auto res        = str::format_int(int_num, del);
+    auto n          = snprintf(fr_str, 100, "%.*f", static_cast<int>(decimals), double_num);
+    if (num < 0.0) {
+        res = "-" + res;
+    }
+    if (n > 0 && n < 100) {
+        res += fr_str + 1;
+    }
+    return res;
+}
+size_t list_append(std::vector<std::string>& strings, const std::string& string, size_t max_size) {
     for (auto it = strings.begin(); it != strings.end(); ++it) {
         if (*it == string) {
             strings.erase(it);
@@ -4045,7 +4288,7 @@ size_t str::list_append(std::vector<std::string>& strings, std::string string, s
     }
     return strings.size();
 }
-size_t str::list_insert(std::vector<std::string>& strings, std::string string, size_t max_size) {
+size_t list_insert(std::vector<std::string>& strings, const std::string& string, size_t max_size) {
     for (auto it = strings.begin(); it != strings.end(); ++it) {
         if (*it == string) {
             strings.erase(it);
@@ -4058,27 +4301,55 @@ size_t str::list_insert(std::vector<std::string>& strings, std::string string, s
     }
     return strings.size();
 }
-bool str::is_whitespace(const std::string& str) {
+bool is_whitespace(const std::string& str) {
     for (auto c : str) {
         if (c != 9 && c != 32) return false;
     }
     return true;
 }
-std::string& str::replace(std::string& str, std::string find, std::string replace, size_t max) {
-    auto p = _str_replace(str.c_str(), str.length(), find, replace, max);
-    if (p) str = p;
-    free(p);
+std::string& replace(std::string& str, const std::string& find, const std::string& replace, size_t max) {
+    auto replaced = (size_t) 0;
+    auto res      = (char*) nullptr;
+    if (str == "" || find == "") {
+        return str;
+    }
+    if (find.length() == 1 && replace.length() <= 1) {
+        res = str::_replace_short(str.c_str(), str.length(), find.c_str(), replace.c_str(), replace.length(), max, replaced);
+    }
+    else {
+        res = str::_replace_long(str.c_str(), str.length(), find.c_str(), find.length(), replace.c_str(), replace.length(), max, replaced);
+    }
+    str = res;
+    free(res);
     return str;
 }
-std::string str::replace_const(const std::string& str, std::string find, std::string replace, size_t max) {
-    auto p = _str_replace(str.c_str(), str.length(), find, replace, max);
-    std::string res;
-    if (p) res = p;
-    free(p);
-    return res;
+std::string replace_const(const std::string& str, const std::string& find, const std::string& replace, size_t max) {
+    auto res = str;
+    return str::replace(res, find, replace, max);
 }
-const char* str::reverse(char* str, size_t len) {
-    auto middle = (size_t) (len / 2);
+std::string replace_std(const std::string& string, const std::string& find, const std::string& replace) {
+    if (find == "") {
+        return string;
+    }
+    try {
+        auto res   = std::string();
+        auto start = (size_t) 0;
+        auto pos   = (size_t) 0;
+        while ((pos = string.find(find, start)) != std::string::npos) {
+            res   += string.substr(start, pos - start);
+            res   += replace;
+            pos   += find.length();
+            start  = pos;
+        }
+        res += string.substr(start);
+        return res;
+    }
+    catch(...) {
+        return string;
+    }
+}
+const char* reverse(char* str, size_t len) {
+    auto middle = static_cast<size_t>(len / 2);
     for (size_t f = 0; f < middle; f++) {
         auto e = len - f - 1;
         auto c = str[f];
@@ -4087,40 +4358,7 @@ const char* str::reverse(char* str, size_t len) {
     }
     return str;
 }
-std::vector<std::string> str::split(const std::string& str, char del) {
-    auto res  = std::vector<std::string>();
-    auto prev = (std::string::size_type) 0;
-    auto pos  = (std::string::size_type) 0;
-    while((pos = str.find(del, pos)) != std::string::npos) {
-        auto substring = str.substr(prev, pos - prev);
-        res.push_back(substring);
-        prev = ++pos;
-    }
-    res.push_back(str.substr(prev, pos - prev));
-    return res;
-}
-std::vector<const char*> str::split_fast(char* cstr, char split) {
-    assert(cstr);
-    auto res   = std::vector<const char*>();
-    auto start = cstr;
-    auto end   = cstr + strlen(cstr);
-    auto found = strchr(start, split);
-    if (split == 0) {
-        res.push_back(cstr);
-        return res;
-    }
-    while (found != nullptr) {
-        *found = 0;
-        res.push_back(start);
-        start = found + 1;
-        found = strchr(start, split);
-    }
-    if (start <= end) {
-        res.push_back(start);
-    }
-    return res;
-}
-std::vector<std::string> str::split_std(const std::string& str, std::string split) {
+std::vector<std::string> split(const std::string& str, std::string split) {
     auto res = std::vector<std::string>();
     try {
         if (split == "") {
@@ -4143,24 +4381,50 @@ std::vector<std::string> str::split_std(const std::string& str, std::string spli
     }
     return res;
 }
-std::string str::substr(const std::string& str, std::string::size_type pos, std::string::size_type size, std::string def) {
+std::vector<const char*> split_fast(char* buf, char split) {
+    auto res   = std::vector<const char*>();
+    auto start = buf;
+    auto end   = buf + strlen(buf);
+    auto found = strchr(start, split);
+    if (split == 0) {
+        res.push_back(buf);
+        return res;
+    }
+    while (found != nullptr) {
+        *found = 0;
+        res.push_back(start);
+        start = found + 1;
+        found = strchr(start, split);
+    }
+    if (start <= end) {
+        res.push_back(start);
+    }
+    return res;
+}
+std::string substr(const std::string& str, std::string::size_type pos, std::string::size_type size, const std::string& def) {
     try { return str.substr(pos, size); }
     catch(...) { return def; }
 }
-double str::to_double(std::string str, double def) {
+double to_double(const std::string& str, double def) {
     try { return std::stod(str, 0); }
     catch (...) { return def; }
 }
-long long int str::to_int(std::string str, long long int def) {
+long long int to_int(const std::string& str, long long int def) {
     try { return std::stoll(str, 0, 0); }
     catch (...) { return def; }
 }
-std::string& str::trim(std::string& str) {
+std::string& trim(std::string& str) {
     str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](auto c) { return !std::isspace(c);} ));
     str.erase(std::find_if(str.rbegin(), str.rend(), [](int ch) { return !std::isspace(ch); }).base(), str.end());
     return str;
 }
-size_t str::utf_len(const char* p) {
+std::string trim_const(const std::string& str) {
+    auto s = str;
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](auto c) { return !std::isspace(c);} ));
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
+    return s;
+}
+size_t utf_len(const char* p) {
     auto count = (size_t) 0;
     auto f     = (size_t) 0;
     auto u     = reinterpret_cast<const unsigned char*>(p);
@@ -4193,6 +4457,7 @@ size_t str::utf_len(const char* p) {
         c = u[++f];
     }
     return count;
+}
 }
 }
 #include <ctime>
@@ -4288,20 +4553,15 @@ void Time::SleepMilli(unsigned milliseconds) {
     #define PATH_MAX 1050
 #endif
 namespace gnu {
+namespace file {
 static std::string _FILE_STDOUT_NAME = "";
 static std::string _FILE_STDERR_NAME = "";
 #ifdef _WIN32
 static char* _file_from_wide(const wchar_t* in) {
     auto out_len = WideCharToMultiByte(CP_UTF8, 0, in, -1, nullptr, 0, nullptr, nullptr);
-    auto out     = File::Allocate(nullptr, out_len + 1);
+    auto out     = file::allocate(nullptr, out_len + 1);
     WideCharToMultiByte(CP_UTF8, 0, in, -1, (LPSTR) out, out_len, nullptr, nullptr);
     return (char*) out;
-}
-static wchar_t* _file_to_wide(const char* in) {
-    auto out_len = MultiByteToWideChar(CP_UTF8, 0, in , -1, nullptr , 0);
-    auto out     = reinterpret_cast<wchar_t*>(File::Allocate(nullptr, out_len * sizeof(wchar_t) + sizeof(wchar_t)));
-    MultiByteToWideChar(CP_UTF8, 0, in , -1, out, out_len);
-    return out;
 }
 static int64_t _file_time(FILETIME* ft) {
     int64_t res = (int64_t) ft->dwHighDateTime << 32 | (int64_t) ft->dwLowDateTime;
@@ -4309,18 +4569,25 @@ static int64_t _file_time(FILETIME* ft) {
     res = res - 11644473600;
     return res;
 }
+static wchar_t* _file_to_wide(const char* in) {
+    auto out_len = MultiByteToWideChar(CP_UTF8, 0, in , -1, nullptr , 0);
+    auto out     = reinterpret_cast<wchar_t*>(file::allocate(nullptr, out_len * sizeof(wchar_t) + sizeof(wchar_t)));
+    MultiByteToWideChar(CP_UTF8, 0, in , -1, out, out_len);
+    return out;
+}
 #endif
-static FileBuf _file_close_redirect(int type) {
+static std::string _file_substr(const std::string& in, std::string::size_type pos, std::string::size_type size = std::string::npos);
+static Buf _file_close_redirect(int type) {
     std::string fname;
     FILE* fhandle;
     if (type == 2) {
-        if (_FILE_STDERR_NAME == "") return FileBuf();
+        if (_FILE_STDERR_NAME == "") return Buf();
         fname = _FILE_STDERR_NAME;
         fhandle = stderr;
         _FILE_STDERR_NAME = "";
     }
     else {
-        if (_FILE_STDOUT_NAME == "") return FileBuf();
+        if (_FILE_STDOUT_NAME == "") return Buf();
         fname = _FILE_STDOUT_NAME;
         fhandle = stdout;
         _FILE_STDOUT_NAME = "";
@@ -4333,8 +4600,8 @@ static FileBuf _file_close_redirect(int type) {
     auto r = freopen("/dev/tty", "w", fhandle);
     (void) r;
 #endif
-    auto res = File::Read(fname);
-    File::Remove(fname);
+    auto res = file::read(fname);
+    file::remove(fname);
     return res;
 }
 static bool _file_open_redirect(int type) {
@@ -4343,12 +4610,12 @@ static bool _file_open_redirect(int type) {
     FILE* fhandle = nullptr;
     if (type == 2) {
         if (_FILE_STDERR_NAME != "") return res;
-        fname = _FILE_STDERR_NAME = File::TmpFile("stderr_").filename;
+        fname = _FILE_STDERR_NAME = file::tmp_file("stderr_").filename;
         fhandle = stderr;
     }
     else {
         if (_FILE_STDOUT_NAME != "") return res;
-        fname = _FILE_STDOUT_NAME = File::TmpFile("stdout_").filename;
+        fname = _FILE_STDOUT_NAME = file::tmp_file("stdout_").filename;
         fhandle = stdout;
     }
 #ifdef _WIN32
@@ -4370,6 +4637,41 @@ static int _file_rand() {
     INIT = true;
     return rand() % 10'000;
 }
+static void _file_read(std::string path, Buf& buf) {
+    assert(buf.p == nullptr && buf.s == 0);
+    File file(path);
+    if (file.is_file() == false || static_cast<long long unsigned int>(file.size) > SIZE_MAX) {
+        return;
+    }
+    auto out = file::allocate(nullptr, file.size + 1);
+    if (file.size == 0) {
+        buf.p = out;
+        return;
+    }
+    auto handle = file::open(file.filename, "rb");
+    if (handle == nullptr) {
+        free(out);
+        return;
+    }
+    else if (fread(out, 1, file.size, handle) != (size_t) file.size) {
+        fclose(handle);
+        free(out);
+    }
+    else {
+        fclose(handle);
+        buf.p = out;
+        buf.s = file.size;
+    }
+}
+static void _file_read_dir_rec(Files& res, Files& files) {
+    for (auto& file : files) {
+        res.push_back(file);
+        if (file.type == file::TYPE::DIR && file.link == false && file.is_circular() == false) {
+            auto v = file::read_dir(file.filename);
+            _file_read_dir_rec(res, v);
+        }
+    }
+}
 static std::string& _file_replace_all(std::string& string, const std::string& find, const std::string& replace) {
     if (find == "") {
         return string;
@@ -4382,74 +4684,6 @@ static std::string& _file_replace_all(std::string& string, const std::string& fi
         }
         return string;
     }
-}
-static std::string _file_substr(const std::string& in, std::string::size_type pos, std::string::size_type size = std::string::npos) {
-    try { return in.substr(pos, size); }
-    catch(...) { return ""; }
-}
-static void _file_sync(FILE* file) {
-    if (file != nullptr) {
-#ifdef _WIN32
-        auto handle = (HANDLE) _get_osfhandle(_fileno(file));
-        if (handle != INVALID_HANDLE_VALUE) {
-            FlushFileBuffers(handle);
-        }
-#else
-        fsync(fileno(file));
-#endif
-    }
-}
-static const std::string _file_to_absolute_path(const std::string& in, bool realpath) {
-    std::string res;
-    auto name = in;
-    if (name == "") {
-        return "";
-    }
-#ifdef _WIN32
-    if (name.find("\\\\") == 0) {
-        res = name;
-        return name;
-    }
-    else if (name.size() < 2 || name[1] != ':') {
-        auto work = File(File::WorkDir());
-        res = work.filename;
-        res += "\\";
-        res += name;
-    }
-    else {
-        res = name;
-    }
-    _file_replace_all(res, "\\", "/");
-    auto len = res.length();
-    _file_replace_all(res, "//", "/");
-    while (len > res.length()) {
-        len = res.length();
-        _file_replace_all(res, "//", "/");
-    }
-    while (res.size() > 3 && res.back() == '/') {
-        res.pop_back();
-    }
-#else
-    if (name[0] != '/') {
-        auto work = File(File::WorkDir());
-        res = work.filename;
-        res += "/";
-        res += name;
-    }
-    else {
-        res = name;
-    }
-    auto len = res.length();
-    _file_replace_all(res, "//", "/");
-    while (len > res.length()) {
-        len = res.length();
-        _file_replace_all(res, "//", "/");
-    }
-    while (res.size() > 1 && res.back() == '/') {
-        res.pop_back();
-    }
-#endif
-    return (realpath == true) ? File::CanonicalName(res) : res;
 }
 static void _file_split_paths(std::string filename, std::string& path, std::string& name, std::string& ext) {
     path = "";
@@ -4500,207 +4734,75 @@ static void _file_split_paths(std::string filename, std::string& path, std::stri
     }
 #endif
 }
-static void _file_read(std::string path, FileBuf& buf) {
-    File file(path);
-    if (file.is_file() == false || (long long unsigned int) file.size > SIZE_MAX) {
-        return;
+static std::string _file_substr(const std::string& in, std::string::size_type pos, std::string::size_type size) {
+    try { return in.substr(pos, size); }
+    catch(...) { return ""; }
+}
+static void _file_sync(FILE* file) {
+    if (file != nullptr) {
+#ifdef _WIN32
+        auto handle = (HANDLE) _get_osfhandle(_fileno(file));
+        if (handle != INVALID_HANDLE_VALUE) {
+            FlushFileBuffers(handle);
+        }
+#else
+        fsync(fileno(file));
+#endif
     }
-    auto out = File::Allocate(nullptr, file.size + 1);
-    if (file.size == 0) {
-        buf.p = out;
-        return;
+}
+static const std::string _file_to_absolute_path(const std::string& in, bool realpath) {
+    std::string res;
+    auto name = in;
+    if (name == "") {
+        return "";
     }
-    auto handle = File::Open(file.filename, "rb");
-    if (handle == nullptr) {
-        free(out);
-        return;
+#ifdef _WIN32
+    if (name.find("\\\\") == 0) {
+        res = name;
+        return name;
     }
-    else if (fread(out, 1, file.size, handle) != (size_t) file.size) {
-        fclose(handle);
-        free(out);
+    else if (name.size() < 2 || name[1] != ':') {
+        auto work = File(file::work_dir());
+        res = work.filename;
+        res += "\\";
+        res += name;
     }
     else {
-        fclose(handle);
-        buf.p = out;
-        buf.s = file.size;
+        res = name;
     }
-}
-static void _file_read_dir_rec(FileVector& res, FileVector& files) {
-    for (auto& file : files) {
-        res.push_back(file);
-        if (file.type == File::TYPE::DIR && file.link == false && file.is_circular() == false) {
-            auto v = File::ReadDir(file.filename);
-            _file_read_dir_rec(res, v);
-        }
+    _file_replace_all(res, "\\", "/");
+    auto len = res.length();
+    _file_replace_all(res, "//", "/");
+    while (len > res.length()) {
+        len = res.length();
+        _file_replace_all(res, "//", "/");
     }
-}
-FileBuf::FileBuf(size_t S) {
-    p = File::Allocate(nullptr, S + 1);
-    s = S;
-}
-FileBuf::FileBuf(const char* P, size_t S) {
-    if (P == nullptr) {
-        p = nullptr;
-        s = 0;
-        return;
+    while (res.size() > 3 && res.back() == '/') {
+        res.pop_back();
     }
-    p = File::Allocate(nullptr, S + 1);
-    s = S;
-    std::memcpy(p, P, S);
-}
-FileBuf::FileBuf(const FileBuf& b) {
-    if (b.p == nullptr) {
-        p = nullptr;
-        s = 0;
-        return;
-    }
-    p = File::Allocate(nullptr, b.s + 1);
-    s = b.s;
-    std::memcpy(p, b.p, b.s);
-}
-bool FileBuf::operator==(const FileBuf& other) const {
-    return p != nullptr && s == other.s && std::memcmp(p, other.p, s) == 0;
-}
-FileBuf& FileBuf::add(const char* P, size_t S) {
-    if (p == P || P == nullptr) {
-    }
-    else if (p == nullptr) {
-        p = File::Allocate(nullptr, S + 1);
-        std::memcpy(p, P, S);
-        s = S;
-    }
-    else if (S > 0) {
-        auto t = File::Allocate(nullptr, s + S + 1);
-        std::memcpy(t, p, s);
-        std::memcpy(t + s, P, S);
-        free(p);
-        p = t;
-        s += S;
-    }
-    return *this;
-}
-void FileBuf::Count(const char* P, size_t S, size_t count[257]) {
-    assert(P);
-    auto max_line     = 0;
-    auto current_line = 0;
-    std::memset(count, 0, sizeof(size_t) * 257);
-    for (size_t f = 0; f < S; f++) {
-        auto c = (unsigned char) P[f];
-        count[c] += 1;
-        if (current_line > max_line) {
-            max_line = current_line;
-        }
-        if (c == 0 ||c == 10 || c == 13) {
-            current_line = 0;
-        }
-        else {
-            current_line++;
-        }
-    }
-    count[256] = max_line;
-}
-uint64_t FileBuf::Fletcher64(const char* P, size_t S) {
-    if (P == nullptr || S == 0) {
-        return 0;
-    }
-    auto u8data = reinterpret_cast<const uint8_t*>(P);
-    auto dwords = (uint64_t) S / 4;
-    auto sum1   = (uint64_t) 0;
-    auto sum2   = (uint64_t) 0;
-    auto data32 = reinterpret_cast<const uint32_t*>(u8data);
-    auto left   = (uint64_t) 0;
-    for (size_t f = 0; f < dwords; ++f) {
-        sum1 = (sum1 + data32[f]) % UINT32_MAX;
-        sum2 = (sum2 + sum1) % UINT32_MAX;
-    }
-    left = S - dwords * 4;
-    if (left > 0) {
-        auto tmp  = (uint32_t) 0;
-        auto byte = reinterpret_cast<uint8_t*>(&tmp);
-        for (auto f = (uint64_t) 0; f < left; ++f) {
-            byte[f] = u8data[dwords * 4 + f];
-        }
-        sum1 = (sum1 + tmp) % UINT32_MAX;
-        sum2 = (sum2 + sum1) % UINT32_MAX;
-    }
-    return (sum2 << 32) | sum1;
-}
-FileBuf FileBuf::InsertCR(const char* P, size_t S, bool dos, bool trailing) {
-    if (P == nullptr || S == 0 || (trailing == false && dos == false)) {
-        return FileBuf();
-    }
-    auto res_size = S;
-    if (dos == true) {
-        for (size_t f = 0; f < S; f++) {
-            res_size += (P[f] == '\n');
-        }
-    }
-    auto res     = File::Allocate(nullptr, res_size + 1);
-    auto restart = std::string::npos;
-    auto res_pos = (size_t) 0;
-    auto p       = (unsigned char) 0;
-    for (size_t f = 0; f < S; f++) {
-        auto c = (unsigned char) P[f];
-        if (trailing == true) {
-            if (c == '\n') {
-                if (restart != std::string::npos) {
-                    res_pos = restart;
-                }
-                restart = std::string::npos;
-            }
-            else if (restart == std::string::npos && (c == ' ' || c == '\t')) {
-                restart = res_pos;
-            }
-            else if (c != ' ' && c != '\t') {
-                restart = std::string::npos;
-            }
-        }
-        if (dos == true && c == '\n' && p != '\r') {
-            res[res_pos++] = '\r';
-        }
-        res[res_pos++] = c;
-        p = c;
-    }
-    res[res_pos] = 0;
-    if (restart != std::string::npos) {
-        res[restart] = 0;
-        res_pos = restart;
-    }
-    return FileBuf::Grab(res, res_pos);
-}
-FileBuf FileBuf::RemoveCR(const char* P, size_t S) {
-    auto res = FileBuf(S);
-    for (size_t f = 0, e = 0; f < S; f++) {
-        auto c = P[f];
-        if (c != 13) {
-            res.p[e++] = c;
-        }
-        else {
-            res.s--;
-        }
-    }
-    return res;
-}
-FileBuf& FileBuf::set(const char* P, size_t S) {
-    if (p == P) {
-    }
-    else if (P == nullptr) {
-        free(p);
-        p = nullptr;
-        s = 0;
+#else
+    if (name[0] != '/') {
+        auto work = File(file::work_dir());
+        res = work.filename;
+        res += "/";
+        res += name;
     }
     else {
-        free(p);
-        p = File::Allocate(nullptr, S + 1);
-        s = S;
-        std::memcpy(p, P, S);
+        res = name;
     }
-    return *this;
+    auto len = res.length();
+    _file_replace_all(res, "//", "/");
+    while (len > res.length()) {
+        len = res.length();
+        _file_replace_all(res, "//", "/");
+    }
+    while (res.size() > 1 && res.back() == '/') {
+        res.pop_back();
+    }
+#endif
+    return (realpath == true) ? file::canonical_name(res) : res;
 }
-bool FileBuf::write(std::string filename) const {
-    return File::Write(filename, p, s);
-}
-char* File::Allocate(char* resize_or_null, size_t size, bool exception) {
+char* allocate(char* resize_or_null, size_t size, bool exception) {
     void* res = nullptr;
     if (resize_or_null == nullptr) {
         res = calloc(size, 1);
@@ -4709,11 +4811,11 @@ char* File::Allocate(char* resize_or_null, size_t size, bool exception) {
         res = realloc(resize_or_null, size);
     }
     if (res == nullptr && exception == true) {
-        throw "error: memory allocation failed in File::Allocate()";
+        throw "error: memory allocation failed in gnu::file::allocate()";
     }
     return (char*) res;
 }
-std::string File::CanonicalName(std::string filename) {
+std::string canonical_name(std::string filename) {
 #if defined(_WIN32)
     wchar_t wres[PATH_MAX];
     auto    wpath = _file_to_wide(filename.c_str());
@@ -4731,19 +4833,19 @@ std::string File::CanonicalName(std::string filename) {
         return filename;
     }
 #elif defined(__linux__)
-    auto path = canonicalize_file_name(filename.c_str());
+    auto path = ::canonicalize_file_name(filename.c_str());
     auto res  = (path != nullptr) ? std::string(path) : filename;
     free(path);
     return res;
 #else
-    auto path = realpath(filename.c_str(), nullptr);
+    auto path = ::realpath(filename.c_str(), nullptr);
     auto res  = (path != nullptr) ? std::string(path) : filename;
     free(path);
     return res;
 #endif
     return "";
 }
-bool File::ChDir(std::string path) {
+bool chdir(std::string path) {
 #ifdef _WIN32
     auto wpath = _file_to_wide(path.c_str());
     auto res   = _wchdir(wpath);
@@ -4753,7 +4855,7 @@ bool File::ChDir(std::string path) {
     return ::chdir(path.c_str()) == 0;
 #endif
 }
-std::string File::CheckFilename(std::string filename) {
+std::string check_filename(std::string filename) {
     static const std::string ILLEGAL = "<>:\"/\\|?*\n\t\r";
     std::string res;
     for (auto& c : filename) {
@@ -4763,7 +4865,7 @@ std::string File::CheckFilename(std::string filename) {
     }
     return res;
 }
-bool File::ChMod(std::string path, int mode) {
+bool chmod(std::string path, int mode) {
     auto res = false;
     if (mode < 0) {
         return false;
@@ -4777,13 +4879,13 @@ bool File::ChMod(std::string path, int mode) {
 #endif
     return res;
 }
-FileBuf File::CloseStderr() {
+Buf close_stderr() {
     return _file_close_redirect(2);
 }
-FileBuf File::CloseStdout() {
+Buf close_stdout() {
     return _file_close_redirect(1);
 }
-bool File::Copy(std::string from, std::string to, CallbackCopy callback, void* data) {
+bool copy(std::string from, std::string to, CallbackCopy callback, void* data) {
 #ifdef DEBUG
     static const size_t BUF_SIZE = 16384;
 #else
@@ -4794,18 +4896,18 @@ bool File::Copy(std::string from, std::string to, CallbackCopy callback, void* d
     if (file1 == file2) {
         return false;
     }
-    auto buf   = File::Allocate(nullptr, BUF_SIZE);
-    auto read  = File::Open(from, "rb");
-    auto write = File::Open(to, "wb");
-    auto count = (int64_t) 0;
-    auto size  = (size_t) 0;
+    auto buf   = file::allocate(nullptr, BUF_SIZE);
+    auto read  = file::open(from, "rb");
+    auto write = file::open(to, "wb");
+    auto count = static_cast<int64_t>(0);
+    auto size  = static_cast<size_t>(0);
     if (read == nullptr || write == nullptr) {
         if (read != nullptr) {
             fclose(read);
         }
         if (write != nullptr) {
             fclose(write);
-            File::Remove(to);
+            file::remove(to);
         }
         free(buf);
         return false;
@@ -4824,14 +4926,40 @@ bool File::Copy(std::string from, std::string to, CallbackCopy callback, void* d
     fclose(write);
     free(buf);
     if (count != file1.size) {
-        File::Remove(to);
+        file::remove(to);
         return false;
     }
-    File::ModTime(to, file1.mtime);
-    File::ChMod(to, file1.mode);
+    file::mod_time(to, file1.mtime);
+    file::chmod(to, file1.mode);
     return true;
 }
-File File::HomeDir() {
+uint64_t fletcher64(const char* P, size_t S) {
+    if (P == nullptr || S == 0) {
+        return 0;
+    }
+    auto u8data = reinterpret_cast<const uint8_t*>(P);
+    auto dwords = static_cast<uint64_t>(S / 4);
+    auto sum1   = static_cast<uint64_t>(0);
+    auto sum2   = static_cast<uint64_t>(0);
+    auto data32 = reinterpret_cast<const uint32_t*>(u8data);
+    auto left   = static_cast<uint64_t>(0);
+    for (size_t f = 0; f < dwords; ++f) {
+        sum1 = (sum1 + data32[f]) % UINT32_MAX;
+        sum2 = (sum2 + sum1) % UINT32_MAX;
+    }
+    left = S - dwords * 4;
+    if (left > 0) {
+        auto tmp  = static_cast<uint32_t>(0);
+        auto byte = reinterpret_cast<uint8_t*>(&tmp);
+        for (auto f = static_cast<uint64_t>(0); f < left; ++f) {
+            byte[f] = u8data[dwords * 4 + f];
+        }
+        sum1 = (sum1 + tmp) % UINT32_MAX;
+        sum2 = (sum2 + sum1) % UINT32_MAX;
+    }
+    return (sum2 << 32) | sum1;
+}
+File home_dir() {
     std::string res;
 #ifdef _WIN32
     wchar_t wpath[PATH_MAX];
@@ -4846,38 +4974,18 @@ File File::HomeDir() {
 #endif
     return File(res);
 }
-bool File::is_circular() const {
-    if (type == TYPE::DIR && link == true) {
-        auto l = canonicalname() + "/";
-        return filename.find(l) == 0;
-    }
-    return false;
-}
-std::string File::linkname() const {
-#ifdef _WIN32
-    return "";
-#else
-    char tmp[PATH_MAX + 1];
-    auto tmp_size = readlink(filename.c_str(), tmp, PATH_MAX);
-    if (tmp_size > 0 && tmp_size < PATH_MAX) {
-        tmp[tmp_size] = 0;
-        return path + "/" + tmp;
-    }
-    return "";
-#endif
-}
-bool File::MkDir(std::string path) {
+bool mkdir(std::string path) {
     bool res = false;
 #ifdef _WIN32
     auto wpath = _file_to_wide(path.c_str());
     res = _wmkdir(wpath) == 0;
     free(wpath);
 #else
-    res = ::mkdir(path.c_str(), File::DEFAULT_DIR_MODE) == 0;
+    res = ::mkdir(path.c_str(), file::DEFAULT_DIR_MODE) == 0;
 #endif
     return res;
 }
-bool File::ModTime(std::string path, int64_t time) {
+bool mod_time(std::string path, int64_t time) {
     auto res = false;
 #ifdef _WIN32
     auto wpath  = _file_to_wide(path.c_str());
@@ -4903,11 +5011,7 @@ bool File::ModTime(std::string path, int64_t time) {
 #endif
     return res;
 }
-std::string File::name_without_ext() const {
-    auto dot = name.find_last_of(".");
-    return (dot == std::string::npos) ? name : name.substr(0, dot);
-}
-FILE* File::Open(std::string path, std::string mode) {
+FILE* open(std::string path, std::string mode) {
     FILE* res = nullptr;
 #ifdef _WIN32
     auto wpath = _file_to_wide(path.c_str());
@@ -4920,7 +5024,7 @@ FILE* File::Open(std::string path, std::string mode) {
 #endif
     return res;
 }
-std::string File::OS() {
+std::string os() {
 #if defined(_WIN32)
     return "windows";
 #elif defined(__APPLE__)
@@ -4933,7 +5037,7 @@ std::string File::OS() {
     return "unknown";
 #endif
 }
-FILE* File::Popen(std::string cmd, bool write) {
+FILE* popen(std::string cmd, bool write) {
     FILE* file = nullptr;
 #ifdef _WIN32
     auto wpath = _file_to_wide(cmd.c_str());
@@ -4947,19 +5051,19 @@ FILE* File::Popen(std::string cmd, bool write) {
 #endif
     return file;
 }
-FileBuf File::Read(std::string path) {
-    FileBuf buf;
+Buf read(std::string path) {
+    Buf buf;
     _file_read(path, buf);
     return buf;
 }
-FileBuf* File::Read2(std::string path) {
-    auto buf = new FileBuf();
+Buf* read2(std::string path) {
+    auto buf = new Buf();
     _file_read(path, *buf);
     return buf;
 }
-FileVector File::ReadDir(std::string path) {
+Files read_dir(std::string path) {
     auto file = File(path, true);
-    auto res  = FileVector();
+    auto res  = Files();
     if (file.type != TYPE::DIR) {
         return res;
     }
@@ -5001,19 +5105,19 @@ FileVector File::ReadDir(std::string path) {
     std::sort(res.begin(), res.end());
     return res;
 }
-FileVector File::ReadDirRec(std::string path) {
-    auto res   = FileVector();
-    auto files = File::ReadDir(path);
+Files read_dir_rec(std::string path) {
+    auto res   = Files();
+    auto files = file::read_dir(path);
     _file_read_dir_rec(res, files);
     return res;
 }
-bool File::RedirectStderr() {
+bool redirect_stderr() {
     return _file_open_redirect(2);
 }
-bool File::RedirectStdout() {
+bool redirect_stdout() {
     return _file_open_redirect(1);
 }
-bool File::Remove(std::string path) {
+bool remove(std::string path) {
     auto f = File(path);
     if (f.type == TYPE::MISSING && f.link == false) {
         return false;
@@ -5029,11 +5133,11 @@ bool File::Remove(std::string path) {
     }
     if (res == false) {
         if (f.type == TYPE::DIR) {
-            File::ChMod(path, File::DEFAULT_DIR_MODE);
+            file::chmod(path, file::DEFAULT_DIR_MODE);
             res = RemoveDirectoryW(wpath);
         }
         else {
-            File::ChMod(path, File::DEFAULT_FILE_MODE);
+            file::chmod(path, file::DEFAULT_FILE_MODE);
             res = DeleteFileW(wpath);
         }
     }
@@ -5048,19 +5152,19 @@ bool File::Remove(std::string path) {
 #endif
     return res;
 }
-bool File::RemoveRec(std::string path) {
+bool remove_rec(std::string path) {
     auto file = File(path, true);
-    if (file == File::HomeDir() || file.path == "") {
+    if (file == file::home_dir() || file.path == "") {
         return false;
     }
-    auto files = File::ReadDirRec(path);
+    auto files = file::read_dir_rec(path);
     std::reverse(files.begin(), files.end());
     for (const auto& file : files) {
-        File::Remove(file.filename);
+        file::remove(file.filename);
     }
-    return File::Remove(path);
+    return file::remove(path);
 }
-bool File::Rename(std::string from, std::string to) {
+bool rename(std::string from, std::string to) {
     auto res    = false;
     auto from_f = File(from);
     auto to_f   = File(to);
@@ -5071,7 +5175,7 @@ bool File::Rename(std::string from, std::string to) {
     auto wfrom = _file_to_wide(from_f.filename.c_str());
     auto wto   = _file_to_wide(to_f.filename.c_str());
     if (to_f.type == TYPE::DIR) {
-        File::RemoveRec(to_f.filename);
+        file::remove_rec(to_f.filename);
         res = MoveFileExW(wfrom, wto, MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH);
     }
     else if (to_f.type == TYPE::MISSING) {
@@ -5084,13 +5188,13 @@ bool File::Rename(std::string from, std::string to) {
     free(wto);
 #else
     if (to_f.type == TYPE::DIR) {
-        File::RemoveRec(to_f.filename);
+        file::remove_rec(to_f.filename);
     }
     res = ::rename(from_f.filename.c_str(), to_f.filename.c_str()) == 0;
 #endif
     return res;
 }
-int File::Run(std::string cmd, bool background, bool hide_win32_window) {
+int run(std::string cmd, bool background, bool hide_win32_window) {
 #ifdef _WIN32
     wchar_t*            cmd_w = _file_to_wide(cmd.c_str());
     STARTUPINFOW        startup_info;
@@ -5124,7 +5228,7 @@ int File::Run(std::string cmd, bool background, bool hide_win32_window) {
     return system(cmd2.c_str());
 #endif
 }
-File File::TmpDir() {
+File tmp_dir() {
     std::string res;
     try {
 #if defined(_WIN32)
@@ -5140,44 +5244,225 @@ File File::TmpDir() {
 #endif
     }
     catch(...) {
-        return File::WorkDir();
+        return file::work_dir();
     }
     return File(res);
 }
-File File::TmpFile(std::string prepend) {
+File tmp_file(std::string prepend) {
     assert(prepend.length() < 50);
     char buf[100];
     snprintf(buf, 100, "%s%04d%04d%04d", prepend.c_str(), _file_rand(), _file_rand(), _file_rand());
-    return File(TmpDir().filename + "/" + buf);
+    return File(tmp_dir().filename + "/" + buf);
 }
-std::string File::to_string(bool short_version) const {
-    char tmp[PATH_MAX + 100];
-    int n = 0;
-    if (short_version == true) {
-        n = snprintf(tmp, PATH_MAX + 100, "File(filename=%s, type=%s, %ssize=%lld, mtime=%lld)",
-            filename.c_str(),
-            type_name().c_str(),
-            link ? "LINK, " : "",
-            (long long int) size,
-            (long long int) mtime);
+File work_dir() {
+    std::string res;
+#ifdef _WIN32
+    auto wpath = _wgetcwd(nullptr, 0);
+    if (wpath != nullptr) {
+        auto path = _file_from_wide(wpath);
+        free(wpath);
+        res = path;
+        free(path);
+    }
+#else
+    auto path = getcwd(nullptr, 0);
+    if (path != nullptr) {
+        res = path;
+        free(path);
+    }
+#endif
+    return File(res);
+}
+bool write(std::string filename, const char* in, size_t in_size) {
+    if (File(filename).type == TYPE::DIR) {
+        return false;
+    }
+    auto tmpfile = filename + ".~tmp";
+    auto file    = file::open(tmpfile, "wb");
+    if (file == nullptr) {
+        return false;
+    }
+    auto wrote = fwrite(in, 1, in_size, file);
+    _file_sync(file);
+    fclose(file);
+    if (wrote != in_size) {
+        file::remove(tmpfile);
+        return false;
+    }
+    else if (file::rename(tmpfile, filename) == false) {
+        file::remove(tmpfile);
+        return false;
+    }
+    return true;
+}
+bool write(std::string filename, const Buf& b) {
+    return write(filename, b.p, b.s);
+}
+Buf::Buf(size_t S) {
+    p = file::allocate(nullptr, S + 1);
+    s = S;
+}
+Buf::Buf(const char* P, size_t S) {
+    if (P == nullptr) {
+        p = nullptr;
+        s = 0;
+        return;
+    }
+    p = file::allocate(nullptr, S + 1);
+    s = S;
+    std::memcpy(p, P, S);
+}
+Buf::Buf(const Buf& b) {
+    if (b.p == nullptr) {
+        p = nullptr;
+        s = 0;
+        return;
+    }
+    p = file::allocate(nullptr, b.s + 1);
+    s = b.s;
+    std::memcpy(p, b.p, b.s);
+}
+bool Buf::operator==(const Buf& other) const {
+    return p != nullptr && s == other.s && std::memcmp(p, other.p, s) == 0;
+}
+Buf& Buf::add(const char* P, size_t S) {
+    if (p == P || P == nullptr) {
+    }
+    else if (p == nullptr) {
+        p = file::allocate(nullptr, S + 1);
+        std::memcpy(p, P, S);
+        s = S;
+    }
+    else if (S > 0) {
+        auto t = file::allocate(nullptr, s + S + 1);
+        std::memcpy(t, p, s);
+        std::memcpy(t + s, P, S);
+        free(p);
+        p = t;
+        s += S;
+    }
+    return *this;
+}
+void Buf::Count(const char* P, size_t S, size_t count[257]) {
+    auto max_line     = 0;
+    auto current_line = 0;
+    std::memset(count, 0, sizeof(size_t) * 257);
+    if (P == nullptr) {
+        return;
+    }
+    for (size_t f = 0; f < S; f++) {
+        auto c = (unsigned char) P[f];
+        count[c] += 1;
+        if (current_line > max_line) {
+            max_line = current_line;
+        }
+        if (c == 0 ||c == 10 || c == 13) {
+            current_line = 0;
+        }
+        else {
+            current_line++;
+        }
+    }
+    count[256] = max_line;
+}
+Buf Buf::InsertCR(const char* P, size_t S, bool dos, bool trailing) {
+    if (P == nullptr || S == 0 || (trailing == false && dos == false)) {
+        return Buf();
+    }
+    auto res_size = S;
+    if (dos == true) {
+        for (size_t f = 0; f < S; f++) {
+            res_size += (P[f] == '\n');
+        }
+    }
+    auto res     = file::allocate(nullptr, res_size + 1);
+    auto restart = std::string::npos;
+    auto res_pos = (size_t) 0;
+    auto p       = (unsigned char) 0;
+    for (size_t f = 0; f < S; f++) {
+        auto c = (unsigned char) P[f];
+        if (trailing == true) {
+            if (c == '\n') {
+                if (restart != std::string::npos) {
+                    res_pos = restart;
+                }
+                restart = std::string::npos;
+            }
+            else if (restart == std::string::npos && (c == ' ' || c == '\t')) {
+                restart = res_pos;
+            }
+            else if (c != ' ' && c != '\t') {
+                restart = std::string::npos;
+            }
+        }
+        if (dos == true && c == '\n' && p != '\r') {
+            res[res_pos++] = '\r';
+        }
+        res[res_pos++] = c;
+        p = c;
+    }
+    res[res_pos] = 0;
+    if (restart != std::string::npos) {
+        res[restart] = 0;
+        res_pos = restart;
+    }
+    return Buf::Grab(res, res_pos);
+}
+Buf Buf::RemoveCR(const char* P, size_t S) {
+    auto res = Buf(S);
+    for (size_t f = 0, e = 0; f < S; f++) {
+        auto c = P[f];
+        if (c != 13) {
+            res.p[e++] = c;
+        }
+        else {
+            res.s--;
+        }
+    }
+    return res;
+}
+Buf& Buf::set(const char* P, size_t S) {
+    if (p == P) {
+    }
+    else if (P == nullptr) {
+        free(p);
+        p = nullptr;
+        s = 0;
     }
     else {
-        n = snprintf(tmp, PATH_MAX + 100, "File(filename=%s, name=%s, ext=%s, path=%s, type=%s, link=%s, size=%lld, mtime=%lld, mode=%o)",
-            filename.c_str(),
-            name.c_str(),
-            ext.c_str(),
-            path.c_str(),
-            type_name().c_str(),
-            link ? "YES" : "NO",
-            (long long int) size,
-            (long long int) mtime,
-            mode > 0 ? mode : 0);
+        free(p);
+        p = file::allocate(nullptr, S + 1);
+        s = S;
+        std::memcpy(p, P, S);
     }
-    return (n > 0 && n < PATH_MAX + 100) ? tmp : "";
+    return *this;
 }
-std::string File::type_name() const {
-    static const char* NAMES[] = { "Missing", "Directory", "File", "Other", "", };
-    return NAMES[static_cast<size_t>(type)];
+bool Buf::write(std::string filename) const {
+    return file::write(filename, p, s);
+}
+bool File::is_circular() const {
+    if (type == TYPE::DIR && link == true) {
+        auto l = canonical_name() + "/";
+        return filename.find(l) == 0;
+    }
+    return false;
+}
+std::string File::linkname() const {
+#ifdef _WIN32
+    return "";
+#else
+    char tmp[PATH_MAX + 1];
+    auto tmp_size = readlink(filename.c_str(), tmp, PATH_MAX);
+    if (tmp_size > 0 && tmp_size < PATH_MAX) {
+        tmp[tmp_size] = 0;
+        return path + "/" + tmp;
+    }
+    return "";
+#endif
+}
+std::string File::name_without_ext() const {
+    auto dot = name.find_last_of(".");
+    return (dot == std::string::npos) ? name : name.substr(0, dot);
 }
 File& File::update() {
     ctime = -1;
@@ -5260,46 +5545,35 @@ File& File::update(std::string in, bool realpath) {
     update();
     return *this;
 }
-File File::WorkDir() {
-    std::string res;
-#ifdef _WIN32
-    auto wpath = _wgetcwd(nullptr, 0);
-    if (wpath != nullptr) {
-        auto path = _file_from_wide(wpath);
-        free(wpath);
-        res = path;
-        free(path);
+std::string File::to_string(bool short_version) const {
+    char tmp[PATH_MAX + 100];
+    int n = 0;
+    if (short_version == true) {
+        n = snprintf(tmp, PATH_MAX + 100, "File(filename=%s, type=%s, %ssize=%lld, mtime=%lld)",
+            filename.c_str(),
+            type_name().c_str(),
+            link ? "LINK, " : "",
+            (long long int) size,
+            (long long int) mtime);
     }
-#else
-    auto path = getcwd(nullptr, 0);
-    if (path != nullptr) {
-        res = path;
-        free(path);
+    else {
+        n = snprintf(tmp, PATH_MAX + 100, "File(filename=%s, name=%s, ext=%s, path=%s, type=%s, link=%s, size=%lld, mtime=%lld, mode=%o)",
+            filename.c_str(),
+            name.c_str(),
+            ext.c_str(),
+            path.c_str(),
+            type_name().c_str(),
+            link ? "YES" : "NO",
+            (long long int) size,
+            (long long int) mtime,
+            mode > 0 ? mode : 0);
     }
-#endif
-    return File(res);
+    return (n > 0 && n < PATH_MAX + 100) ? tmp : "";
 }
-bool File::Write(std::string filename, const char* in, size_t in_size) {
-    if (File(filename).type == TYPE::DIR) {
-        return false;
-    }
-    auto tmpfile = filename + ".~tmp";
-    auto file    = File::Open(tmpfile, "wb");
-    if (file == nullptr) {
-        return false;
-    }
-    auto wrote = fwrite(in, 1, in_size, file);
-    _file_sync(file);
-    fclose(file);
-    if (wrote != in_size) {
-        File::Remove(tmpfile);
-        return false;
-    }
-    else if (File::Rename(tmpfile, filename) == false) {
-        File::Remove(tmpfile);
-        return false;
-    }
-    return true;
+std::string File::type_name() const {
+    static const char* NAMES[] = { "Missing", "Directory", "File", "Other", "", };
+    return NAMES[static_cast<size_t>(type)];
+}
 }
 }
 #include <algorithm>
@@ -5526,40 +5800,37 @@ double util::clock() {
 }
 int util::count_decimals(double num) {
     num = fabs(num);
-    if (num > 9'223'372'036'854'775'807.0) {
+    if (num > 999'999'999'999'999) {
         return 0;
     }
     int    res     = 0;
     char*  end     = 0;
     double inum = static_cast<int64_t>(num);
     double fnum = num - inum;
-    char   buffer[100];
-    if (num > 999'999'999'999'999) {
-        snprintf(buffer, 100, "%.1f", fnum);
-    }
-    else if (num > 9'999'999'999'999) {
-        snprintf(buffer, 100, "%.2f", fnum);
+    char   buffer[400];
+    if (num > 9'999'999'999'999) {
+        snprintf(buffer, 400, "%.1f", fnum);
     }
     else if (num > 999'999'999'999) {
-        snprintf(buffer, 100, "%.3f", fnum);
+        snprintf(buffer, 400, "%.2f", fnum);
     }
     else if (num > 99'999'999'999) {
-        snprintf(buffer, 100, "%.4f", fnum);
+        snprintf(buffer, 400, "%.3f", fnum);
     }
     else if (num > 9'999'999'999) {
-        snprintf(buffer, 100, "%.5f", fnum);
+        snprintf(buffer, 400, "%.4f", fnum);
     }
     else if (num > 999'999'999) {
-        snprintf(buffer, 100, "%.6f", fnum);
+        snprintf(buffer, 400, "%.5f", fnum);
     }
     else if (num > 99'999'999) {
-        snprintf(buffer, 100, "%.7f", fnum);
+        snprintf(buffer, 400, "%.6f", fnum);
     }
     else if (num > 9'999'999) {
-        snprintf(buffer, 100, "%.8f", fnum);
+        snprintf(buffer, 400, "%.7f", fnum);
     }
     else {
-        snprintf(buffer, 100, "%.9f", fnum);
+        snprintf(buffer, 400, "%.8f", fnum);
     }
     size_t len = strlen(buffer);
     end = buffer + len - 1;
@@ -5628,8 +5899,8 @@ std::string util::format(const char* format, ...) {
     return res;
 }
 std::string util::format_double(double num, int decimals, char del) {
-    if (num > 9'223'372'036'854'775'807.0) {
-        return "err";
+    if (num > 9'007'199'254'740'992.0) {
+        return "";
     }
     if (decimals < 0) {
         decimals = util::count_decimals(num);
@@ -5640,20 +5911,16 @@ std::string util::format_double(double num, int decimals, char del) {
     if (decimals == 0 || decimals > 9) {
         return util::format_int(static_cast<int64_t>(num), del);
     }
-    char res[100];
     char fr_str[100];
     auto int_num    = static_cast<int64_t>(fabs(num));
     auto double_num = static_cast<double>(fabs(num) - int_num);
-    auto int_str    = util::format_int(int_num, del);
-    auto len        = snprintf(fr_str, 99, "%.*f", decimals, double_num);
-    *res = 0;
-    if (len > 0 && len < 100) {
-        if (num < 0.0) {
-            res[0] = '-';
-            res[1] = 0;
-        }
-        strncat(res, int_str.c_str(), 99);
-        strncat(res, fr_str + 1, 99);
+    auto res        = util::format_int(int_num, del);
+    auto n          = snprintf(fr_str, 100, "%.*f", decimals, double_num);
+    if (num < 0.0) {
+        res = "-" + res;
+    }
+    if (n > 0 && n < 100) {
+        res += fr_str + 1;
     }
     return res;
 }
@@ -5661,7 +5928,7 @@ std::string util::format_int(int64_t num, char del) {
     auto pos = 0;
     char tmp1[32];
     char tmp2[32];
-    if (del < 1) {
+    if (del < 32) {
         del = 32;
     }
     memset(tmp2, 0, 32);
@@ -5810,16 +6077,24 @@ std::string& util::replace_string(std::string& string, std::string find, std::st
         return string;
     }
     try {
-        size_t start = 0;
-        while ((start = string.find(find, start)) != std::string::npos) {
-            string.replace(start, find.length(), replace);
-            start += replace.length();
+        auto res   = std::string();
+        auto start = static_cast<size_t>(0);
+        auto pos   = static_cast<size_t>(0);
+        res.reserve(string.length() + (replace.length() > find.length() ? string.length() * 0.1 : 0));
+        while ((pos = string.find(find, start)) != std::string::npos) {
+            res   += string.substr(start, pos - start);
+            res   += replace;
+            pos   += find.length();
+            start  = pos;
         }
+        res += string.substr(start);
+        string.swap(res);
+        return string;
     }
     catch(...) {
         string = "";
+        return string;
     }
-    return string;
 }
 void util::sleep(int milli) {
 #ifdef _WIN32
@@ -6322,15 +6597,13 @@ void theme::load_theme_pref(Fl_Preferences& pref) {
     Fl_Tooltip::size(flw::PREF_FONTSIZE);
     _scrollbar();
 }
-void theme::load_win_pref(Fl_Preferences& pref, Fl_Window* window, int show_0_1_2, int defw, int defh, std::string basename) {
+void theme::load_win_pref(Fl_Preferences& pref, Fl_Window* window, bool show, int defw, int defh, std::string basename) {
     assert(window);
-    int  x, y, w, h, f, m;
+    int  x, y, w, h;
     pref.get((basename + "x").c_str(), x, 80);
     pref.get((basename + "y").c_str(), y, 60);
     pref.get((basename + "w").c_str(), w, defw);
     pref.get((basename + "h").c_str(), h, defh);
-    pref.get((basename + "fullscreen").c_str(), f, 0);
-    pref.get((basename + "maximized").c_str(), m, 0);
     if (w == 0 || h == 0) {
         w = 800;
         h = 600;
@@ -6339,19 +6612,17 @@ void theme::load_win_pref(Fl_Preferences& pref, Fl_Window* window, int show_0_1_
         x = 80;
         y = 60;
     }
-    if (show_0_1_2 > 1 && window->shown() == 0) {
+#ifdef _WIN32
+    if (show == true && window->shown() == 0) {
         window->show();
     }
     window->resize(x, y, w, h);
-    if (f == 1) {
-        window->fullscreen();
-    }
-    else if (m == 1) {
-        window->maximize();
-    }
-    if (show_0_1_2 == 1 && window->shown() == 0) {
+#else
+    window->resize(x, y, w, h);
+    if (show == true && window->shown() == 0) {
         window->show();
     }
+#endif
 }
 bool theme::parse(int argc, const char** argv) {
     auto res = false;
@@ -6382,8 +6653,6 @@ void theme::save_win_pref(Fl_Preferences& pref, Fl_Window* window, std::string b
     pref.set((basename + "y").c_str(), window->y());
     pref.set((basename + "w").c_str(), window->w());
     pref.set((basename + "h").c_str(), window->h());
-    pref.set((basename + "fullscreen").c_str(), window->fullscreen_active() ? 1 : 0);
-    pref.set((basename + "maximized").c_str(), window->maximize_active() ? 1 : 0);
 }
 PrintText::PrintText(std::string filename,
     Fl_Paged_Device::Page_Format page_format,
@@ -9481,6 +9750,8 @@ void flw::ScrollBrowser::update_pref(Fl_Font text_font, Fl_Fontsize text_size) {
     labelsize(flw::PREF_FONTSIZE);
     textfont(text_font);
     textsize(text_size);
+    _menu->textfont(text_font);
+    _menu->textsize(text_size);
 }
 #include <FL/fl_draw.H>
 #include <FL/Fl.H>
@@ -9631,7 +9902,7 @@ KeyConf KEYS[(size_t) fle::FKEY_SIZE] = {
 };
 Bookmarks::Bookmarks(Editor* editor, std::string bookmarks) {
     _editor = editor;
-    for (const auto& bookmark : gnu::str::split(bookmarks, ',')) {
+    for (const auto& bookmark : gnu::str::split(bookmarks, ",")) {
         if (bookmark != "") {
             auto pos = gnu::str::to_int(bookmark, -1);
             if (pos != -1) {
@@ -9752,7 +10023,7 @@ Config::Config() {
     disable_tab        = false;
     pref_autocomplete  = true;
     pref_autoreload    = true;
-    pref_backup        = gnu::File();
+    pref_backup        = gnu::file::File();
     pref_binary        = FBINFILE::TEXT;
     pref_cursor        = Fl_Text_Display::NORMAL_CURSOR;
     pref_indentation   = true;
@@ -9821,7 +10092,7 @@ void Config::debug() const {
     printf("    active             = %llx\n", (long long unsigned int) active);
     printf("    id                 = %2d\n", _id);
     printf("    find_words         = %2d\n", (int) find_list.size());
-    printf("    replace_words      = %2d\n", (int) replace_list.size());
+    printf("    custom_words       = %2d\n", (int) custom_words.size());
     printf("    disable_autoreload = %s\n", disable_autoreload ? "true" : "false");
     printf("    disable_lineending = %s\n", disable_lineending ? "true" : "false");
     printf("    disable_style      = %s\n", disable_style ? "true" : "false");
@@ -9844,6 +10115,21 @@ void Config::debug() const {
     fflush(stdout);
 #endif
 }
+size_t Config::load_custom_wordlist(const std::string& filename) {
+    custom_words.clear();
+    if (filename == "") {
+        send_message(message::CUSTOM_AUTOCOMPLETE);
+        return 0;
+    }
+    auto buf = gnu::file::read(filename);
+    if (buf.p == nullptr) {
+        send_message(message::CUSTOM_AUTOCOMPLETE);
+        return 0;
+    }
+    string::make_word_list(buf.p, custom_words);
+    send_message(message::CUSTOM_AUTOCOMPLETE);
+    return custom_words.size();
+}
 void Config::load_pref(Fl_Preferences& preferences, FindReplace* findreplace) {
     auto val = 0;
     std::string s;
@@ -9851,7 +10137,7 @@ void Config::load_pref(Fl_Preferences& preferences, FindReplace* findreplace) {
         preferences.get("fle.autocomplete", val, pref_autocomplete);
         pref_autocomplete = val;
         preferences.get("fle.backup", s, "");
-        gnu::File file(s);
+        gnu::file::File file(s);
         if (file.is_dir() == true) {
             pref_backup = file;
         }
@@ -9861,7 +10147,10 @@ void Config::load_pref(Fl_Preferences& preferences, FindReplace* findreplace) {
             pref_binary = FBINFILE::TEXT;
         }
         else if (val == 2) {
-            pref_binary = FBINFILE::HEX;
+            pref_binary = FBINFILE::HEX_16;
+        }
+        else if (val == 3) {
+            pref_binary = FBINFILE::HEX_32;
         }
         preferences.get("fle.cursor", val, Fl_Text_Display::NORMAL_CURSOR);
         pref_cursor = val;
@@ -10005,10 +10294,6 @@ void Config::load_pref(Fl_Preferences& preferences, FindReplace* findreplace) {
         style::set_tab_type(style::TS, (val == 0) ? FTAB::HARD : FTAB::SOFT);
         preferences.get("fle.syntax.ts.tab_width", val, style::get_tab_width(style::TS));
         style::set_tab_width(style::TS, val);
-        preferences.get("fle.syntax.wren.tab", val, (int) style::get_tab_type(style::WREN));
-        style::set_tab_type(style::WREN, (val == 0) ? FTAB::HARD : FTAB::SOFT);
-        preferences.get("fle.syntax.wren.tab_width", val, style::get_tab_width(style::WREN));
-        style::set_tab_width(style::WREN, val);
     }
     {
         size_t count = 1;
@@ -10111,8 +10396,6 @@ void Config::save_pref(Fl_Preferences& preferences, FindReplace* findreplace) {
     preferences.set("fle.syntax.text.tab_width", (int) style::get_tab_width(style::TEXT));
     preferences.set("fle.syntax.ts.tab", (int) style::get_tab_type(style::TS));
     preferences.set("fle.syntax.ts.tab_width", (int) style::get_tab_width(style::TS));
-    preferences.set("fle.syntax.wren.tab", (int) style::get_tab_type(style::WREN));
-    preferences.set("fle.syntax.wren.tab_width", (int) style::get_tab_width(style::WREN));
     int count = 1;
     for (const auto& find : find_list) {
         auto key = gnu::str::format("find.%d", count++);
@@ -10274,7 +10557,7 @@ void EditorFlags::set_tab_from_string(std::string s) {
 FileInfo::FileInfo() {
     binary      = false;
     fletcher64  = 0;
-    fi          = gnu::File();
+    fi          = gnu::file::File();
     flineending = FLINEENDING::UNIX;
     reload_time = 0;
 }
@@ -10624,7 +10907,7 @@ void KeyConf::LoadPref(Fl_Preferences& preferences) {
     }
 }
 std::string KeyConf::make_help(int w) const {
-    auto        lines = gnu::str::split(help, '|');
+    auto        lines = gnu::str::split(help, "|");
     std::string res;
     for (size_t f = 0; f < lines.size(); f++) {
         if (f == 0) {
@@ -10714,43 +10997,48 @@ void StatusBarInfo::debug() const {
     printf("    column             = %9d\n", col);
 #endif
 }
-gnu::FileBuf string::binary_to_hex(const char* in, size_t in_size) {
-    assert(in);
-    auto size = (size_t) (in_size / 16.0 * 79.0) + 200;
-    auto fbuf = gnu::FileBuf(size);
+gnu::file::Buf string::binary_to_hex(const char* in, size_t in_size, bool wide) {
+    auto W  = 79.0;
+    auto B1 = 16.0;
+    auto B2 = 16;
+    if (wide == true) {
+        W  = 147.0;
+        B1 = 32.0;
+        B2 = 32;
+    }
+    auto size = static_cast<size_t>((in_size / B1 * W) + 200);
+    auto fbuf = gnu::file::Buf(size);
     auto pos  = (size_t) 0;
 #ifdef DEBUG_EDITOR
     auto start = gnu::Time::Milli();
 #endif
     for (size_t f = 0; f < in_size;) {
-        sprintf(fbuf.p + pos, "%08x:", (unsigned int) f);
+        sprintf(fbuf.p + pos, "%08x:", static_cast<unsigned>(f));
         pos += 8;
-        for (int e = 0; e < 16; e++) {
+        for (int e = 0; e < B2; e++) {
             if (f + e < in_size) {
-                auto c = (unsigned char) in[f + e];
+                auto c = static_cast<unsigned char>(in[f + e]);
                 auto h = 2 * c;
                 fbuf.p[pos++] = ' ';
-                fbuf.p[pos++] = _FLE_HEX_STRINGS[h];
-                fbuf.p[pos++] = _FLE_HEX_STRINGS[h + 1];
+                fbuf.p[pos++] = fle::_FLE_HEX_STRINGS[h];
+                fbuf.p[pos++] = fle::_FLE_HEX_STRINGS[h + 1];
             }
             else {
                 fbuf.p[pos++] = ' ';
                 fbuf.p[pos++] = ' ';
                 fbuf.p[pos++] = ' ';
             }
-            if (e == 7) {
+            if (e == 7 || (B2 > 16 && (e == 15 || e == 23))) {
                 fbuf.p[pos++] = ' ';
                 fbuf.p[pos++] = '|';
             }
         }
         fbuf.p[pos++] = ' ';
+        fbuf.p[pos++] = '|';
         fbuf.p[pos++] = ' ';
-        for (int e = 0; e < 16; e++) {
+        for (int e = 0; e < B2; e++) {
             if (f + e < in_size) {
-                auto c = (unsigned char) in[f + e];
-                if (e % 8 == 0) {
-                    fbuf.p[pos++] = ' ';
-                }
+                auto c = static_cast<unsigned char>(in[f + e]);
                 if (c < 32 || c > 126) {
                     fbuf.p[pos++] = '.';
                 }
@@ -10762,18 +11050,18 @@ gnu::FileBuf string::binary_to_hex(const char* in, size_t in_size) {
                 fbuf.p[pos++] = ' ';
             }
         }
-        fbuf.p[pos++] = '\n';
-        fbuf.p[pos] = 0;
-        fbuf.s = pos;
-        f += 16;
+        fbuf.p[pos++]  = '\n';
+        fbuf.p[pos]    = 0;
+        fbuf.s         = pos;
+        f             += B2;
     }
     return fbuf;
 }
-gnu::FileBuf string::binary_to_text(const char* in, size_t in_size) {
+gnu::file::Buf string::binary_to_text(const char* in, size_t in_size) {
     assert(in);
-    auto text_size = (size_t) (in_size + (in_size / 80) + 100);
+    auto text_size = static_cast<size_t>(in_size + (in_size / 80) + 100);
     auto text_pos  = 0;
-    auto fbuf      = gnu::FileBuf(text_size);
+    auto fbuf      = gnu::file::Buf(text_size);
     auto c0        = (unsigned char) 0;
     auto c1        = (unsigned char) 0;
     auto c2        = (unsigned char) 0;
@@ -10783,11 +11071,11 @@ gnu::FileBuf string::binary_to_text(const char* in, size_t in_size) {
     auto start = gnu::Time::Milli();
 #endif
     for (size_t f = 0; f < in_size; f++) {
-        auto c = (unsigned char) in[f];
+        auto c = static_cast<unsigned char>(in[f]);
         if (c >= 0xC2 && c <= 0xDF && f < in_size - 1) {
             c0 = c;
             f++;
-            c1 = (unsigned char) in[f];
+            c1 = static_cast<unsigned char>(in[f]);
             nl++;
             if (c1 >= 0x80 && c1 <= 0xBF) {
                 fbuf.p[text_pos++] = c0;
@@ -10802,9 +11090,9 @@ gnu::FileBuf string::binary_to_text(const char* in, size_t in_size) {
         else if (c >= 0xE0 && c <= 0xEF && f < in_size - 2) {
             c0 = c;
             f++;
-            c1 = (unsigned char) in[f];
+            c1 = static_cast<unsigned char>(in[f]);
             f++;
-            c2 = (unsigned char) in[f];
+            c2 = static_cast<unsigned char>(in[f]);
             nl++;
             if (c1 >= 0x80 && c1 <= 0xBF && c2 >= 0x80 && c2 <= 0xBF) {
                 fbuf.p[text_pos++] = c0;
@@ -10822,11 +11110,11 @@ gnu::FileBuf string::binary_to_text(const char* in, size_t in_size) {
         else if (c >= 0xF0 && c <= 0xF3 && f < in_size - 3) {
             c0 = c;
             f++;
-            c1 = (unsigned char) in[f];
+            c1 = static_cast<unsigned char>(in[f]);
             f++;
-            c2 = (unsigned char) in[f];
+            c2 = static_cast<unsigned char>(in[f]);
             f++;
-            c3 = (unsigned char) in[f];
+            c3 = static_cast<unsigned char>(in[f]);
             nl++;
             if (c1 >= 0x80 && c1 <= 0xBF && c2 >= 0x80 && c2 <= 0xBF && c3 >= 0x80 && c3 <= 0xBF) {
                 fbuf.p[text_pos++] = c0;
@@ -10895,6 +11183,56 @@ bool string::is_one_char(const char* in) {
     }
     return true;
 }
+int string::make_word_list(const char* text, FLEStringSet& words, const FLEStringSet& custom) {
+    auto time     = gnu::Time::Milli();
+    auto tokens   = Token::MakeWord();
+    auto len      = strlen(text);
+    auto word_len = (size_t) 0;
+    auto tmp      = FLEStringHash();
+    char word[limits::AUTOCOMPLETE_WORD_SIZE_MAX + 10];
+    tmp.max_load_factor(0.8);
+    if (len > 1'000'000) {
+        tmp.reserve(50'000);
+    }
+    while (*text != 0) {
+        auto c = (unsigned char) *text;
+        auto t = tokens.get(c);
+        if (t & Token::LETTER) {
+            if (word_len < limits::AUTOCOMPLETE_WORD_SIZE_VAL) {
+                word[word_len] = c;
+                word_len++;
+            }
+        }
+        else if (word_len > 1 && word_len < limits::AUTOCOMPLETE_WORD_SIZE_VAL) {
+            word[word_len] = 0;
+            tmp.insert(word);
+            word_len = 0;
+        }
+        else {
+            word_len = 0;
+        }
+        text++;
+        if (tmp.size() > limits::AUTOCOMPLETE_LINES_VAL) {
+            break;
+        }
+    }
+    if (word_len > 1 && word_len < limits::AUTOCOMPLETE_WORD_SIZE_VAL) {
+        word[word_len] = 0;
+        tmp.insert(word);
+    }
+    for (const auto& w : custom) {
+        tmp.insert(w);
+    }
+    for (const auto& w : tmp) {
+        words.insert(w);
+    }
+    time = gnu::Time::Milli() - time;
+#ifdef DEBUG_EDITOR
+    printf("string::wordlist(%d words from %d bytes) in %u mS\n", (int) words.size(), (int) len, (unsigned) time);
+    fflush(stdout);
+#endif
+    return time;
+}
 void string::replace_char(char* in, char find, char replace) {
     assert(in);
     while (*in != 0) {
@@ -10930,50 +11268,6 @@ int string::toints(const std::string& string, int numbers[], int size, int def) 
 std::string string::tolower(std::string in) {
     std::transform(in.begin(), in.end(), in.begin(), [](unsigned char c) { return std::tolower(c); });
     return in;
-}
-int string::wordlist(const char* text, StringSet& words) {
-    assert(text);
-    auto time     = gnu::Time::Milli();
-    auto tokens   = Token::MakeWord();
-    auto len      = strlen(text);
-    auto word_len = (size_t) 0;
-    auto tmp      = StringHash();
-    char word[limits::AUTOCOMPLETE_WORD_SIZE_MAX + 10];
-    tmp.max_load_factor(0.8);
-    if (len > 1'000'000) {
-        tmp.reserve(50'000);
-    }
-    while (*text != 0) {
-        auto c = (unsigned char) *text;
-        auto t = tokens.get(c);
-        if (t & Token::LETTER) {
-            if (word_len < limits::AUTOCOMPLETE_WORD_SIZE_VAL) {
-                word[word_len] = c;
-                word_len++;
-            }
-        }
-        else if (word_len > 1 && word_len < limits::AUTOCOMPLETE_WORD_SIZE_VAL) {
-            word[word_len] = 0;
-            tmp.insert(word);
-            word_len = 0;
-        }
-        else {
-            word_len = 0;
-        }
-        text++;
-        if (tmp.size() > limits::AUTOCOMPLETE_LINES_VAL) {
-            break;
-        }
-    }
-    for (const auto& w : tmp) {
-        words.insert(w);
-    }
-    time = gnu::Time::Milli() - time;
-#ifdef DEBUG_EDITOR
-    printf("string::wordlist(%d words from %d bytes) in %u mS\n", (int) words.size(), (int) len, (unsigned) time);
-    fflush(stdout);
-#endif
-    return time;
 }
 Token::Token() {
     _char[(unsigned char) 0]    = Token::NIL;
@@ -11071,6 +11365,63 @@ void Token::Debug(unsigned t) {
 #else
     (void) t;
 #endif
+}
+uint16_t Token::get_first(const char* in) const {
+    if (*in == 0) {
+        return Token::NIL;
+    }
+    auto uin = reinterpret_cast<const unsigned char*>(in);
+    if (uin[0] < 128) {
+        return get(uin[0]);
+    }
+    else if (uin[0] >= 240 && uin[0] <= 244) {
+        if (uin[1] < 128 || uin[1] > 191) return Token::NIL;
+        if (uin[2] < 128 || uin[2] > 191) return Token::NIL;
+        if (uin[3] < 128 || uin[3] > 191) return Token::NIL;
+        return get(uin[0]);
+    }
+    else if (uin[0] >= 224 && uin[0] <= 239) {
+        if (uin[1] < 128 || uin[1] > 191) return Token::NIL;
+        if (uin[2] < 128 || uin[2] > 191) return Token::NIL;
+        return get(uin[0]);
+    }
+    else if (uin[0] >= 194 && uin[0] <= 223) {
+        if (uin[1] < 128 || uin[1] > 191) return Token::NIL;
+        return get(uin[0]);
+    }
+    return Token::NIL;
+}
+uint16_t Token::get_last(const char* in, int len) const {
+    if (*in == 0 || len == 0) {
+        return Token::NIL;
+    }
+    auto last = len - 1;
+    auto uin  = reinterpret_cast<const unsigned char*>(in);
+    if (uin[last] < 128) {
+        return get(uin[last]);
+    }
+    else if (len > 3) {
+        uin += last - 3;
+        if (uin[3] < 128 || uin[3] > 191)   return Token::NIL;
+        if (uin[2] >= 194 && uin[2] <= 223) return get(uin[2]);
+        if (uin[2] < 128 || uin[2] > 191)   return Token::NIL;
+        if (uin[1] >= 224 && uin[1] <= 239) return get(uin[1]);
+        if (uin[1] < 128 || uin[1] > 191)   return Token::NIL;
+        if (uin[0] >= 240 && uin[0] <= 244) return get(uin[0]);
+    }
+    else if (len > 2) {
+        uin += last - 2;
+        if (uin[2] < 128 || uin[2] > 191)   return Token::NIL;
+        if (uin[1] >= 194 && uin[1] <= 223) return get(uin[1]);
+        if (uin[1] < 128 || uin[1] > 191)   return Token::NIL;
+        if (uin[0] >= 224 && uin[0] <= 239) return get(uin[0]);
+    }
+    else if (len > 1) {
+        uin += last - 1;
+        if (uin[1] < 128 || uin[1] > 191)   return Token::NIL;
+        if (uin[0] >= 194 && uin[0] <= 223) return get(uin[0]);
+    }
+    return Token::NIL;
 }
 Token Token::MakeWord() {
     auto res = Token();
@@ -11354,7 +11705,6 @@ const char*     FILE_FILTER             = "All files (*)\t"
                                               "Go Files (*.{go})\t"
                                               "Rust files (*.{rs})\t"
                                               "C# files (*.{cs})\t"
-                                              "Wren files (*.{wren})\t"
                                               "JavaScript files (*.{js,jsx,json})\t"
                                               "TypeScript files (*.{ts,tsx})\t"
                                               "PHP files (*{php})\t"
@@ -11732,7 +12082,7 @@ void load_pref(Fl_Preferences& preferences) {
     _load_pref(preferences, "neon", style::_NEON);
     _load_pref(preferences, "tan", style::_TAN);
 }
-Style* make_from_file(const gnu::File& file) {
+Style* make_from_file(const gnu::file::File& file) {
     auto ext = string::tolower(file.ext);
     if (ext == "bat" || ext == "cmd") {
         return new StyleBat();
@@ -11781,9 +12131,6 @@ Style* make_from_file(const gnu::File& file) {
     }
     else if (ext == "ts" || ext == "tsx") {
         return new StyleTS();
-    }
-    else if (ext == "wren") {
-        return new StyleWren();
     }
     else {
         return new Style();
@@ -11837,9 +12184,6 @@ Style* make_from_name(std::string name) {
     }
     else if (name == style::TS) {
         return new StyleTS();
-    }
-    else if (name == style::WREN) {
-        return new StyleWren();
     }
     else {
         return new Style();
@@ -12680,7 +13024,6 @@ StyleCpp::StyleCpp() : StyleDef(style::CPP) {
     insert_word("ifndef", style::WORD_GROUP4);
     insert_word("import", style::WORD_GROUP4);
     insert_word("include", style::WORD_GROUP4);
-    insert_word("line", style::WORD_GROUP4);
     insert_word("module", style::WORD_GROUP4);
     insert_word("pragma", style::WORD_GROUP4);
     insert_word("typedef", style::WORD_GROUP4);
@@ -12703,6 +13046,7 @@ StyleCpp::StyleCpp() : StyleDef(style::CPP) {
     insert_word("static_cast", style::WORD_GROUP8);
     insert_word("thread_local", style::WORD_GROUP8);
     _custom.insert("for (int f = 0; f < 100; f++) {|}");
+    _custom.insert("for (const auto& X ; Y) {|}");
     make_words();
 }
 StyleCS::StyleCS() : StyleDef(style::CS) {
@@ -14361,59 +14705,8 @@ StyleTS::StyleTS() : StyleJS(style::TS) {
     insert_word("namespace", style::WORD_GROUP4);
     make_words();
 }
-StyleWren::StyleWren() : StyleDef(style::WREN) {
-    _line_comment      = "//";
-    _line_comment_size = 2;
-    _block_start       = "/*";
-    _block_start_size  = 2;
-    _block_end         = "*/";
-    _block_end_size    = 2;
-    _hex               = true;
-    _raw_start[0]      = "\"\"\"";
-    _raw_start_size[0] = 3;
-    _raw_end[0]        = "\"\"\"";
-    _raw_end_size[0]   = 3;
-    insert_word("as", style::WORD_GROUP1);
-    insert_word("break", style::WORD_GROUP1);
-    insert_word("class", style::WORD_GROUP1);
-    insert_word("construct", style::WORD_GROUP1);
-    insert_word("continue", style::WORD_GROUP1);
-    insert_word("else", style::WORD_GROUP1);
-    insert_word("for", style::WORD_GROUP1);
-    insert_word("foreign", style::WORD_GROUP1);
-    insert_word("if", style::WORD_GROUP1);
-    insert_word("in", style::WORD_GROUP1);
-    insert_word("is", style::WORD_GROUP1);
-    insert_word("return", style::WORD_GROUP1);
-    insert_word("static", style::WORD_GROUP1);
-    insert_word("super", style::WORD_GROUP1);
-    insert_word("this", style::WORD_GROUP1);
-    insert_word("var", style::WORD_GROUP1);
-    insert_word("while", style::WORD_GROUP1);
-    insert_word("Directory", style::WORD_GROUP2);
-    insert_word("Fiber", style::WORD_GROUP2);
-    insert_word("File", style::WORD_GROUP2);
-    insert_word("FileFlags", style::WORD_GROUP2);
-    insert_word("Fn", style::WORD_GROUP2);
-    insert_word("List", style::WORD_GROUP2);
-    insert_word("Map", style::WORD_GROUP2);
-    insert_word("Meta", style::WORD_GROUP2);
-    insert_word("Null", style::WORD_GROUP2);
-    insert_word("Num", style::WORD_GROUP2);
-    insert_word("Random", style::WORD_GROUP2);
-    insert_word("Stat", style::WORD_GROUP2);
-    insert_word("Stdin", style::WORD_GROUP2);
-    insert_word("Stdout", style::WORD_GROUP2);
-    insert_word("System", style::WORD_GROUP2);
-    insert_word("false", style::WORD_GROUP2);
-    insert_word("null", style::WORD_GROUP2);
-    insert_word("true", style::WORD_GROUP2);
-    insert_word("import", style::WORD_GROUP4);
-    make_words();
-}
 }
 #include <algorithm>
-#define FLE_CLEAR_CHANGED_FLAG
 namespace fle {
 static bool _textbuffer_pair(char c, char& e, bool& forward) {
     switch(c) {
@@ -14529,6 +14822,7 @@ TextBuffer::TextBuffer(Editor* editor, Config& config) : Fl_Text_Buffer(4'096, 8
     _editor        = editor;
     _fdelkey       = FDELKEY::NIL;
     _fletcher64    = 0;
+    _hack_undo     = 0;
     _pause_undo    = false;
     _style_text    = false;
     _undo          = nullptr;
@@ -14581,7 +14875,7 @@ CursorPos TextBuffer::case_for_selection(FCASE fcase) {
     }
     auto text = text_range(cursor.start, cursor.end);
     auto len  = strlen(text);
-    auto buf  = gnu::File::Allocate(nullptr, len * 4 + 1);
+    auto buf  = gnu::file::allocate(nullptr, len * 4 + 1);
     if (fcase == FCASE::LOWER) {
         fl_utf_tolower(reinterpret_cast<const unsigned char*>(text), len, buf);
     }
@@ -14604,6 +14898,7 @@ void TextBuffer::CallbackUndo(const int pos, const int inserted_size, const int 
     assert(pos >= 0);
     auto buffer = static_cast<TextBuffer*>(o);
     auto editor = buffer->_editor;
+    auto added  = undo::STATUS::INIT;
     buffer->_style_text = false;
     if (inserted_size == 0 && deleted_size == 0) {
         return;
@@ -14618,13 +14913,20 @@ void TextBuffer::CallbackUndo(const int pos, const int inserted_size, const int 
     }
     buffer->_style_text = true;
     if (buffer->undo_mode() == FUNDO::FLE) {
-        auto undo = buffer->_undo;
         if (buffer->_pause_undo == false) {
+            if (buffer->_hack_undo == 2) {
+                buffer->_undo->group_lock();
+                buffer->_hack_undo = 1;
+            }
+            else if (buffer->_hack_undo == 1) {
+                buffer->_undo->group_unlock();
+                buffer->_hack_undo = 0;
+            }
             if (editor != nullptr) {
-                undo->add(buffer->_fdelkey, editor->text_has_selection(), pos, inserted_text, inserted_size, deleted_text, deleted_size);
+                added = buffer->_undo->add(buffer->_fdelkey, editor->text_has_selection(), pos, inserted_text, inserted_size, deleted_text, deleted_size);
             }
             else {
-                undo->add(buffer->_fdelkey, buffer->has_selection(), pos, inserted_text, inserted_size, deleted_text, deleted_size);
+                added = buffer->_undo->add(buffer->_fdelkey, buffer->has_selection(), pos, inserted_text, inserted_size, deleted_text, deleted_size);
             }
         }
     }
@@ -14635,7 +14937,12 @@ void TextBuffer::CallbackUndo(const int pos, const int inserted_size, const int 
         if (inserted_size != deleted_size) {
             editor->bookmarks().update(pos, inserted_size, deleted_size);
         }
-        buffer->set_dirty(true);
+        if (added == undo::STATUS::REMOVED) {
+            buffer->undo_check_save_point();
+        }
+        else {
+            buffer->set_dirty(true);
+        }
     }
     free(inserted_text);
 }
@@ -14696,25 +15003,25 @@ CursorPos TextBuffer::comment_block(std::string comment_start, std::string comme
 }
 CursorPos TextBuffer::comment_line(std::string comment) {
     _count_changes = 0;
-    auto start2    = 0;
-    auto end2      = 0;
-    auto cursor    = _editor->cursor(false);
+    auto start2 = 0;
+    auto end2   = 0;
+    auto cursor = _editor->cursor(false);
     if (cursor.text_has_selection() == true) {
         get_selection(start2, end2, true);
     }
     else {
         get_line_pos(cursor.pos1, start2, end2);
     }
-    auto text   = line_text(start2);
-    auto remove = gnu::PCRE(gnu::str::format("^\\s*(%s)", comment.c_str()));
-    remove.exec(text);
+    auto text    = line_text(start2);
+    auto rx      = gnu::pcre8::PCRE(gnu::str::format("^\\s*(%s)", comment.c_str()));
+    auto matches = rx.exec(text);
     free(text);
-    if (remove.matches() == 2) {
-        return _find_replace_regex(&remove, "", start2, end2, FREGEXTYPE::REPLACE, false);
+    if (matches.size() == 2) {
+        return _find_replace_regex_all(&rx, "", start2, end2, FREGEXTYPE::REPLACE, false);
     }
     else {
-        auto insert = gnu::PCRE("^(.*)$");
-        return _find_replace_regex(&insert, comment, start2, end2, FREGEXTYPE::INSERT, false);
+        rx.compile("^(.*)$");
+        return _find_replace_regex_all(&rx, comment, start2, end2, FREGEXTYPE::INSERT, false);
     }
 }
 bool TextBuffer::cut_or_copy_line(int pos, FCOPY action) {
@@ -14818,6 +15125,11 @@ int TextBuffer::delete_text_right(int pos, FDELTEXT del) {
     }
     return 0;
 }
+void TextBuffer::disable_undo_type(uint16_t counter) {
+    if (has_fle_undo() == true) {
+        _undo->disable_type(counter);
+    }
+}
 CursorPos TextBuffer::duplicate_text() {
     _count_changes = 0;
     auto cursor = _editor->cursor(false);
@@ -14868,35 +15180,29 @@ CursorPos TextBuffer::duplicate_text() {
         return tmp;
     }
 }
-size_t TextBuffer::find_lines(std::string filename, std::string find, gnu::PCRE* re, FTRIM ftrim, std::vector<std::string>& out) {
-    if (find == "") {
-        return 0;
-    }
+size_t TextBuffer::find_lines(std::string filename, std::string find, gnu::pcre8::PCRE* re, FTRIM ftrim, std::vector<std::string>& out) {
     auto count = (size_t) 0;
-    auto start = 0;
-    auto stop  = 0;
+    if (find == "" && re == nullptr) {
+        return count;
+    }
     for (auto f = 0; f < length();) {
-        auto line = line_text(f);
-        auto len  = strlen(line);
+        auto line = gnu::str::grab(line_text(f));
         auto col  = -1;
         if (re == nullptr) {
-            auto found = strstr(line, find.c_str());
-            col = (found != nullptr) ? (int) ((size_t) found - (size_t) line) : -1;
+            auto found = strstr(line.c_str(), find.c_str());
+            col = (found != nullptr) ? static_cast<int>(static_cast<std::ptrdiff_t>(found - line.c_str())) : -1;
         }
         else {
             auto matches = re->exec(line);
-            if (matches == 1) {
-                col = 0;
-            }
-            else if (re->offset(1, start, stop) == true) {
-                col = start;
+            if (matches.size() > 0) {
+                col = matches.back().start();
             }
         }
         if (col >= 0) {
             if (out.size() < limits::OUTPUT_LINES_VAL) {
                 std::string s;
                 if (ftrim == FTRIM::YES) {
-                    auto trimmed = std::string(line);
+                    auto trimmed = line;
                     gnu::str::trim(trimmed);
                     if (filename != "") {
                         s = gnu::str::format("%s: %6d - %4d| %s", filename.c_str(), count + 1, col + 1, trimmed.c_str());
@@ -14906,10 +15212,10 @@ size_t TextBuffer::find_lines(std::string filename, std::string find, gnu::PCRE*
                     }
                 }
                 else if (filename != "") {
-                    s = gnu::str::format("%s: %6d - %4d| %s", filename.c_str(), count + 1, col + 1, line);
+                    s = gnu::str::format("%s: %6d - %4d| %s", filename.c_str(), count + 1, col + 1, line.c_str());
                 }
                 else  {
-                    s = gnu::str::format("%6d - %4d| %s", count + 1, col + 1, line);
+                    s = gnu::str::format("%6d - %4d| %s", count + 1, col + 1, line.c_str());
                 }
                 if (s.length() > fle::limits::OUTPUT_LINE_LENGTH_VAL) {
                     s.resize(fle::limits::OUTPUT_LINE_LENGTH_VAL);
@@ -14923,9 +15229,8 @@ size_t TextBuffer::find_lines(std::string filename, std::string find, gnu::PCRE*
             }
         }
         count++;
-        f += len;
+        f += line.length();
         f++;
-        free(line);
     }
     return count;
 }
@@ -15012,12 +15317,12 @@ CursorPos TextBuffer::find_replace(
     return cursor;
 }
 CursorPos TextBuffer::find_replace_all(
-std::string find,
-std::string replace,
-FSELECTION fselection,
+std::string  find,
+std::string  replace,
+FSELECTION   fselection,
 FCASECOMPARE fcase,
 FWORDCOMPARE fword,
-FNLTAB fnltab) {
+FNLTAB       fnltab) {
     _count_changes = 0;
     find    = (fnltab == FNLTAB::YES || fnltab == FNLTAB::FIND) ? string::fnltab(find) : find;
     replace = (fnltab == FNLTAB::YES || fnltab == FNLTAB::REPLACE) ? string::fnltab(replace) : replace;
@@ -15085,8 +15390,8 @@ FNLTAB fnltab) {
         ctrl.check_timeout();
     }
     if (has_fle_undo() == true) {
-        if (_count_changes == 0) {
             _undo->clear_custom1();
+        if (_count_changes == 0) {
             return cursor;
         }
         else if (cursor.text_has_selection() == true) {
@@ -15102,12 +15407,95 @@ FNLTAB fnltab) {
     cursor.set_drag();
     return cursor;
 }
-CursorPos TextBuffer::_find_replace_regex(
-    gnu::PCRE* regex,
+CursorPos TextBuffer::find_replace_regex(std::string find, const char* replace, FNLTAB fnltab) {
+    auto rx = gnu::pcre8::PCRE();
+    rx.notempty(true);
+    if (rx.compile(find, true) != "") {
+        _editor->statusbar_set_message(rx.err());
+        return CursorPos();
+    }
+    auto replace2 = gnu::str::to_string(replace);
+    replace2 = (fnltab == FNLTAB::YES || fnltab == FNLTAB::REPLACE) ? string::fnltab(replace2) : replace2;
+    _count_changes = 0;
+    auto pos    = _editor->cursor_insert_position();
+    auto first  = pos;
+    auto second = pos;
+    auto start  = 0;
+    auto end    = 0;
+    auto iter   = 0;
+    auto part   = 0;
+    auto sel    = false;
+    if (selection_position(&start, &end) != 0) {
+        first  = start;
+        second = start;
+        sel    = true;
+    }
+    get_line_pos(pos, start, end);
+    if (sel == false) {
+        part = pos - start;
+    }
+    while (iter < 2) {
+        auto line    = text_range(start + part, end);
+        auto org     = line;
+        auto len     = strlen(line);
+        auto lend    = line + len;
+        auto notbol  = false;
+        auto matches = rx.notbol(notbol).exec(line);
+        start += part;
+        part = 0;
+        while (matches.size() > 0) {
+            auto rs = matches.back().start();
+            auto re = matches.back().end();
+            auto ad = 0;
+            notbol = true;
+            if (re == 0) {
+                re = 1;
+            }
+            if (sel == true && replace != nullptr && start + rs == second) {
+                replace_selection(replace2.c_str());
+                ad  = static_cast<int>(replace2.length()) - (re - rs);
+                sel = false;
+            }
+            else if (sel == false || start + rs > second) {
+                auto res = _editor->cursor(false);
+                res.pos1  = start + re;
+                res.start = start + rs;
+                res.end   = start + re;
+                res.set_drag();
+                free(org);
+                return res;
+            }
+            start += re + ad;
+            line   = line + re;
+            if (line >= lend) {
+                break;
+            }
+            matches = rx.notbol(notbol).exec(line);
+        }
+        pos = end + 1;
+        get_line_pos(pos, start, end);
+        free(org);
+        if (pos >= length() || (iter == 1 && pos > first)) {
+            iter++;
+            if (first == 0 || iter == 2) {
+                break;
+            }
+            else if (iter == 1) {
+                pos    = 0;
+                second = -1;
+                get_line_pos(pos, start, end);
+            }
+        }
+    }
+    return CursorPos();
+}
+CursorPos TextBuffer::_find_replace_regex_all(
+    gnu::pcre8::PCRE* rx,
     const std::string replace,
-    int from, int to,
-    FREGEXTYPE fregextype,
-    bool selection) {
+    int               from,
+    int               to,
+    FREGEXTYPE        fregextype,
+    bool              selection) {
     _count_changes = 0;
     if (to == 0) {
         to = length();
@@ -15122,7 +15510,7 @@ CursorPos TextBuffer::_find_replace_regex(
         to   = cursor.end;
         pos1 = from;
     }
-    if (from == -1 || to == -1 || regex->is_compiled() == false || (fregextype != FREGEXTYPE::REPLACE && replace == "")) {
+    if (from == -1 || to == -1 || rx->is_compiled() == false || (fregextype != FREGEXTYPE::REPLACE && replace == "")) {
         return CursorPos();
     }
     if (has_fle_undo() == true) {
@@ -15147,28 +15535,25 @@ CursorPos TextBuffer::_find_replace_regex(
                 noteol = true;
             }
         }
-        auto line = text_range(start, end);
-        auto org  = line;
-        while (regex->exec(line, notbol, noteol) > 0) {
-            auto rs    = 0;
-            auto re    = 0;
-            auto add   = 0;
-            auto pos2  = 0;
-            auto match = regex->matches() - 1;
+        auto line    = text_range(start, end);
+        auto len     = strlen(line);
+        auto lend    = line + len;
+        auto org     = line;
+        auto matches = rx->notbol(notbol).noteol(noteol).exec(line);
+        while (matches.size() > 0) {
+            auto rs   = matches.back().start();
+            auto re   = matches.back().end();
+            auto add  = 0;
+            auto pos2 = 0;
             notbol = true;
             if (fregextype == FREGEXTYPE::REPLACE) {
-                auto ma = (regex->matches() > 1) ? 1 : 0;
-                if (regex->offset(ma, rs, re) == false) {
-                    break;
-                }
-                add = (int) replace.length() - (re - rs);
+                add = static_cast<int>(replace.length()) - (re - rs);
                 assert(start + rs <= length() && start + re <= length());
                 this->replace(start + rs, start + re, replace.c_str());
                 pos2 = start + rs;
             }
             else {
-                regex->offset(match, rs, re);
-                add = (int) replace.length();
+                add = static_cast<int>(replace.length());
                 if (fregextype == FREGEXTYPE::APPEND) {
                     assert(start + re <= length());
                     this->insert(start + re, replace.c_str());
@@ -15198,10 +15583,17 @@ CursorPos TextBuffer::_find_replace_regex(
                     cursor.end += add;
                 }
             }
+            if (re == 0) {
+                re = 1;
+            }
             to    += add;
             start += re + add;
             end   += add;
             line   = line + re;
+            if (line > lend) {
+                break;
+            }
+            matches = rx->notbol(notbol).noteol(noteol).exec(line);
         }
         free(org);
         pos1 = end + 1;
@@ -15228,82 +15620,7 @@ CursorPos TextBuffer::_find_replace_regex(
     cursor.set_drag();
     return cursor;
 }
-CursorPos TextBuffer::find_replace_regex(std::string find, const char* replace, FNLTAB fnltab) {
-    auto rx = gnu::PCRE(find, true);
-    if (rx.is_compiled() == false) {
-        _editor->statusbar_set_message(rx.error());
-        return CursorPos();
-    }
-    auto replace2 = gnu::str::to_string(replace);
-    replace2 = (fnltab == FNLTAB::YES || fnltab == FNLTAB::REPLACE) ? string::fnltab(replace2) : replace2;
-    _count_changes = 0;
-    auto pos    = _editor->cursor_insert_position();
-    auto first  = pos;
-    auto second = pos;
-    auto start  = 0;
-    auto end    = 0;
-    auto iter   = 0;
-    auto part   = 0;
-    auto sel    = false;
-    if (selection_position(&start, &end) != 0) {
-        first  = start;
-        second = start;
-        sel    = true;
-    }
-    get_line_pos(pos, start, end);
-    if (sel == false) {
-        part = pos - start;
-    }
-    while (iter < 2) {
-        auto line   = text_range(start + part, end);
-        auto org    = line;
-        auto notbol = false;
-        start += part;
-        part = 0;
-        while (rx.exec(line, notbol) > 0) {
-            auto rs = 0;
-            auto re = 0;
-            auto ad = 0;
-            auto ma = (rx.matches() > 1) ? 1 : 0;
-            notbol = true;
-            if (rx.offset(ma, rs, re) == false) {
-                return _editor->cursor(false);
-            }
-            else if (sel == true && replace != nullptr && start + rs == second) {
-                replace_selection(replace2.c_str());
-                ad  = (int) replace2.length() - (re - rs);
-                sel = false;
-            }
-            else if (sel == false || start + rs > second) {
-                auto res = _editor->cursor(false);
-                res.pos1 = start + re;
-                res.start = start + rs;
-                res.end = start + re;
-                res.set_drag();
-                free(org);
-                return res;
-            }
-            start += re + ad;
-            line   = line + re;
-        }
-        pos = end + 1;
-        get_line_pos(pos, start, end);
-        free(org);
-        if (pos >= length() || (iter == 1 && pos > first)) {
-            iter++;
-            if (first == 0 || iter == 2) {
-                break;
-            }
-            else if (iter == 1) {
-                pos    = 0;
-                second = -1;
-                get_line_pos(pos, start, end);
-            }
-        }
-    }
-    return CursorPos();
-}
-CursorPos TextBuffer::find_replace_regex_all(gnu::PCRE* regex, std::string replace, FSELECTION fselection, FNLTAB fnltab) {
+CursorPos TextBuffer::find_replace_regex_all(gnu::pcre8::PCRE* regex, std::string replace, FSELECTION fselection, FNLTAB fnltab) {
     assert(regex);
     _count_changes = 0;
     replace = (fnltab == FNLTAB::YES || fnltab == FNLTAB::REPLACE) ? string::fnltab(replace) : replace;
@@ -15312,14 +15629,14 @@ CursorPos TextBuffer::find_replace_regex_all(gnu::PCRE* regex, std::string repla
         if (cursor.text_has_selection() == false) {
             return cursor;
         }
-        return _find_replace_regex(regex, replace, cursor.start, cursor.end, FREGEXTYPE::REPLACE, true);
+        return _find_replace_regex_all(regex, replace, cursor.start, cursor.end, FREGEXTYPE::REPLACE, true);
     }
     else {
-        return _find_replace_regex(regex, replace, 0, length(), FREGEXTYPE::REPLACE, false);
+        return _find_replace_regex_all(regex, replace, 0, length(), FREGEXTYPE::REPLACE, false);
     }
 }
-gnu::FileBuf TextBuffer::get(FLINEENDING flineending, bool trim_whitespace) const {
-    auto text1 = gnu::FileBuf::Grab(text());
+gnu::file::Buf TextBuffer::get(FLINEENDING flineending, bool trim_whitespace) const {
+    auto text1 = gnu::file::Buf::Grab(text());
     auto text2 = text1.insert_cr(flineending == FLINEENDING::WINDOWS, trim_whitespace);
     if (text2.p == nullptr) {
         return text1;
@@ -15374,7 +15691,7 @@ bool TextBuffer::get_selection(int& start, int& end, bool expand) {
     return false;
 }
 std::string TextBuffer::get_text_range_string(int start, int end) const {
-    return gnu::str::grab_string(text_range(start, end));
+    return gnu::str::grab(text_range(start, end));
 }
 int TextBuffer::get_word_end(int pos) const {
     auto type = peek_token(pos);
@@ -15391,7 +15708,7 @@ int TextBuffer::get_word_end(int pos) const {
     }
     return -1;
 }
-char* TextBuffer::get_word_left(int pos) const {
+std::string TextBuffer::get_word_left(int pos) const {
     auto f = pos;
     auto t = 0;
     do {
@@ -15399,9 +15716,9 @@ char* TextBuffer::get_word_left(int pos) const {
         t = _word.get(peek(f));
     } while (t &  Token::LETTER);
     if (f < pos - 1) {
-        return text_range(f + 1, pos);
+        return gnu::str::grab(text_range(f + 1, pos));
     }
-    return strdup("");
+    return "";
 }
 int TextBuffer::get_word_start(int pos, bool move_left) const {
     auto type = peek_token(pos - move_left);
@@ -15428,11 +15745,12 @@ int TextBuffer::home(int pos) {
         free(line);
         return -1;
     }
-    auto start = line_start(pos);
-    auto re    = gnu::PCRE("^(\\s*)");
-    auto end   = 0;
-    if (re.exec(line) == 2) {
-        end = re.end(1);
+    auto start   = line_start(pos);
+    auto re      = gnu::pcre8::PCRE("^(\\s*)");
+    auto end     = 0;
+    auto matches = re.exec(line);
+    if (matches.size() == 2) {
+        end = matches.back().end();
     }
     free(line);
     if (end < 0) {
@@ -15448,13 +15766,14 @@ int TextBuffer::home(int pos) {
 CursorPos TextBuffer::indent(FINDENT findent) {
     _count_changes = 0;
     if (_config.pref_indentation == true && selected() == 0) {
-        auto cursor = _editor->cursor(false);
-        auto re     = gnu::PCRE("^(\\s+)");
-        auto line   = line_text(cursor.pos1);
-        auto start  = line_start(cursor.pos1);
-        auto end    = line_end(cursor.pos1);
-        if (re.exec(line) == 2) {
-            auto text = re.substr(1);
+        auto cursor  = _editor->cursor(false);
+        auto re      = gnu::pcre8::PCRE("^(\\s+)");
+        auto line    = line_text(cursor.pos1);
+        auto start   = line_start(cursor.pos1);
+        auto end     = line_end(cursor.pos1);
+        auto matches = re.exec(line);
+        if (matches.size() == 2) {
+            auto text = matches.back().word();
             if (cursor.pos1 == end) {
                 text = "\n" + text;
                 insert(cursor.pos1, text.c_str());
@@ -15541,8 +15860,8 @@ CursorPos TextBuffer::insert_tab_multiline(CursorPos cursor, FMOVEH fmoveh, FTAB
     }
     auto ctrl  = BufferController(this, TextBuffer::TIMEOUT_SHORT, true);
     auto tabs  = (ftab == FTAB::HARD) ? "\t" : strings::SOFT_TABS[tab_width];
-    auto tabl  = (int) strlen(tabs);
-    auto re    = gnu::PCRE(gnu::str::format("^( {1,%u}|\t)", tab_width));
+    auto tabl  = static_cast<int>(strlen(tabs));
+    auto re    = gnu::pcre8::PCRE(gnu::str::format("^( {1,%u}|\t)", tab_width));
     auto start = 0;
     auto end   = 0;
     _count_changes = 0;
@@ -15556,14 +15875,12 @@ CursorPos TextBuffer::insert_tab_multiline(CursorPos cursor, FMOVEH fmoveh, FTAB
         if (len > 0) {
             auto add = 0;
             if (fmoveh == FMOVEH::LEFT) {
-                if (re.exec(line) > 1) {
-                    auto s = 0;
-                    auto e = 0;
-                    if (re.offset(1, s, e) == false) {
-                        break;
-                    }
-                    remove(f + s, f + e);
-                    add = -(e - s);
+                auto matches = re.exec(line);
+                if (matches.size() > 1) {
+                    auto rs = matches.back().start();
+                    auto re = matches.back().end();
+                    remove(f + rs, f + re);
+                    add = -(re - rs);
                 }
             }
             else {
@@ -15741,7 +16058,8 @@ CursorPos TextBuffer::select_line(bool exclude_newline) {
     cursor.set_drag();
     return cursor;
 }
-CursorPos TextBuffer::select_pair(bool move_cursor) {
+CursorPos TextBuffer::select_pair(bool move_cursor, bool& found) {
+    found = false;
     auto  cursor  = _editor->cursor(false);
     auto  c       = peek(cursor.pos1);
     auto  count   = 0;
@@ -15786,6 +16104,7 @@ CursorPos TextBuffer::select_pair(bool move_cursor) {
                         cursor.pos1 = cursor.end;
                     }
                     cursor.set_drag();
+                    found = true;
                     return cursor;
                 }
             }
@@ -15809,6 +16128,7 @@ CursorPos TextBuffer::select_pair(bool move_cursor) {
                         cursor.pos1 = cursor.start;
                     }
                     cursor.set_drag();
+                    found = true;
                     return cursor;
                 }
             }
@@ -15859,7 +16179,7 @@ CursorPos TextBuffer::sort(FSORT order) {
     get_selection(start2, end2, true);
     auto text  = text_range(start2, end2);
     auto len   = strlen(text);
-    auto lines = gnu::str::split(text, '\n');
+    auto lines = gnu::str::split(text, "\n");
     if (text[len - 1] == '\n') {
         lines.pop_back();
     }
@@ -15926,7 +16246,7 @@ CursorPos TextBuffer::undo_back(bool all, CursorPos cursor) {
         return cursor;
     }
     auto ctrl = BufferController(this, 100, false);
-    auto last = UndoEvent();
+    auto last = undo::Event();
     _pause_undo = true;
     while (node.is_null() == false) {
         last     = node;
@@ -15971,7 +16291,7 @@ CursorPos TextBuffer::undo_back(bool all, CursorPos cursor) {
             node = _undo->undo();
         }
         else {
-            node = UndoEvent();
+            node = undo::Event();
         }
         ctrl.check_timeout();
     }
@@ -15991,7 +16311,7 @@ bool TextBuffer::undo_check_save_point() {
     }
     return false;
 }
-void TextBuffer::undo_cursor_move_to_statusbar_row(CursorPos& cursor, const UndoEvent& node, bool undo) {
+void TextBuffer::undo_cursor_move_to_statusbar_row(CursorPos& cursor, const undo::Event& node, bool undo) {
     if (node.is_null() == true) {
         return;
     }
@@ -16080,7 +16400,7 @@ CursorPos TextBuffer::undo_forward(bool all, CursorPos cursor) {
         return cursor;
     }
     auto ctrl = BufferController(this, 100, false);
-    auto last = UndoEvent();
+    auto last = undo::Event();
     _pause_undo = true;
     while (node.is_null() == false) {
         last     = node;
@@ -16125,7 +16445,7 @@ CursorPos TextBuffer::undo_forward(bool all, CursorPos cursor) {
             node = _undo->redo();
         }
         else {
-            node = UndoEvent();
+            node = undo::Event();
         }
         ctrl.check_timeout();
     }
@@ -16143,7 +16463,7 @@ void TextBuffer::undo_set_mode_using_config() {
     }
     else if (_config.pref_undo == FUNDO::FLE) {
         if (_undo == nullptr) {
-            _undo = new Undo();
+            _undo = new undo::Undo(new undo::BufferStore());
             canUndo(0);
         }
     }
@@ -16159,7 +16479,18 @@ void TextBuffer::undo_set_mode_using_config() {
 }
 #include <assert.h>
 namespace fle {
-void UndoEvent::debug(int buffer_pos, int count) const {
+namespace undo {
+ssize_t Event::_capacity() const {
+    auto ret = sizeof(Event);
+    if (_str1.capacity() > 15) {
+        ret += _str1.capacity() - 15;
+    }
+    if (_str2.capacity() > 15) {
+        ret += _str2.capacity() - 15;
+    }
+    return ret;
+}
+void Event::debug(ssize_t buffer_pos, int count) const {
 #ifdef DEBUG
     char flags[50];
     char Str1[50];
@@ -16188,10 +16519,10 @@ void UndoEvent::debug(int buffer_pos, int count) const {
     }
     if (len2() > 0) {
         int l = (int) (25 - strlen(Str1));
-        printf("%8d %6d %15s %9d %9d |%s| %*s %9d |%s|\n", buffer_pos, count, _flag == 0 ? "|________| XXXX" : flags, _pos, len1(), Str1, l, "", len2(), Str2);
+        printf("%8d %6d %15s %9d %9d |%s| %*s %9d |%s|\n", (int) buffer_pos, count, _flag == 0 ? "|________| XXXX" : flags, _pos, len1(), Str1, l, "", len2(), Str2);
     }
     else {
-        printf("%8d %6d %15s %9d %9d |%s|\n", buffer_pos, count, _flag == 0 ? "|________| XXXX" : flags, _pos, len1(), Str1);
+        printf("%8d %6d %15s %9d %9d |%s|\n", (int) buffer_pos, count, _flag == 0 ? "|________| XXXX" : flags, _pos, len1(), Str1);
     }
     fflush(stdout);
 #else
@@ -16199,7 +16530,7 @@ void UndoEvent::debug(int buffer_pos, int count) const {
     (void) count;
 #endif
 }
-bool UndoBuffer::buffer_decrease() {
+bool BufferStore::_buffer_decrease() {
     auto new_bcap = _bcap;
     if (_bend > 2'097'152) {
         while (new_bcap > _bend + 2'097'152) {
@@ -16219,10 +16550,10 @@ bool UndoBuffer::buffer_decrease() {
     }
     assert(new_bcap > _bend);
     _bcap = new_bcap;
-    _buf  = gnu::File::Allocate(_buf, _bcap + 1);
+    _buf  = gnu::file::allocate(_buf, _bcap + 1);
     return true;
 }
-bool UndoBuffer::buffer_increase(int64_t requested_bcap) {
+bool BufferStore::_buffer_increase(ssize_t requested_bcap) {
     if (requested_bcap <= _bcap) {
         return false;
     }
@@ -16241,49 +16572,45 @@ bool UndoBuffer::buffer_increase(int64_t requested_bcap) {
         return false;
     }
     _bcap = new_bcap;
-    _buf  = gnu::File::Allocate(_buf, _bcap + 1);
+    _buf  = gnu::file::allocate(_buf, _bcap + 1);
     return true;
 }
-void UndoBuffer::clear() {
+void BufferStore::clear() {
     free(_buf);
     _bcap = 4'096;
-    _buf  = gnu::File::Allocate(nullptr, _bcap + 1, 1);
+    _buf  = gnu::file::allocate(nullptr, _bcap + 1, 1);
     _bcur = -1;
     _bend = -1;
-    _move = UndoBuffer::MOVING_END;
+    _move = MOVE::END;
 }
-int64_t UndoBuffer::debug(int all) const {
+ssize_t BufferStore::debug(bool all) const {
 #ifdef DEBUG
-    int64_t cursor1 = 0;
-    int64_t count   = 0;
-    if (all == 1) {
-        printf("\nUndoEvent:\n");
-    }
+    ssize_t cursor1 = 0;
+    ssize_t count   = 0;
+    printf("\nEvent:\n");
     while (cursor1 < _bend) {
         count++;
-        if (all == 1) {
+        if (all == true) {
             get_node(cursor1).debug(cursor1, count);
         }
         go_right(cursor1);
     }
-    if (all >= 0) {
-        printf("\nUndoBuffer:\n");
-        printf("    count_all          = %8d\n", (int) count);
-        printf("    bcap               = %8lld\n", (long long int) _bcap);
-        printf("    bcur               = %8lld\n", (long long int) _bcur);
-        printf("    bend               = %8lld\n", (long long int) _bend);
-        printf("    move               = %8d\n", _move);
-        fflush(stdout);
-    }
+    printf("\nBufferStore:\n");
+    printf("    count_all          = %8d\n", (int) count);
+    printf("    bcap               = %8lld\n", (long long int) _bcap);
+    printf("    bcur               = %8lld\n", (long long int) _bcur);
+    printf("    bend               = %8lld\n", (long long int) _bend);
+    printf("    move               = %8d\n", (int) _move);
+    fflush(stdout);
     return count;
 #else
     (void) all;
     return 0;
 #endif
 }
-const UndoEvent UndoBuffer::get_node(int64_t cursor) const {
+const Event BufferStore::get_node(ssize_t cursor) const {
     if (cursor < 0 || cursor >= _bend) {
-        return UndoEvent();
+        return Event();
     }
     auto b     = static_cast<const char*>(_buf + cursor);
     auto flag  = (uint8_t) 0;
@@ -16301,23 +16628,23 @@ const UndoEvent UndoBuffer::get_node(int64_t cursor) const {
     b    = b + strlen(str1) + 1;
     str2 = b;
     b    = b + strlen(str2) + 1;
-    return UndoEvent(flag, group, pos, str1, str2);
+    return Event(flag, group, pos, str1, str2);
 }
-bool UndoBuffer::go_left() {
-    if (_move == UndoBuffer::MOVING_RIGHT) {
-        _move  = UndoBuffer::MOVING_LEFT;
+bool BufferStore::go_left() {
+    if (_move == MOVE::RIGHT) {
+        _move = MOVE::LEFT;
         return true;
     }
     else if (go_left(_bcur) == true) {
-        _move  = UndoBuffer::MOVING_LEFT;
+        _move = MOVE::LEFT;
         return true;
     }
     else {
-        _move = UndoBuffer::MOVING_END;
+        _move = MOVE::END;
         return false;
     }
 }
-bool UndoBuffer::go_left(int64_t& cursor) const {
+bool BufferStore::go_left(ssize_t& cursor) const {
     if (cursor > 8) {
         auto b    = _buf;
         auto size = (uint32_t) 0;
@@ -16331,77 +16658,77 @@ bool UndoBuffer::go_left(int64_t& cursor) const {
     cursor = -1;
     return false;
 }
-bool UndoBuffer::go_right() {
-    if (_move == UndoBuffer::MOVING_LEFT) {
-        _move  = UndoBuffer::MOVING_RIGHT;
+bool BufferStore::go_right() {
+    if (_move == MOVE::LEFT) {
+        _move = MOVE::RIGHT;
         return true;
     }
     else if (go_right(_bcur) == true && _bcur < _bend) {
-        _move  = UndoBuffer::MOVING_RIGHT;
+        _move = MOVE::RIGHT;
         return true;
     }
     else {
-        _move = UndoBuffer::MOVING_END;
+        _move = MOVE::END;
         _bcur = _bend;
         return false;
     }
 }
-bool UndoBuffer::go_right(int64_t& cursor) const {
+bool BufferStore::go_right(ssize_t& cursor) const {
     if (cursor < 0 && _bend > 0) {
         cursor = 0;
         return true;
     }
     else if (cursor >= 0 && cursor < _bend) {
         auto b = _buf + cursor;
-        b += UndoEvent::NumberSize();
+        b += Event::NumberSize();
         b += strlen(b);
         b++;
         b += strlen(b);
         b++;
         b += sizeof(uint32_t);
-        cursor = (int64_t) (b - _buf);
+        cursor = static_cast<ssize_t>(static_cast<std::ptrdiff_t>(b - _buf));
         return true;
     }
     else {
         return false;
     }
 }
-void UndoBuffer::go_right_before_cut() {
-    if (_move == UndoBuffer::MOVING_RIGHT) {
+void BufferStore::go_right_before_cut() {
+    if (_move == MOVE::RIGHT) {
         go_right(_bcur);
-        _move = UndoBuffer::MOVING_END;
+        _move = MOVE::END;
     }
 }
-const UndoEvent UndoBuffer::peek_left() const {
+const Event BufferStore::peek_left() const {
     auto cursor1 = _bcur;
     if (go_left(cursor1) == true) {
         return get_node(cursor1);
     }
     else {
-        return UndoEvent();
+        return Event();
     }
 }
-const UndoEvent UndoBuffer::peek_right() const {
+const Event BufferStore::peek_right() const {
     auto cursor1 = _bcur;
     if (go_right(cursor1) == true) {
         return get_node(cursor1);
     }
     else {
-        return UndoEvent();
+        return Event();
     }
 }
-void UndoBuffer::pop() {
+void BufferStore::pop() {
     if (go_left(_bcur) == true) {
-        _bend  = _bcur;
+        _bend = _bcur;
     }
-    _move = UndoBuffer::MOVING_END;
+    _move = MOVE::END;
 }
-void UndoBuffer::set_node(const UndoEvent& node) {
+void BufferStore::set_node(const Event& node) {
     if (_bcur < 0) {
         _bcur = 0;
     }
-    auto size = (uint32_t) (node.size() + sizeof(uint32_t));
-    auto inc  = buffer_increase(_bcur + size);
+    auto size = static_cast<uint32_t>(node.size() + sizeof(uint32_t));
+    auto inc  = _buffer_increase(_bcur + size);
     auto b    = static_cast<char*>(_buf + _bcur);
     *b = node.flag();
     b++;
@@ -16421,169 +16748,354 @@ void UndoBuffer::set_node(const UndoEvent& node) {
     memcpy(b, &size, sizeof(size));
     _bcur += size;
     _bend  = _bcur;
-    _move  = UndoBuffer::MOVING_END;
+    _move  = MOVE::END;
     if (inc == false && _bcur < old_end) {
-        buffer_decrease();
+        _buffer_decrease();
     }
 }
-Undo::Undo() {
+ssize_t VectorStore::capacity() const {
+    ssize_t ret = 0;
+    for (const auto& n : _events) {
+        ret += n._capacity();
+    }
+    auto diff = _events.capacity() - _events.size();
+    ret += diff * sizeof(Event);
+    return ret;
+}
+void VectorStore::clear() {
+    _events.clear();
+    _cur  = -1;
+    _move = MOVE::END;
+}
+ssize_t VectorStore::debug(bool all) const {
+#ifdef DEBUG
+    ssize_t cursor1 = 0;
+    ssize_t count   = 0;
+    printf("\nEvent:\n");
+    while (cursor1 < static_cast<ssize_t>(_events.size())) {
+        count++;
+        if (all == true) {
+            get_node(cursor1).debug(cursor1, count);
+        }
+        go_right(cursor1);
+    }
+    printf("\nVectorStore:\n");
+    printf("    count_all          = %10u\n", (unsigned) count);
+    printf("    memory             = %10u\n", (unsigned) capacity());
+    printf("    size               = %10u\n", (unsigned) _events.size());
+    printf("    capacity           = %10u\n", (unsigned) _events.capacity());
+    printf("    cur                = %10d\n", (int) _cur);
+    printf("    move               = %10d\n", (int) _move);
+    fflush(stdout);
+    return count;
+#else
+    (void) all;
+    return 0;
+#endif
+}
+const Event VectorStore::get_node(ssize_t cursor) const {
+    if (cursor < 0 || cursor >= static_cast<ssize_t>(_events.size())) {
+        return Event();
+    }
+    return _events[cursor];
+}
+bool VectorStore::go_left() {
+    if (_move == MOVE::RIGHT) {
+        _move = MOVE::LEFT;
+        return true;
+    }
+    else if (go_left(_cur) == true) {
+        _move = MOVE::LEFT;
+        return true;
+    }
+    else {
+        _move = MOVE::END;
+        return false;
+    }
+}
+bool VectorStore::go_left(ssize_t& cursor) const {
+    if (cursor > 0) {
+        cursor--;
+        return true;
+    }
+    cursor = -1;
+    return false;
+}
+bool VectorStore::go_right() {
+    if (_move == MOVE::LEFT) {
+        _move = MOVE::RIGHT;
+        return true;
+    }
+    else if (go_right(_cur) == true && _cur < static_cast<ssize_t>(_events.size())) {
+        _move = MOVE::RIGHT;
+        return true;
+    }
+    else {
+        _move = MOVE::END;
+        _cur  = _events.size();
+        return false;
+    }
+}
+bool VectorStore::go_right(ssize_t& cursor) const {
+    if (cursor < 0 && _events.size() > 0) {
+        cursor = 0;
+        return true;
+    }
+    else if (cursor >= 0 && cursor < static_cast<ssize_t>(_events.size())) {
+        cursor++;
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+void VectorStore::go_right_before_cut() {
+    if (_move == MOVE::RIGHT) {
+        go_right(_cur);
+        _move = MOVE::END;
+    }
+}
+const Event VectorStore::peek_left() const {
+    auto cursor1 = _cur;
+    if (go_left(cursor1) == true) {
+        return get_node(cursor1);
+    }
+    else {
+        return Event();
+    }
+}
+const Event VectorStore::peek_right() const {
+    auto cursor1 = _cur;
+    if (go_right(cursor1) == true) {
+        return get_node(cursor1);
+    }
+    else {
+        return Event();
+    }
+}
+void VectorStore::pop() {
+    if (go_left(_cur) == true) {
+        _events.pop_back();
+    }
+    _move = MOVE::END;
+}
+void VectorStore::set_node(const Event& node) {
+    if (_cur < 0) {
+        _cur = 0;
+    }
+    assert(_cur <= static_cast<ssize_t>(_events.size()));
+    if (_events.size() == 0 || _cur == static_cast<ssize_t>(_events.size())) {
+        _events.push_back(node);
+    }
+    else {
+        _events[_cur] = node;
+        _events.resize(_cur + 1);
+        if (_events.size() > 16'192 && _events.capacity() > _events.size() * 2) {
+            _events.shrink_to_fit();
+        }
+        else if (_events.size() < 16'192 && _events.capacity() > _events.size() * 4) {
+            _events.shrink_to_fit();
+        }
+    }
+    _move = MOVE::END;
+    _cur  = _events.size();
+}
+Undo::Undo(Store* store) {
+    _tokens.set(' ', Token::PUNCTUATOR);
     _tokens.set('_', Token::LETTER);
     _tokens.set('0', '9', Token::LETTER);
     _tokens.set(128, 191, Token::LETTER);
     _tokens.set(194, 244, Token::LETTER);
+    _store = store;
     clear();
 }
-void Undo::add(const FDELKEY delkey, const bool selection, const int pos, const char* inserted_text, const int inserted_size, const char* deleted_text, const int deleted_size) {
-    auto flag         = (uint8_t) 0;
-    auto type         = 0;
-    auto inserted_one = (inserted_text != nullptr) ? string::is_one_char(inserted_text) : false;
-    auto deleted_one  = (deleted_text != nullptr) ? string::is_one_char(deleted_text) : false;
-    if (_buf.cursor() < _save_point) {
+STATUS Undo::add(const FDELKEY delkey, const bool selection, const int pos, const char* inserted_text, const int inserted_len, const char* deleted_text, const int deleted_len) {
+    auto flag  = (uint8_t) 0;
+    auto type  = (uint16_t) 0;
+    auto added = STATUS::INIT;
+    if (_store->cursor() < _save_point) {
         _save_point = -1;
     }
-    if (inserted_text != nullptr && deleted_text == nullptr && inserted_one == true) {
-        type = _tokens.get(*inserted_text);
+    if (_disable_type > 0) {
+        _disable_type--;
+        _prev_type = Token::NIL;
     }
-    else if (deleted_text != nullptr && inserted_text == nullptr && deleted_one == true) {
-        type = _tokens.get(*deleted_text);
+    else if (_append_len >= BREAK_APPEND_AT - 1) {
+    }
+    else if (inserted_text != nullptr) {
+        type = _tokens.get_last(inserted_text, inserted_len);
+    }
+    else if (deleted_text != nullptr) {
+        type = _tokens.get_last(deleted_text, deleted_len);
     }
     if (selection == true) {
-        flag |= UndoEvent::FLAG_SELECTED;
+        flag |= static_cast<uint8_t>(EVENT::SELECTED);
     }
-    if (deleted_size > 0 && inserted_size > 0) {
-        flag |= UndoEvent::FLAG_REPLACE;
-        _add(nullptr, flag, pos, deleted_text, inserted_text);
+    if (deleted_len > 0 && inserted_len > 0) {
+        flag |= static_cast<uint8_t>(EVENT::REPLACE);
+        added = _add(nullptr, flag, pos, deleted_text, inserted_text);
     }
-    else if (deleted_size > 0) {
+    else if (deleted_len > 0) {
         auto last = peek_undo();
-        flag |= UndoEvent::FLAG_DELETE;
+        flag |= static_cast<uint8_t>(EVENT::ERASED);
         if (delkey == FDELKEY::BACKSPACE) {
-            flag |= UndoEvent::FLAG_BACKSPACE;
+            flag |= static_cast<uint8_t>(EVENT::BACKSPACE);
         }
         if (last.is_null() == false && type != Token::NIL && (type & _prev_type)) {
             if (delkey == FDELKEY::DEL && pos == last.pos()) {
-                _add(&last, flag, pos, deleted_text);
+                added = _add(&last, flag, pos, deleted_text);
                 goto EXIT;
             }
-            else if (delkey == FDELKEY::BACKSPACE && pos + deleted_size == last.pos()) {
-                _add(&last, flag, pos, deleted_text);
+            else if (delkey == FDELKEY::BACKSPACE && pos + deleted_len == last.pos()) {
+                added = _add(&last, flag, pos, deleted_text);
                 goto EXIT;
             }
         }
-        _add(nullptr, flag, pos, deleted_text);
+        added = _add(nullptr, flag, pos, deleted_text);
     }
-    else if (inserted_size > 0) {
+    else if (inserted_len > 0) {
         auto last = peek_undo();
-        flag |= UndoEvent::FLAG_INSERT;
+        flag |= static_cast<uint8_t>(EVENT::INSERT);
         if (last.is_null() == false) {
             if (last.is_insert() == true && type != Token::NIL && (type & _prev_type) && pos == last.pos() + last.len1()) {
-                _add(&last, flag, pos, inserted_text);
+                added = _add(&last, flag, pos, inserted_text);
+                goto EXIT;
+            }
+            else if (last.is_replace() == true && type != Token::NIL && (type & _prev_type) && pos == last.pos() + last.len2()) {
+                added = _add(&last, flag, pos, inserted_text);
                 goto EXIT;
             }
             else if (last.is_delete() == true && pos == last.pos() && selection == true) {
-                _add(&last, flag, pos, inserted_text);
+                added = _add(&last, flag, pos, inserted_text);
                 goto EXIT;
             }
         }
         if (_custom2 != "") {
-            flag |= UndoEvent::FLAG_CUSTOM2;
-            _add(nullptr, flag, pos, inserted_text, _custom2.c_str());
+            flag |= static_cast<uint8_t>(EVENT::CUSTOM2);
+            added = _add(nullptr, flag, pos, inserted_text, _custom2.c_str());
         }
         else {
-            _add(nullptr, flag, pos, inserted_text);
+            added = _add(nullptr, flag, pos, inserted_text);
         }
     }
     group_add();
 EXIT:
-    _custom2   = "";
-    _prev_type = type;
-}
-void Undo::_add(UndoEvent* last, uint8_t flag, int pos, const char* str1, const char* str2) {
-    if (_is_cursor_at_end() == true && last != nullptr && _append_to_node(last, flag, pos, str1) == true) {
-        return;
+    _custom2 = "";
+    if (_append_len >= BREAK_APPEND_AT - 1) {
+        _append_len = 0;
     }
-    auto node = UndoEvent(flag, _group, pos, str1, str2);
-    _push_node_to_buf(node);
+    else {
+        _prev_type = type;
+    }
+    if (added == STATUS::APPENDED) {
+        _append_len++;
+    }
+    else {
+        _append_len = 0;
+    }
+    return added;
 }
-bool Undo::_append_to_node(UndoEvent* last, uint8_t flag, int pos, const char* str1) {
-    if (flag & UndoEvent::FLAG_INSERT) {
+STATUS Undo::_add(Event* last, uint8_t flag, int pos, const char* str1, const char* str2) {
+    if (_is_cursor_at_end() == true && last != nullptr) {
+        auto added = _append_to_node(last, flag, pos, str1);
+        if (added != STATUS::INIT) {
+            return added;
+        }
+    }
+    auto node = Event(flag, _group, pos, str1, str2);
+    _push_node_to_buf(node);
+    return STATUS::ADDED;
+}
+STATUS Undo::_append_to_node(Event* last, uint8_t flag, int pos, const char* str) {
+    if (flag & static_cast<uint8_t>(EVENT::INSERT)) {
         if (last->is_insert() == true) {
-            last->append_str1(str1);
-            _buf.go_left();
+            last->append_str1(str);
+            _store->go_left();
             _push_node_to_buf(*last);
-            return true;
+            return STATUS::APPENDED;
+        }
+        else if (last->is_replace() == true) {
+            last->append_str2(str);
+            _store->go_left();
+            _push_node_to_buf(*last);
+            return STATUS::APPENDED;
         }
         else if (last->is_delete() == true) {
             assert(last->len2() == 0);
-            last->flag(UndoEvent::FLAG_REPLACE | UndoEvent::FLAG_SELECTED);
-            last->str2(str1);
+            last->flag(static_cast<uint8_t>(EVENT::REPLACE) | static_cast<uint8_t>(EVENT::SELECTED));
+            last->str2(str);
             if (last->str1() == last->str2()) {
-                _buf.pop();
+                _store->pop();
+                return STATUS::REMOVED;
             }
             else {
-                _buf.go_left();
+                _store->go_left();
                 _push_node_to_buf(*last);
+                return STATUS::APPENDED;
             }
-            return true;
         }
     }
-    else if (flag & UndoEvent::FLAG_DELETE && last->is_delete() == true) {
-        if (flag & UndoEvent::FLAG_BACKSPACE) {
+    else if (flag & static_cast<uint8_t>(EVENT::ERASED) && last->is_delete() == true) {
+        if (flag & static_cast<uint8_t>(EVENT::BACKSPACE)) {
             last->pos(pos);
-            last->insert_str1(str1);
-            _buf.go_left();
+            last->insert_str1(str);
+            _store->go_left();
             _push_node_to_buf(*last);
-            return true;
+            return STATUS::APPENDED;
         }
         else {
-            last->append_str1(str1);
-            _buf.go_left();
+            last->append_str1(str);
+            _store->go_left();
             _push_node_to_buf(*last);
-            return true;
+            return STATUS::APPENDED;
         }
     }
-    return false;
+    return STATUS::INIT;
 }
 void Undo::clear() {
-    _buf.clear();
-    _custom1    = UndoEvent();
-    _custom2    = "";
-    _group      = 0;
-    _group_lock = false;
-    _prev_type  = 0;
-    _save_point = -1;
+    _store->clear();
+    _append_len   = 0;
+    _custom1      = Event();
+    _custom2      = "";
+    _disable_type = 0;
+    _group        = 0;
+    _group_lock   = false;
+    _prev_type    = 0;
+    _save_point   = -1;
 }
-int64_t Undo::debug(int all) {
+ssize_t Undo::debug(bool all) {
 #ifdef DEBUG
-    auto res = _buf.debug(all);
-    if (all >= 0) {
-        printf("\nUndo:\n");
-        printf("    custom1            = %s\n", _custom1.is_null() ? "    NULL" : "     SET");
-        printf("    custom2            = %s\n", _custom2.c_str());
-        printf("    group              = %8d\n", _group);
-        printf("    group_lock         = %8d\n", _group_lock);
-        printf("    prev_type          = %8d\n", _prev_type);
-        printf("    save_point         = %8lld\n", (long long int) _save_point);
-        fflush(stdout);
-    }
+    auto res = _store->debug(all);
+    printf("\nUndo:\n");
+    printf("    custom1            = %s\n", _custom1.is_null() ? "    NULL" : "     SET");
+    printf("    custom2            = %s\n", _custom2.c_str());
+    printf("    append_len         = %8d\n", _append_len);
+    printf("    clear_prev_type    = %8d\n", _disable_type);
+    printf("    group              = %8d\n", _group);
+    printf("    group_lock         = %8d\n", _group_lock);
+    printf("    prev_type          = %8d\n", _prev_type);
+    printf("    save_point         = %8lld\n", (long long int) _save_point);
+    fflush(stdout);
     return res;
 #else
     (void) all;
     return 0;
 #endif
 }
-void Undo::_push_node_to_buf(UndoEvent node) {
+void Undo::_push_node_to_buf(Event node) {
     if (_custom1.is_null() == false) {
-        _buf.set_node(_custom1);
+        _store->go_right_before_cut();
+        _store->set_node(_custom1);
         clear_custom1();
     }
     if (_is_cursor_at_end() == true) {
-        _buf.set_node(node);
+        _store->set_node(node);
     }
     else {
-        _buf.go_right_before_cut();
-        _buf.set_node(node);
+        _store->go_right_before_cut();
+        _store->set_node(node);
     }
+}
 }
 }
 #include <FL/fl_ask.H>
@@ -16608,7 +17120,8 @@ namespace widgets {
     constexpr static const char*    SCHEME_FONT_BOLD_ITALIC     = "Bold && Italic";
     constexpr static const char*    SCHEME_FONT_ITALIC          = "Italic";
     constexpr static const char*    SCHEME_FONT_REGULAR         = "Regular";
-    constexpr static const char*    SETTINGS_BINARY_HEX         = "Load binary as hex";
+    constexpr static const char*    SETTINGS_BINARY_HEX_16      = "Load binary as hex";
+    constexpr static const char*    SETTINGS_BINARY_HEX_32      = "Load binary as hex (wide)";
     constexpr static const char*    SETTINGS_BINARY_NO          = "Don't load binary files";
     constexpr static const char*    SETTINGS_BINARY_TEXT        = "Load binary as text";
     constexpr static const char*    SETTINGS_BLOCK_CURSOR       = "Block cursor";
@@ -16675,21 +17188,20 @@ namespace widgets {
     constexpr static const char*    TOOLTIP_TEST_REGEX          = "Test if string can be compiled by pcre engine.";
     constexpr static const char*    TOOLTIP_UNDO                = "FLE undo is a replacement for the built in undo.\nIt has some additional features like undo batch replacements in one go.\nFLTK is the native undo which undo texts in small to large chunks.\nAnd you can also use no undo.";
 }
-class _AutoCompleteDialogBrowser : public flw::ScrollBrowser {
-    Token                       _tokens;
+class _AutoCompleteBrowser : public flw::ScrollBrowser {
     std::string                 _selected;
-    std::string                 _word;
+    std::string                 _input;
 public:
-    _AutoCompleteDialogBrowser() : flw::ScrollBrowser(), _tokens(Token::MakeWord()) {
-        callback(_AutoCompleteDialogBrowser::Callback2, this);
+    _AutoCompleteBrowser() : flw::ScrollBrowser() {
+        callback(_AutoCompleteBrowser::Callback2, this);
     }
     static void Callback2(Fl_Widget*, void* o) {
-        auto self = static_cast<_AutoCompleteDialogBrowser*>(o);
+        auto self = static_cast<_AutoCompleteBrowser*>(o);
         if (Fl::event_clicks() > 0) {
             Fl::event_clicks(0);
             if (self->value() > 0) {
                 self->_selected = self->text(self->value());
-                self->parent()->hide();
+                self->parent()->do_callback();
             }
         }
     }
@@ -16697,8 +17209,8 @@ public:
         if (event == FL_KEYBOARD) {
             auto key = Fl::event_key();
             if (key == FL_BackSpace) {
-                if (_word.size() > 0) {
-                    _word.pop_back();
+                if (_input.size() > 0) {
+                    _input.pop_back();
                     find_word();
                 }
                 return 1;
@@ -16707,20 +17219,28 @@ public:
                 if (value() > 0) {
                     _selected = text(value());
                 }
-                parent()->hide();
+                parent()->do_callback();
+                return 1;
             }
             else if (key == FL_Escape) {
-                parent()->hide();
+                parent()->do_callback();
+                return 1;
+            }
+            else if (key == FL_Left || key == FL_Right) {
+                return 1;
             }
             else {
                 auto text = Fl::event_text();
-                auto type = _tokens.get(*text);
-                if (type & Token::LETTER) {
-                    auto old = _word;
-                    _word += text;
-                    if (find_word() == false) {
-                        _word = old;
+                if (*text != 0) {
+                    auto first = static_cast<unsigned char>(*text);
+                    if (first >= 32) {
+                        auto old = _input;
+                        _input += text;
+                        if (find_word() == false) {
+                            _input = old;
+                        }
                     }
+                    return 1;
                 }
             }
         }
@@ -16729,7 +17249,7 @@ public:
     bool find_word() {
         for (auto f = 1; f <= size(); f++) {
             auto w = std::string(text(f));
-            if (w.find(_word) == 0) {
+            if (w.find(_input) == 0) {
                 value(f);
                 topline((f > 1) ? f - 1 : 1);
                 return true;
@@ -16737,24 +17257,21 @@ public:
         }
         return false;
     }
-    int populate(const StringSet& words, std::string word) {
-        auto row = 0;
-        clear();
+    int populate(const FLEStringSet& words, std::string word) {
         for (const auto& w : words) {
             if (word.size() == 0) {
                 add(w.c_str());
             }
             else if (w.find(word) == 0) {
                 add(w.c_str());
-                if (row == 0) {
-                    _word = word;
-                    row   = size();
+                if (_input == "") {
+                    _input = word;
                 }
             }
         }
-        if (row > 0) {
-            value(row);
-            topline((row > 2) ? row - 2 : 1);
+        if (size() > 0) {
+            value(1);
+            topline(1);
         }
         return size();
     }
@@ -16762,41 +17279,36 @@ public:
         return _selected;
     }
 };
-AutoCompleteDialog::AutoCompleteDialog(Fl_Fontsize fontsize) : Fl_Double_Window(0, 0, 0, 0) {
+AutoCompleteWin::AutoCompleteWin() : Fl_Double_Window(0, 0, 0, 0) {
     end();
-    _browser = new _AutoCompleteDialogBrowser();
-    _browser->textfont(flw::PREF_FIXED_FONT);
-    _browser->textsize(fontsize);
+    _browser = new _AutoCompleteBrowser();
+    _browser->box(FL_BORDER_BOX);
     _browser->tooltip("Enter search string");
+    box(FL_FLAT_BOX);
     add(_browser);
-    callback(AutoCompleteDialog::Callback, this);
 }
-void AutoCompleteDialog::Callback(Fl_Widget* w, void* o) {
-    auto self = static_cast<AutoCompleteDialog*>(o);
-    if (w == self) {
-        self->hide();
+int AutoCompleteWin::handle(int event) {
+    if (event == FL_UNFOCUS && Fl::focus() != _browser) {
+        do_callback();
     }
-}
-int AutoCompleteDialog::handle(int event) {
     return Fl_Double_Window::handle(event);
 }
-int AutoCompleteDialog::populate(const std::set<std::string>& words, std::string word) {
-    return static_cast<_AutoCompleteDialogBrowser*>(_browser)->populate(words, word);
+int AutoCompleteWin::populate(Fl_Fontsize fontsize, const std::set<std::string>& words, std::string word, int word_pos) {
+    _word = word;
+    _word_pos = word_pos;
+    static_cast<flw::ScrollBrowser*>(_browser)->update_pref(flw::PREF_FIXED_FONT, fontsize);
+    return static_cast<_AutoCompleteBrowser*>(_browser)->populate(words, word);
 }
-void AutoCompleteDialog::resize(int X, int Y, int W, int H) {
+void AutoCompleteWin::resize(int X, int Y, int W, int H) {
     Fl_Double_Window::resize(X, Y, W, H);
-    _browser->resize(0, 0, W, H);
+    _browser->resize(1, 1, W - 2, H - 2);
 }
-std::string AutoCompleteDialog::run(int x, int y, int w, int h) {
-    set_modal();
-    border(0);
-    resize(x, y, w, h);
-    show();
-    while (visible() != 0) {
-        Fl::wait();
-        Fl::flush();
-    }
-    return static_cast<_AutoCompleteDialogBrowser*>(_browser)->selected();
+std::string AutoCompleteWin::selected() const {
+    return static_cast<_AutoCompleteBrowser*>(_browser)->selected();
+}
+void AutoCompleteWin::show() {
+    Fl_Double_Window::show();
+    _browser->take_focus();
 }
 class _ConfigDialog : public Fl_Double_Window {
 public:
@@ -17009,9 +17521,13 @@ public:
         {
             _binary->add(widgets::SETTINGS_BINARY_NO, 0, nullptr, nullptr, FL_MENU_RADIO);
             _binary->add(widgets::SETTINGS_BINARY_TEXT, 0, nullptr, nullptr, FL_MENU_RADIO);
-            _binary->add(widgets::SETTINGS_BINARY_HEX, 0, nullptr, nullptr, FL_MENU_RADIO);
-            if (_config.pref_binary == FBINFILE::HEX) {
-                text = widgets::SETTINGS_BINARY_HEX;
+            _binary->add(widgets::SETTINGS_BINARY_HEX_16, 0, nullptr, nullptr, FL_MENU_RADIO);
+            _binary->add(widgets::SETTINGS_BINARY_HEX_32, 0, nullptr, nullptr, FL_MENU_RADIO);
+            if (_config.pref_binary == FBINFILE::HEX_16) {
+                text = widgets::SETTINGS_BINARY_HEX_16;
+            }
+            else if (_config.pref_binary == FBINFILE::HEX_32) {
+                text = widgets::SETTINGS_BINARY_HEX_32;
             }
             else if (_config.pref_binary == FBINFILE::TEXT) {
                 text = widgets::SETTINGS_BINARY_TEXT;
@@ -17111,8 +17627,11 @@ public:
             _config.pref_undo = FUNDO::NONE;
         }
         label = gnu::str::to_string(_binary->text());
-        if (label == widgets::SETTINGS_BINARY_HEX) {
-            _config.pref_binary = FBINFILE::HEX;
+        if (label == widgets::SETTINGS_BINARY_HEX_16) {
+            _config.pref_binary = FBINFILE::HEX_16;
+        }
+        else if (label == widgets::SETTINGS_BINARY_HEX_32) {
+            _config.pref_binary = FBINFILE::HEX_32;
         }
         else if (label == widgets::SETTINGS_BINARY_TEXT) {
             _config.pref_binary = FBINFILE::TEXT;
@@ -17512,9 +18031,9 @@ bool FindDialog::test_pcre() {
         fl_alert("%s", widgets::ERROR_EMPTY_STRING);
         return false;
     }
-    auto re = gnu::PCRE(string);
+    auto re = gnu::pcre8::PCRE(string);
     if (re.is_compiled() == false) {
-        fl_alert(widgets::ERROR_PCRE, re.error().c_str());
+        fl_alert(widgets::ERROR_PCRE, re.err().c_str());
         return false;
     }
     return true;
@@ -17886,64 +18405,40 @@ void dlg::keyboard(Config& config) {
     auto dlg = _KeyboardDialog(config);
     dlg.run();
 }
-LineNumDialog::LineNumDialog() : Fl_Double_Window(0, 0, 0, 0) {
+GotoLineWin::GotoLineWin() : Fl_Double_Window(0, 0, 0, 0) {
     end();
     _input = new Fl_Int_Input(0, 0, 0, 0);
-    _line  = -1;
-    add(_input);
-    _input->callback(LineNumDialog::Callback, this);
-    _input->label("Goto line:");
-    _input->labelsize(flw::PREF_FONTSIZE);
-    _input->textfont(flw::PREF_FIXED_FONT);
-    _input->textsize(flw::PREF_FONTSIZE);
+    _input->box(FL_BORDER_BOX);
     _input->when(FL_WHEN_ENTER_KEY_ALWAYS);
-    callback(LineNumDialog::Callback, this);
+    box(FL_FLAT_BOX);
+    add(_input);
 }
-void LineNumDialog::Callback(Fl_Widget* w, void* o) {
-    auto self = static_cast<LineNumDialog*>(o);
-    if (w == self) {
-        self->hide();
-    }
-    else if (w == self->_input) {
-        self->_line = atoi(self->_input->value());
-        self->hide();
-    }
-}
-int LineNumDialog::handle(int event) {
+int GotoLineWin::handle(int event) {
     if (event == FL_UNFOCUS) {
         hide();
     }
+    else if (event == FL_KEYBOARD) {
+        if (Fl::event_key() == FL_Escape) {
+            hide();
+        }
+    }
     return Fl_Double_Window::handle(event);
 }
-void LineNumDialog::resize(int X, int Y, int W, int H) {
-    auto fs = flw::PREF_FONTSIZE;
-    Fl_Double_Window::resize(X, Y, W, H);
-    _input->resize(fs * 7, 4, W - fs * 7 - 4, fs * 2);
+int GotoLineWin::line() const {
+    return atoi(_input->value());
 }
-int LineNumDialog::run() {
-    auto win = Fl::first_window();
-#if defined(_WIN32)
-    set_modal();
-    border(0);
-    resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 2 + 8);
+void GotoLineWin::popup(int fs, int X, int Y, int W, int H) {
+    Fl_Double_Window::resize(X, Y, W, H);
+    _input->resize(1, 1, W - 2, H - 2);
+    _input->labelfont(flw::PREF_FIXED_FONT);
+    _input->labelsize(fs);
+    _input->textfont(flw::PREF_FIXED_FONT);
+    _input->textsize(fs);
+    _input->take_focus();
     show();
-#elif defined(__APPLE__)
-    set_modal();
-    border(0);
-    resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 2 + 8);
-    show();
-#else
-    border(0);
-    resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 2 + 8);
-    show();
-    set_modal();
-#endif
-    flw::util::center_window(this, win);
-    while (visible() != 0) {
-        Fl::wait();
-        Fl::flush();
-    }
-    return _line;
+}
+void GotoLineWin::set_callback(Fl_Callback* cb, void* editor) {
+    _input->callback(cb, editor);
 }
 FCASECOMPARE ReplaceDialog::CASECOMPARE = FCASECOMPARE::NO;
 FNLTAB       ReplaceDialog::NLTAB       = FNLTAB::NO;
@@ -18108,9 +18603,9 @@ bool ReplaceDialog::test_pcre() {
        fl_alert("%s", widgets::ERROR_EMPTY_STRING);
         return false;
     }
-    auto re = gnu::PCRE(string);
+    auto re = gnu::pcre8::PCRE(string);
     if (re.is_compiled() == false) {
-        fl_alert(widgets::ERROR_PCRE, re.error().c_str());
+        fl_alert(widgets::ERROR_PCRE, re.err().c_str());
         return false;
     }
     return true;
@@ -18149,15 +18644,15 @@ public:
         if (event == FL_PASTE) {
             auto str = gnu::str::to_string(Fl::event_text());
             if (str != "") {
-                gnu::PCRE rx(
+                auto m = gnu::pcre8::PCRE(
                     "\\W*(0[xX][0-9a-fA-F]{2})"
                     "\\W*(0[xX][0-9a-fA-F]{2})"
                     "\\W*(0[xX][0-9a-fA-F]{2})"
-                );
-                if (rx.exec(str) == 4) {
-                    auto r = (uint8_t) strtoul(rx.substr(1).c_str(), nullptr, 0);
-                    auto g = (uint8_t) strtoul(rx.substr(2).c_str(), nullptr, 0);
-                    auto b = (uint8_t) strtoul(rx.substr(3).c_str(), nullptr, 0);
+                ).exec(str);
+                if (m.size() == 4) {
+                    auto r = static_cast<uint8_t>(strtoul(m[1].word().c_str(), nullptr, 0));
+                    auto g = static_cast<uint8_t>(strtoul(m[2].word().c_str(), nullptr, 0));
+                    auto b = static_cast<uint8_t>(strtoul(m[3].word().c_str(), nullptr, 0));
                     auto c = fl_rgb_color(r, g, b);
                     set_color(c);
                 }
@@ -18517,7 +19012,6 @@ _config(config)  {
     _style_menu->add(style::KOTLIN,                     0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
     _style_menu->add(style::JAVA,                       0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
     _style_menu->add(style::CS,                         0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
-    _style_menu->add(style::WREN,                       0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
     _style_menu->add(style::JS,                         0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
     _style_menu->add(style::TS,                         0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
     _style_menu->add(style::PHP,                        0, FLE_STATUSBAR_CB(callback_syntax()), FL_MENU_RADIO);
@@ -18620,9 +19114,6 @@ void StatusBar::callback_syntax() {
     }
     else if (label == style::TS) {
         _config.send_message(message::STATUSBAR_STYLE_CHANGED, style::TS);
-    }
-    else if (label == style::WREN) {
-        _config.send_message(message::STATUSBAR_STYLE_CHANGED, style::WREN);
     }
 }
 void StatusBar::callback_tab() {
@@ -19097,7 +19588,7 @@ void View::CallbackStyleBuffer(const int pos, const int inserted_size, const int
        editor->style_buffer().remove(pos, pos + deleted_size);
     }
     if (inserted_size > 0) {
-        auto buffer = gnu::File::Allocate(nullptr, inserted_size + 1);
+        auto buffer = gnu::file::allocate(nullptr, inserted_size + 1);
         memset(buffer, style::STYLE_INIT, inserted_size);
         editor->style_buffer().insert(pos, buffer);
         free(buffer);
@@ -19154,6 +19645,9 @@ int View::handle(int event) {
                 return 1;
             }
         }
+        else if (Fl::clipboard_contains(Fl::clipboard_plain_text) != 0) {
+            _editor->buffer().disable_undo_type(1);
+        }
     }
     else if (event == FL_FOCUS) {
         _editor->view_set(this);
@@ -19189,6 +19683,9 @@ bool View::_handle_dnd() {
     if (str != "") {
         auto discard = false;
         _config.send_message(message::DND_EVENT, str, &discard);
+        if (discard == false) {
+            _editor->buffer().lock_undo_tmp();
+        }
         return discard;
     }
     return false;
@@ -19296,6 +19793,7 @@ int View::_handle_key() {
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(ret)
     }
     else if (FLE_VIEW_KOMMAND_KEY(FKEY_DUP_TEXT)) {
+        _editor->buffer().disable_undo_type(1);
         _editor->text_duplicate_line_or_selection();
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
@@ -19390,11 +19888,11 @@ int View::_handle_key() {
         _editor->find_replace(_editor->find_search_dir(), true);
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
-    else if (_editor->undo_mode() == FUNDO::FLE && FLE_VIEW_KOMMAND_KEY(FKEY_REDO)) {
+    else if (FLE_VIEW_KOMMAND_KEY(FKEY_REDO)) {
         _editor->undo_forward();
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
-    else if (_editor->undo_mode() == FUNDO::FLE && FLE_VIEW_KOMMAND_KEY(FKEY_UNDO)) {
+    else if (FLE_VIEW_KOMMAND_KEY(FKEY_UNDO)) {
         _editor->undo_back();
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
@@ -19635,29 +20133,33 @@ _config(config),
 _editor_flags() {
     assert(findbar);
     end();
-    _style   = nullptr;
-    _findbar = findbar;
-    _regex   = new gnu::PCRE();
-    _buf1    = new TextBuffer(this, _config);
-    _buf2    = new TextBuffer(nullptr, _config);
-    _editors = new flw::SplitGroup();
-    _main    = new flw::SplitGroup();
-    _menu    = new Fl_Menu_Button(0, 0, 0, 0);
-    _output  = new flw::ScrollBrowser();
-    _view1   = new View(_config, this);
-    _view2   = nullptr;
-    _view    = _view1;
+    _style        = nullptr;
+    _findbar      = findbar;
+    _autocomplete = nullptr;
+    _regex        = new gnu::pcre8::PCRE();
+    _buf1         = new TextBuffer(this, _config);
+    _buf2         = new TextBuffer(nullptr, _config);
+    _editors      = new flw::SplitGroup();
+    _goto         = new GotoLineWin();
+    _main         = new flw::SplitGroup();
+    _menu         = new Fl_Menu_Button(0, 0, 0, 0);
+    _output       = new flw::ScrollBrowser();
+    _view1        = new View(_config, this);
+    _view2        = nullptr;
+    _view         = _view1;
     _main->add(_editors, flw::SplitGroup::CHILD::FIRST);
     _main->add(_output, flw::SplitGroup::CHILD::SECOND);
     _editors->add(_view1, flw::SplitGroup::CHILD::FIRST);
     add(_main);
     add(_menu);
+    add(_goto);
     _main->direction(flw::SplitGroup::DIRECTION::HORIZONTAL);
     _output->callback(Editor::CallbackOutput, this);
     _output->hide();
     _output->textfont(flw::PREF_FONT);
     _output->when(FL_WHEN_ENTER_KEY_CHANGED);
     _findbar->findreplace().hide();
+    _goto->set_callback(Editor::CallbackGoto, this);
     callback_connect();
 #ifdef DEBUG
     _menu->add(menu::DEBUG1, 0,                                                     FLE_EDITOR_CB(debug()));
@@ -19732,6 +20234,32 @@ void Editor::activate() {
         _view2->activate();
     }
 }
+void Editor::CallbackAutoComplete(Fl_Widget*, void* o) {
+    auto self = static_cast<Editor*>(o);
+    self->callback_autocomplete();
+}
+void Editor::callback_autocomplete() {
+    if (_autocomplete == nullptr) {
+        take_focus();
+        return;
+    }
+    auto selected = _autocomplete->selected();
+    auto word     = _autocomplete->word();
+    auto word_pos = _autocomplete->word_pos();
+    _autocomplete->hide();
+    if (selected != "" && selected != word && word_pos <= text_length()) {
+        auto start = selected.find(word);
+        if (start != std::string::npos) {
+           selected.erase(0, word.length());
+        }
+        auto i = _buf1->get_indent(word_pos);
+        gnu::str::replace(selected, "|", std::string("\n") + i);
+        _buf1->insert(word_pos, selected.c_str());
+        cursor_move_to_pos(word_pos + selected.size(), true);
+    }
+    _remove_autocomplete();
+    take_focus();
+}
 void Editor::CallbackFind(Fl_Widget* w, void* o) {
     auto  self = static_cast<Editor*>(o);
     auto& f    = self->findreplace();
@@ -19759,14 +20287,24 @@ void Editor::CallbackFind(Fl_Widget* w, void* o) {
         self->find_replace(self->_editor_flags.fsearchdir, true);
     }
 }
+void Editor::CallbackGoto(Fl_Widget*, void* o) {
+    auto self = static_cast<Editor*>(o);
+    self->callback_goto();
+}
+void Editor::callback_goto() {
+    auto line = _goto->line();
+    _goto->hide();
+    if (line > 0) {
+        cursor_move_to_rowcol(line, 1);
+    }
+}
 void Editor::CallbackOutput(Fl_Widget*, void* o) {
     auto self = static_cast<Editor*>(o);
     self->callback_output();
 }
 void Editor::callback_output(int add_line) {
     auto row = _output->value();
-    auto re  = _regex;
-    if (re->is_compiled() == false) {
+    if (_regex->is_compiled() == false) {
         return;
     }
     row += add_line;
@@ -19778,12 +20316,12 @@ void Editor::callback_output(int add_line) {
     }
     if (row <= _output->size()) {
         auto text1   = _output->text(row);
-        auto matches = re->exec(text1);
+        auto matches = _regex->exec(text1);
         _output->value(row);
-        if (matches > 1) {
-            auto line = gnu::str::to_int(re->substr("line"), 1);
-            auto col  = gnu::str::to_int(re->substr("col"), 1);
-            cursor_move_to_rowcol((int) line, (int) col);
+        if (matches.size() > 1) {
+            auto line = gnu::str::to_int(_regex->match("line").word());
+            auto col  = gnu::str::to_int(_regex->match("col").word());
+            cursor_move_to_rowcol(line, col);
             take_focus();
         }
     }
@@ -20002,7 +20540,7 @@ std::string Editor::debug_save_style(std::string filename, bool add_pos) const {
         }
     }
     if (filename != "") {
-        auto file = gnu::File::Open(filename, "wb");
+        auto file = gnu::file::open(filename, "wb");
         if (file == nullptr) {
             return h;
         }
@@ -20063,7 +20601,7 @@ void Editor::file_check_reload() {
     RECURSIVE--;
 }
 void Editor::file_compare_buffer() {
-    auto mem = gnu::File::Read(_file_info.fi.filename);
+    auto mem = gnu::file::read(_file_info.fi.filename);
     fl_message_position(this);
     if (mem.p != nullptr) {
         auto t = text_get_buffer_with_trim_and_line();
@@ -20078,10 +20616,10 @@ void Editor::file_compare_buffer() {
         fl_alert(errors::LOADING_FILE, _file_info.fi.c_str());
     }
 }
-std::string Editor::file_load(std::string filename) {
+std::string Editor::file_load(std::string filename, bool force_hex) {
     auto wc    = flw::WaitCursor();
-    auto fbuf  = gnu::FileBuf();
-    auto fi    = gnu::File(filename);
+    auto fbuf  = gnu::file::Buf();
+    auto fi    = gnu::file::File(filename);
     auto line  = FLINEENDING::UNIX;
     auto dirty = false;
     size_t count[257];
@@ -20098,34 +20636,34 @@ std::string Editor::file_load(std::string filename) {
         return statusbar_set_message(gnu::str::format(errors::FILE_TOO_LARGE, fi.c_str()));
     }
     else if (fi.size == -1) {
-        auto backup = gnu::File(_config.backup_name(fi.filename));
+        auto backup = gnu::file::File(_config.backup_name(fi.filename));
         if (backup.size > 0) {
-            fbuf = gnu::File::Read(backup.filename);
+            fbuf = gnu::file::read(backup.filename);
             if (fbuf.p == nullptr) {
-                fbuf = gnu::FileBuf("", 0);
+                fbuf = gnu::file::Buf("", 0);
             }
             else {
                 statusbar_set_message(info::BACKUP_LOADED);
             }
         }
         else {
-            fbuf = gnu::FileBuf("", 0);
+            fbuf = gnu::file::Buf("", 0);
         }
         dirty = true;
     }
     else {
-        fbuf = gnu::File::Read(fi.filename);
+        fbuf = gnu::file::read(fi.filename);
         if (fbuf.p == nullptr) {
             return statusbar_set_message(gnu::str::format(errors::LOADING_FILE, fi.c_str()));
         }
     }
     fbuf.count(count);
-    if (count[0] == 0) {
+    if (count[0] == 0 && force_hex == false) {
         if (count[256] > limits::WRAP_LINE_LENGTH_VAL) {
             wrap_set_mode(FWRAP::YES);
             statusbar_set_message(info::FILE_WRAPPED);
         }
-        auto before_cr = gnu::FileBuf::Fletcher64(fbuf.p, fbuf.s);
+        auto before_cr = gnu::file::fletcher64(fbuf.p, fbuf.s);
         if (count[13] > 0) {
             fbuf = fbuf.remove_cr();
             line = FLINEENDING::WINDOWS;
@@ -20135,14 +20673,28 @@ std::string Editor::file_load(std::string filename) {
         _file_info.fletcher64 = before_cr;
     }
     else {
-        if (_config.pref_binary == FBINFILE::NO) {
-            return statusbar_set_message(gnu::str::format(errors::LOADING_BIN, fi.name.c_str()));
-        }
-        else if (_config.pref_binary == FBINFILE::HEX && fbuf.s > limits::FILE_SIZE_VAL / limits::HEXFILE_DIVIDER) {
+        if (force_hex == true && fbuf.s > limits::FILE_SIZE_VAL / limits::HEXFILE_DIVIDER) {
             return statusbar_set_message(gnu::str::format(errors::HEX_TOO_LARGE, fi.c_str()));
         }
-        else if (_config.pref_binary == FBINFILE::HEX) {
+        else if (force_hex == true) {
+            fbuf = string::binary_to_hex(fbuf.p, fbuf.s, _config.pref_binary == FBINFILE::HEX_32);
+            statusbar_set_message(info::HEX_LOADED);
+        }
+        else if (_config.pref_binary == FBINFILE::NO) {
+            return statusbar_set_message(gnu::str::format(errors::LOADING_BIN, fi.name.c_str()));
+        }
+        else if (_config.pref_binary == FBINFILE::HEX_16 && fbuf.s > limits::FILE_SIZE_VAL / limits::HEXFILE_DIVIDER) {
+            return statusbar_set_message(gnu::str::format(errors::HEX_TOO_LARGE, fi.c_str()));
+        }
+        else if (_config.pref_binary == FBINFILE::HEX_16) {
             fbuf = string::binary_to_hex(fbuf.p, fbuf.s);
+            statusbar_set_message(info::HEX_LOADED);
+        }
+        else if (_config.pref_binary == FBINFILE::HEX_32 && fbuf.s > limits::FILE_SIZE_VAL / limits::HEXFILE_DIVIDER) {
+            return statusbar_set_message(gnu::str::format(errors::HEX_TOO_LARGE, fi.c_str()));
+        }
+        else if (_config.pref_binary == FBINFILE::HEX_32) {
+            fbuf = string::binary_to_hex(fbuf.p, fbuf.s, true);
             statusbar_set_message(info::HEX_LOADED);
         }
         else {
@@ -20161,20 +20713,20 @@ std::string Editor::file_load(std::string filename) {
 std::string Editor::file_save() {
     FLE_EDITOR_RETURN_IF_READONLY_1("")
     auto wc         = flw::WaitCursor();
-    auto bfile1     = gnu::File(_config.backup_name(_file_info.fi.filename));
+    auto bfile1     = gnu::file::File(_config.backup_name(_file_info.fi.filename));
     auto text1      = text_get_buffer_with_trim_and_line();
-    auto fi         = gnu::File(_file_info.fi.filename);
+    auto fi         = gnu::file::File(_file_info.fi.filename);
     auto fletcher64 = text1.fletcher64();
     if (text1.s <= limits::FILE_BACKUP_SIZE_VAL && bfile1.filename != "") {
-        auto bfile2 = gnu::File(bfile1.filename + "." + gnu::Time::FormatUnixToISO(_file_info.fi.mtime, false, true));
+        auto bfile2 = gnu::file::File(bfile1.filename + "." + gnu::Time::FormatUnixToISO(_file_info.fi.mtime, false, true));
         if (fi.size > 0 && bfile2.is_missing() == true) {
-            gnu::File::Copy(_file_info.fi.filename, bfile2.filename);
+            gnu::file::copy(_file_info.fi.filename, bfile2.filename);
         }
-        if (gnu::File::Write(bfile1.filename, text1) == true) {
-            gnu::File::ChMod(bfile1.filename, fi.mode);
+        if (gnu::file::write(bfile1.filename, text1) == true) {
+            gnu::file::chmod(bfile1.filename, fi.mode);
         }
     }
-    auto saved = gnu::File::Write(_file_info.fi.filename, text1);
+    auto saved = gnu::file::write(_file_info.fi.filename, text1);
     update_autocomplete(text1.p);
     if (saved == false) {
         return statusbar_set_message(gnu::str::format(errors::SAVE_FILE, _file_info.fi.c_str()));
@@ -20185,7 +20737,7 @@ std::string Editor::file_save() {
         _buf1->undo()->set_save_point();
     }
     _file_info.fi.update();
-    gnu::File::ChMod(_file_info.fi.filename, fi.mode);
+    gnu::file::chmod(_file_info.fi.filename, fi.mode);
     text_set_dirty(false);
     update_pref();
     cursor_save();
@@ -20200,7 +20752,7 @@ size_t Editor::find_lines(std::string find, FREGEX fregex, FTRIM ftrim) {
     auto out   = (flw::ScrollBrowser*) _output;
     auto time  = gnu::Time::Milli();
     auto lines = std::vector<std::string>();
-    auto rx    = (fregex == FREGEX::YES) ? new gnu::PCRE(find, true) : (gnu::PCRE*) nullptr;
+    auto rx    = (fregex == FREGEX::YES) ? new gnu::pcre8::PCRE(find, true) : nullptr;
     _buf1->find_lines("", find, rx, ftrim, lines);
     out->clear();
     if (lines.size() > 0) {
@@ -20208,8 +20760,9 @@ size_t Editor::find_lines(std::string find, FREGEX fregex, FTRIM ftrim) {
             out->add(line.c_str());
         }
         _regex->compile("\\s*(?<line>\\d+)\\s+-\\s+(?<col>\\d+)|.*", true);
+        _regex->set_names({"line", "col"});
         show_output(FOUTPUT::SHOW);
-        statusbar_set_message(gnu::str::format(info::FOUND_LINES, (unsigned) lines.size(), gnu::Time::Milli() - time));
+        statusbar_set_message(gnu::str::format(info::FOUND_LINES, static_cast<unsigned>(lines.size()), gnu::Time::Milli() - time));
     }
     else {
         _regex->clear();
@@ -20221,7 +20774,7 @@ size_t Editor::find_lines(std::string find, FREGEX fregex, FTRIM ftrim) {
 }
 size_t Editor::find_lines(std::string find, FREGEX fregex, FTRIM ftrim, std::vector<std::string>& out) {
     auto size = out.size();
-    auto rx   = (fregex == FREGEX::YES) ? new gnu::PCRE(find, true) : (gnu::PCRE*) nullptr;
+    auto rx   = (fregex == FREGEX::YES) ? new gnu::pcre8::PCRE(find, true) : (gnu::pcre8::PCRE*) nullptr;
     _buf1->find_lines(_file_info.fi.name, find, rx, ftrim, out);
     delete rx;
     return out.size() - size;
@@ -20232,7 +20785,7 @@ void Editor::find_quick() {
     std::string selected;
     if (_buf1->get_selection(start, end, false) == true) {
         CursorPos old = cursor(false);
-        selected = gnu::str::grab_string(_buf1->text_range(start, end));
+        selected = gnu::str::grab(_buf1->text_range(start, end));
         _findbar->findreplace().find_string(selected);
         _findbar->findreplace().add_find_word(selected);
         CursorPos pos = _buf1->find_replace(selected, nullptr, FSEARCHDIR::FORWARD, FCASECOMPARE::YES, FWORDCOMPARE::NO, FNLTAB::NO);
@@ -20267,10 +20820,10 @@ bool Editor::find_replace(FSEARCHDIR fsearchdir, bool replace_text) {
     }
     auto pos = CursorPos();
     if (fr.fregex() == FREGEX::YES) {
-        auto rx = gnu::PCRE(find, true);
+        auto rx = gnu::pcre8::PCRE(find, true);
         if (rx.is_compiled() == false) {
             fl_beep(FL_BEEP_ERROR);
-            statusbar_set_message(rx.error());
+            statusbar_set_message(rx.err());
             return false;
         }
         pos = _buf1->find_replace_regex(
@@ -20323,10 +20876,10 @@ size_t Editor::find_replace_all(std::string find, std::string replace, FNLTAB fn
     auto time     = gnu::Time::Milli();
     auto pos      = CursorPos();
     if (fregex == FREGEX::YES) {
-        auto rx = gnu::PCRE(find, true);
+        auto rx = gnu::pcre8::PCRE(find, true);
         if (rx.is_compiled() == false) {
             fl_beep(FL_BEEP_ERROR);
-            statusbar_set_message(rx.error());
+            statusbar_set_message(rx.err());
             return false;
         }
         pos = _buf1->find_replace_regex_all(&rx, replace, fselection, fnltab);
@@ -20392,6 +20945,9 @@ Message::CTRL Editor::message(const std::string& message, const std::string& s, 
     if (message == message::PREF_CHANGED) {
         update_pref();
     }
+    else if (message == message::CUSTOM_AUTOCOMPLETE) {
+        update_autocomplete();
+    }
     else if (message == message::UNDO_MODE_CHANGED) {
         _buf1->undo_set_mode_using_config();
     }
@@ -20431,58 +20987,63 @@ Message::CTRL Editor::message(const std::string& message, const std::string& s, 
     }
     return Message::CTRL::CONTINUE;
 }
+void Editor::_remove_autocomplete() {
+    if (_autocomplete != nullptr) {
+        _autocomplete->callback(nullptr, nullptr);
+        remove(_autocomplete);
+        Fl::delete_widget(_autocomplete);
+        _autocomplete = nullptr;
+    }
+}
 void Editor::select_color() {
     auto pos = _buf1->select_color();
     cursor_move(pos);
     _view->display_insert();
 }
 void Editor::select_pair(bool move_cursor) {
-    auto pos = _buf1->select_pair(move_cursor);
-    cursor_move(pos);
-    _view->display_insert();
+    auto found = false;
+    auto pos   = _buf1->select_pair(move_cursor, found);
+    if (found == false) {
+        statusbar_set_message(info::PAIRS);
+    }
+    else {
+        statusbar_set_message("");
+        cursor_move(pos);
+        _view->display_insert();
+    }
 }
 void Editor::show_autocomplete() {
     FLE_EDITOR_RETURN_IF_READONLY_0()
+    _remove_autocomplete();
+    _autocomplete = new AutoCompleteWin();
+    add(_autocomplete);
     auto X   = 0;
     auto Y   = 0;
     auto pos = cursor_insert_position();
     if (_words.size() == 0 || _view->position_to_xy(pos, &X, &Y) == 0) {
+        _remove_autocomplete();
         take_focus();
-        fl_beep(FL_BEEP_NOTIFICATION);
         return;
     }
-    auto fs     = (_config.pref_tmp_fontsize > 0) ? _config.pref_tmp_fontsize : flw::PREF_FIXED_FONTSIZE;
-    auto word   = _buf1->get_word_left(cursor_insert_position());
-    auto dialog = AutoCompleteDialog(fs);
-    if (dialog.populate(_words, word) == 0) {
+    auto fs   = _tmp_fixed_fontsize();
+    auto word = _buf1->get_word_left(cursor_insert_position());
+    if (_autocomplete->populate(fs, _words, word, pos) == 0) {
+        _remove_autocomplete();
         take_focus();
-        fl_beep(FL_BEEP_NOTIFICATION);
-        free(word);
         return;
     }
     auto W = fs * 18;
     auto H = fs * 14;
-    X = top_window()->x() + X - fs;
-    Y = top_window()->y() + Y + fs;
-    if (X + W > Fl::w()) {
-        X = Fl::w() - W;
+    X -= 4;
+    if (X + W > x() + w()) {
+        X = x() + w() - W;
     }
-    if (Y + H > Fl::h()) {
-        Y -= (H + fs - fl_descent());
+    if (Y + H - y() > h() - fs) {
+        Y -= (H + fs);
     }
-    auto selected = dialog.run(X, Y, W, H);
-    if (selected != "" && selected != word) {
-        auto start = selected.find(word);
-        if (start != std::string::npos) {
-           selected.erase(0, strlen(word));
-        }
-        auto i = _buf1->get_indent(pos);
-        gnu::str::replace(selected, "|", std::string("\n") + i);
-        _buf1->insert(pos, selected.c_str());
-        cursor_move_to_pos(pos + selected.size(), true);
-    }
-    take_focus();
-    free(word);
+    _autocomplete->callback(Editor::CallbackAutoComplete, this);
+    _autocomplete->resize(X, Y + fs, W, H);
+    _autocomplete->show();
 }
 size_t Editor::show_find_lines_dialog_or_run_again(FFINDLINES ffindlines) {
     auto        list  = _config.find_list;
@@ -20503,10 +21064,22 @@ size_t Editor::show_find_lines_dialog_or_run_again(FFINDLINES ffindlines) {
     return count;
 }
 void Editor::show_line_dialog() {
-    auto line = LineNumDialog().run();
-    if (line > 0) {
-        cursor_move_to_rowcol(line, 1);
+    auto X   = 0;
+    auto Y   = 0;
+    auto fs  = _tmp_fixed_fontsize();
+    auto W   = fs * 8;
+    auto H   = fs * 2;
+    auto pos = cursor_insert_position();
+    if (_view->position_to_xy(pos, &X, &Y) == 0) {
+        X = x() + (w() / 2) - (W / 2);
+        Y = y() + (h() / 2) - (H / 2);
     }
+    else {
+        if (X + W > x() + w()) {
+            X = x() + w() - W;
+        }
+    }
+    _goto->popup(fs, X, Y, W, H);
 }
 void Editor::show_menu() {
     FLE_EDITOR_RETURN_IF_READONLY_0()
@@ -20607,7 +21180,7 @@ void Editor::style(Style* style) {
 }
 void Editor::style_resize_buffer() {
     auto size   = (_style->name() == style::TEXT) ? 0 : _buf1->length();
-    auto style1 = gnu::File::Allocate(nullptr, size + 1);
+    auto style1 = gnu::file::allocate(nullptr, size + 1);
     memset(style1, style::STYLE_INIT, size);
     _buf2->text(style1);
     free(style1);
@@ -20670,7 +21243,7 @@ void Editor::text_move_lines(FMOVEV move) {
 }
 int Editor::text_remove_trailing() {
     FLE_EDITOR_RETURN_IF_READONLY_1(0)
-    auto rx  = gnu::PCRE("(\\s+)$");
+    auto rx  = gnu::pcre8::PCRE("(\\s+)$");
     auto pos = _buf1->find_replace_regex_all(&rx, "", FSELECTION::NO, FNLTAB::NO);
     cursor_move(pos);
     statusbar_set_message(gnu::str::format(info::REMOVED_TRAILING, (unsigned) _buf1->count_changes()));
@@ -20684,7 +21257,7 @@ void Editor::text_select_word() {
     CursorPos   pos = _buf1->select_word();
     std::string selected;
     if (pos.text_has_selection() == true) {
-        selected = gnu::str::grab_string(_buf1->text_range(pos.start, pos.end));
+        selected = gnu::str::grab(_buf1->text_range(pos.start, pos.end));
         _findbar->findreplace().find_string(selected);
         cursor_move(pos);
         statusbar_set_message("");
@@ -20746,53 +21319,61 @@ void Editor::text_to_tab() {
         statusbar_set_message(gnu::str::format(info::SPACES_REPLACED, (int) count));
     }
 }
-void Editor::undo_back(bool all) {
-    FLE_EDITOR_RETURN_IF_READONLY_0()
+int Editor::undo_back(bool all) {
+    auto count = 0;
+    FLE_EDITOR_RETURN_IF_READONLY_1(count)
     if (_buf1->undo_mode() == FUNDO::FLE) {
         auto cur = _buf1->undo_back(all, cursor(false));
         if (_buf1->count_changes() == 0) {
             statusbar_set_message("");
-            return;
         }
-        cursor_move(cur);
-        statusbar_set_message(gnu::str::format(info::UNDID_CHANGES, _buf1->count_changes()));
-        _buf1->undo_check_save_point();
+        else {
+            cursor_move(cur);
+            statusbar_set_message(gnu::str::format(info::UNDID_CHANGES, _buf1->count_changes()));
+            _buf1->undo_check_save_point();
+            count = _buf1->count_changes();
+        }
     }
-    else {
+    else if (_buf1->undo_mode() == FUNDO::FLTK) {
         if (all == true) {
             flw::WaitCursor wc;
             while (_buf1->can_undo() == true) {
-                Fl_Text_Editor::kf_undo(0, _view);
+                count += Fl_Text_Editor::kf_undo(0, _view);
             }
         }
         else {
-            Fl_Text_Editor::kf_redo(0, _view);
+            count = Fl_Text_Editor::kf_undo(0, _view);
         }
     }
+    return count;
 }
-void Editor::undo_forward(bool all) {
-    FLE_EDITOR_RETURN_IF_READONLY_0()
+int Editor::undo_forward(bool all) {
+    auto count = 0;
+    FLE_EDITOR_RETURN_IF_READONLY_1(count)
     if (_buf1->undo_mode() == FUNDO::FLE) {
         auto cur = _buf1->undo_forward(all, cursor(false));
         if (_buf1->count_changes() == 0) {
             statusbar_set_message("");
-            return;
         }
-        cursor_move(cur);
-        statusbar_set_message(gnu::str::format(info::REDID_CHANGES, _buf1->count_changes()));
-        _buf1->undo_check_save_point();
+        else {
+            cursor_move(cur);
+            statusbar_set_message(gnu::str::format(info::REDID_CHANGES, _buf1->count_changes()));
+            _buf1->undo_check_save_point();
+            count = _buf1->count_changes();
+        }
     }
-    else {
+    else if (_buf1->undo_mode() == FUNDO::FLTK) {
         if (all == true) {
             flw::WaitCursor wc;
             while (_buf1->can_redo() == true) {
-                Fl_Text_Editor::kf_redo(0, _view);
+                count += Fl_Text_Editor::kf_redo(0, _view);
             }
         }
         else {
-            Fl_Text_Editor::kf_redo(0, _view);
+            count = Fl_Text_Editor::kf_redo(0, _view);
         }
     }
+    return count;
 }
 void Editor::update_after_focus() {
     file_check_reload();
@@ -20806,7 +21387,7 @@ void Editor::update_after_focus() {
 }
 void Editor::update_autocomplete(const char* text) {
     _words.clear();
-    if (_config.pref_autocomplete == false || _buf1->length() > (int) limits::AUTOCOMPLETE_FILESIZE_VAL || _file_info.binary == true) {
+    if (_config.pref_autocomplete == false || _buf1->length() > static_cast<int>(limits::AUTOCOMPLETE_FILESIZE_VAL) || _file_info.binary == true) {
         return;
     }
     char* tmp = nullptr;
@@ -20815,7 +21396,7 @@ void Editor::update_autocomplete(const char* text) {
         tmp  = const_cast<char*>(text);
     }
     _words = _style->words();
-    string::wordlist(text, _words);
+    string::make_word_list(text, _words, _config.custom_words);
     free(tmp);
 }
 void Editor::update_pref() {
@@ -20844,6 +21425,9 @@ void Editor::update_pref() {
     }
     else if (_words.size() == 0 && _config.pref_autocomplete == true) {
         update_autocomplete();
+    }
+    if (_config.pref_undo != _buf1->undo_mode()) {
+        _buf1->undo_set_mode_using_config();
     }
     Fl_Group::resize(x(), y(), w(), h());
     Fl::redraw();
@@ -21123,6 +21707,7 @@ constexpr static const char* MENU_FILE_CLOSEALL                 = "&File/Close a
 constexpr static const char* MENU_FILE_NEW                      = "&File/New file";
 constexpr static const char* MENU_FILE_NEWWINDOW                = "&File/New window";
 constexpr static const char* MENU_FILE_OPEN                     = "&File/Open file...";
+constexpr static const char* MENU_FILE_OPEN_HEX                 = "&File/Open file as hex...";
 constexpr static const char* MENU_FILE_QUIT                     = "&File/Quit";
 constexpr static const char* MENU_FILE_READONLY                 = "&File/Read only mode";
 constexpr static const char* MENU_FILE_RELOAD                   = "&File/Reload file...";
@@ -21148,6 +21733,7 @@ constexpr static const char* MENU_PROJECT_DIR                   = "&Project/Set 
 constexpr static const char* MENU_PROJECT_LOAD                  = "&Project/Load project...";
 constexpr static const char* MENU_PROJECT_SAVE                  = "&Project/Save project";
 constexpr static const char* MENU_PROJECT_SAVEAS                = "&Project/Save project as...";
+constexpr static const char* MENU_PROJECT_WORDFILE              = "&Project/Set custom autocomplete wordfile...";
 constexpr static const char* MENU_SETTINGS_BACKUP               = "&Settings/Set backup directory...";
 constexpr static const char* MENU_SETTINGS_EDITOR               = "&Settings/Editor...";
 constexpr static const char* MENU_SETTINGS_LOADPREF             = "&Settings/Reload preferences";
@@ -21205,9 +21791,9 @@ static const bool           CLOSE_EDITOR                        = true;
 static const bool           DONT_CLOSE_EDITOR                   = false;
 static const std::string    DBKEY_PROJECTS                      = "projects_";
 static const std::string    DBKEY_SNIPPETS                      = "snippets_";
-static std::string FLEDIT_ABOUT = R"(flEdit r1
+static std::string FLEDIT_ABOUT = R"(flEdit r2
 
-Copyright 2024 gnuwimp@gmail.com.
+Copyright 2024 - 2025 gnuwimp@gmail.com.
 Released under the GNU General Public License 3.0
 https://github.com/gnuwimp/flEdit.
 
@@ -21234,13 +21820,16 @@ So open/create the database first.
 To use the built in file browser set a directory first for the project.
 
 Autocomplete:
-If it is turned on it will create the word list when file is loaded.
+If it is turned on it will create a word list when the file is opened.
 And then every time it is saved.
+If custom wordfile has been set (only for projects), 
+  then those words will be added to each files word list.
 
 Backup files:
 If a backup path has been set then the file is also saved there.
-If a file has the filename /home/user/world.txt The backup file name will be
-/backupdir/_home_user_world.txt (or something similar for windows).
+If a file has the filename /home/user/world.txt, 
+  the backup file name will be /backupdir/_home_user_world.txt,
+  or something similar for windows.
 Also a copy of the file will be saved to /backupdir/_home_user_world.txt.YYYY-MM-DD.
 
 Command:
@@ -21251,12 +21840,13 @@ You can either run commands in their own processes or capture the output.
 static std::string COMMAND_HELP = R"(Run a command as an external process.
 Or run and capture output from an command.
 Capturing output is done by appending 2>&1 to your command.
-It is also executed in an thread in the background, only one command can be run at the same time.
+The command is executed in an thread in the background, 
+  and only one command can be run at the same time.
 Display the result in a listbox or a (read only) terminal widget.
 
 Warning:
 If you are running an command and it doesn't stop you have to kill it manually!
-Either by using some kind of task manager or kill command from the terminal.
+Either by using some kind of task manager or kill the command from the terminal.
 
 Name:
 Enter a unique name to describe the command.
@@ -21337,7 +21927,7 @@ struct Command {
     };
     static Command*             CURRENT;
     static CommandVector        COMMANDS;
-    static gnu::FileBuf         BUF;
+    static gnu::file::Buf       BUF;
     static int                  SELECT_LINE;
     static std::string          LINE_REGEX;
     static std::string          WORKDIR;
@@ -21419,12 +22009,12 @@ public:
                                     { auto row = (_list->value() == 0) ? 1 : _list->value() + 1; _list->value((row > _list->size()) ? 1 : row); _list->do_callback(); }
     void                        list_prev()
                                     { auto row = (_list->value() == 0) ? _list->size() : _list->value() - 1; _list->value((row < 1) ? _list->size() : row); _list->do_callback(); }
-    gnu::PCRE&                  list_rx()
+    gnu::pcre8::PCRE&           list_rx()
                                     { return _list_rx; }
     void                        reset_terminal(bool force);
     void                        run_command(std::string workdir, std::string filename, std::string selection, bool repeat);
     void                        set_list_data(const std::vector<std::string>& lines, std::string parser, int select);
-    void                        set_terminal_data(const gnu::FileBuf& buf);
+    void                        set_terminal_data(const gnu::file::Buf& buf);
     void                        show_editor();
     void                        show_list()
                                     { show(); value(_list); }
@@ -21432,13 +22022,13 @@ public:
                                     { show(); value(_terminal); }
     void                        update_pref();
     static void                 Join(void* message);
-    static void                 ThreadFuncForList(std::string cmd, std::string work, gnu::PCRE* filter_regex, std::string line_regex, CommandOutput* self);
+    static void                 ThreadFuncForList(std::string cmd, std::string work, gnu::pcre8::PCRE* filter_regex, std::string line_regex, CommandOutput* self);
     static void                 ThreadFuncForTerminal(std::string cmd, std::string work, CommandOutput* self);
     static void                 ThreadFuncForTerminalStream(std::string cmd, std::string work, CommandOutput* self);
 private:
     flw::ScrollBrowser*         _list;
     Fl_Terminal*                _terminal;
-    gnu::PCRE                   _list_rx;
+    gnu::pcre8::PCRE            _list_rx;
 };
 class DirBrowser : public Fl_Group {
 public:
@@ -21464,7 +22054,7 @@ private:
 };
 class ProjectDialog : public Fl_Double_Window {
 public:
-    explicit                    ProjectDialog(gnu::DB& db);
+    explicit                    ProjectDialog(gnu::db::DB& db);
     void                        resize(int X, int Y, int W, int H) override;
     std::string                 run(Fl_Window* parent);
     void                        update_pref();
@@ -21475,12 +22065,12 @@ private:
     Fl_Button*                  _remove;
     Fl_Hold_Browser*            _projects;
     flw::GridGroup*             _grid;
-    gnu::DB&                    _db;
+    gnu::db::DB&                    _db;
     std::string                 _name;
 };
 class TextDialog : public Fl_Double_Window {
 public:
-    explicit                     TextDialog(gnu::DB& db);
+    explicit                    TextDialog(gnu::db::DB& db);
                                 ~TextDialog();
     void                        close();
     void                        delete_text();
@@ -21501,7 +22091,7 @@ private:
     Fl_Text_Buffer*             _buffer;
     Fl_Text_Editor*             _editor;
     flw::GridGroup*             _grid;
-    gnu::DB&                    _db;
+    gnu::db::DB&                _db;
     std::string                 _res;
 };
 class FlEdit : public Fl_Double_Window, fle::Message {
@@ -21529,12 +22119,12 @@ public:
     void                        editor_update_status(fle::Editor* editor);
     void                        file_close();
     void                        file_close_all();
-    fle::Editor*                file_load(Fl_Widget* after, std::string filename, bool add_recent = true, int line = 0);
+    fle::Editor*                file_load(Fl_Widget* after, std::string filename, bool add_recent = true, int line = 0, bool as_hex = false);
     std::vector<std::string>    file_load_dialog();
-    void                        file_load_list(Fl_Widget* after, std::vector<std::string> files, std::vector<int> filelines = std::vector<int>());
+    void                        file_load_list(Fl_Widget* after, std::vector<std::string> files, std::vector<int> filelines = std::vector<int>(), bool as_hex = false);
     void                        file_new(std::string filename);
-    void                        file_open()
-                                    { file_load_list(_editor, file_load_dialog()); }
+    void                        file_open(bool as_hex = false)
+                                    { file_load_list(_editor, file_load_dialog(), std::vector<int>(), as_hex); }
     void                        file_readonly_mode();
     void                        file_reload()
                                     { file_reload(_editor); }
@@ -21554,8 +22144,6 @@ public:
     void                        help_fledit();
     void                        help_pcre()
                                     { flw::dlg::list("PCRE", fle::help::pcre(), this, true, 60, 50); }
-    void                        menu_enable(std::string path, bool enable = true);
-    Fl_Menu_Item*               menu_get(std::string path);
     void                        new_window();
     void                        pref_load(bool all = true);
     void                        pref_save();
@@ -21568,20 +22156,21 @@ public:
     bool                        project_exist(std::string name);
     void                        project_load();
     void                        project_load_from_db(std::string name);
-    std::vector<std::string>    project_load_list(std::string key, gnu::Pile& data);
+    std::vector<std::string>    project_load_list(std::string key, gnu::pile::Pile& data);
     void                        project_open_db();
     bool                        project_save()
                                     { return project_save(_project.name); }
     bool                        project_save(std::string name);
     void                        project_save_as();
-    void                        project_save_list(std::string key, const std::vector<std::string>& list, gnu::Pile& data);
+    void                        project_save_list(std::string key, const std::vector<std::string>& list, gnu::pile::Pile& data);
     void                        project_snippets();
     void                        project_snippets_save(SNIPPET snippet, std::string clip = "");
+    void                        project_wordlist();
     bool                        quit();
     fle::Message::CTRL          message(const std::string& message, const std::string& s, const void* p) override;
     void                        resize(int X, int Y, int W, int H) override;
     void                        settings_backup()
-                                    { CONFIG.pref_backup = gnu::str::to_string(fl_dir_chooser("Select Backup Directory Or Press Cancel To Disable Backup", (CONFIG.pref_backup.is_dir() == true) ? CONFIG.pref_backup.c_str() : gnu::File::HomeDir().c_str())); }
+                                    { CONFIG.pref_backup = gnu::str::to_string(fl_dir_chooser("Select Backup Directory Or Press Cancel To Disable Backup", (CONFIG.pref_backup.is_dir() == true) ? CONFIG.pref_backup.c_str() : gnu::file::home_dir().c_str())); }
     void                        settings_editor()
                                     { fle::dlg::config(CONFIG); }
     void                        settings_load_pref()
@@ -21595,9 +22184,9 @@ public:
     void                        settings_scheme()
                                     { fle::dlg::scheme(CONFIG); }
     void                        settings_split_horizontal()
-                                    { menu_get(MENU_SETTINGS_SPLITHORIZONTAL)->set(); split_view(SPLIT::HOR); }
+                                    { flw::menu::setonly_item(_menu, MENU_SETTINGS_SPLITHORIZONTAL); split_view(SPLIT::HOR); }
     void                        settings_split_vertical()
-                                    { menu_get(MENU_SETTINGS_SPLITVERTICAL)->set(); split_view(SPLIT::VER); }
+                                    { flw::menu::setonly_item(_menu, MENU_SETTINGS_SPLITVERTICAL); split_view(SPLIT::VER); }
     void                        settings_tabg11()
                                     { pref_set_tabspos1((int) flw::TabsGroup::TABS::NORTH); }
     void                        settings_tabg12()
@@ -21673,9 +22262,9 @@ public:
     static inline void          ShowOutputTerminal()
                                     { SELF->_output->show_terminal(); SELF->do_layout(); Fl::redraw(); Fl::check(); }
     static inline bool          SettingsClearTerminal()
-                                    { return SELF->menu_get(MENU_SETTINGS_OUTPUT_CLEAR)->value(); }
+                                    { return flw::menu::item_value(SELF->_menu, MENU_SETTINGS_OUTPUT_CLEAR); }
     static inline bool          settingsShowUnknown()
-                                    { return SELF->menu_get(MENU_SETTINGS_OUTPUT_UNKNOWN)->value(); }
+                                    { return flw::menu::item_value(SELF->_menu, MENU_SETTINGS_OUTPUT_UNKNOWN); }
 private:
     static FlEdit*              SELF;
     CommandOutput*              _output;
@@ -21687,8 +22276,8 @@ private:
     flw::RecentMenu*            _recent;
     flw::SplitGroup*            _split_edit;
     flw::SplitGroup*            _split_main;
-    gnu::DB                     _db;
-    gnu::PCRE                   _list_rx;
+    gnu::db::DB                 _db;
+    gnu::pcre8::PCRE            _list_rx;
     std::string                 _search;
     std::string                 _search_all;
     std::vector<std::string>    _old_find_list;
@@ -21706,6 +22295,7 @@ private:
     struct {
         std::string             dir;
         std::string             name;
+        std::string             wordfile;
     }                           _project;
     struct {
         std::string             start_dir;
@@ -21953,8 +22543,8 @@ bool CommandDialog::data_save() {
         else if (_stream->value() != 0) {
             output = Command::STREAM_TERMINAL;
         }
-        gnu::PCRE re1(filter);
-        gnu::PCRE re2(line);
+        gnu::pcre8::PCRE re1(filter);
+        gnu::pcre8::PCRE re2(line);
         if (name == "") {
             _label->copy_label("error: name is empty");
             _name->take_focus();
@@ -21962,13 +22552,13 @@ bool CommandDialog::data_save() {
             return false;
         }
         else if (filter != "" && re1.is_compiled() == false) {
-            _label->copy_label(re1.error().c_str());
+            _label->copy_label(re1.err().c_str());
             _filter->take_focus();
             fl_beep(FL_BEEP_ERROR);
             return false;
         }
         else if (line != "" && re2.is_compiled() == false) {
-            _label->copy_label(re2.error().c_str());
+            _label->copy_label(re2.err().c_str());
             _line->take_focus();
             fl_beep(FL_BEEP_ERROR);
             return false;
@@ -22116,43 +22706,43 @@ Command* CommandDialog::run(Fl_Window* parent) {
 void CommandDialog::test() {
     auto filter = gnu::str::to_string(_filter->value());
     auto string = gnu::str::to_string(_string->value());
-    std::string   info;
-    gnu::PCRE re1(filter);
-    gnu::PCRE re2(_line->value());
-    info += "filter: ";
+    std::string      info;
+    gnu::pcre8::PCRE re1(filter);
+    gnu::pcre8::PCRE re2(_line->value());
+    info += "Filter: ";
     if (re1.is_compiled() == false) {
-        info += re1.error();
+        info += re1.err();
     }
     else if (string == "") {
         info += "regex ok but empty test string!";
     }
-    else if (re1.exec(string) == 0) {
+    else if (re1.exec(string).size() == 0) {
         info += "no match";
     }
     else {
         info += "matches string";
     }
     info += "\n";
-    info += "line: ";
+    info += "File: ";
     if (re2.is_compiled() == false) {
-        info += re2.error();
+        info += re2.err();
     }
     else if (string == "") {
         info += "regex ok but empty test string!";
     }
-    else if (re2.exec(string) == 0) {
+    else if (re2.set_names({"file", "line", "col"}).exec(string).size() == 0) {
         info += "no match";
     }
     else {
-        auto f = re2.substr("file");
-        auto l = re2.substr("line");
-        auto c = re2.substr("col");
-        info += "file=";
-        info += f;
+        auto f = re2.match("file");
+        auto l = re2.match("line");
+        auto c = re2.match("col");
+        info += "filename=";
+        info += f.word();
         info += ", line=";
-        info += l;
+        info += l.word();
         info += ", col=";
-        info += c;
+        info += c.word();
     }
     _label->copy_label(info.c_str());
 }
@@ -22160,7 +22750,7 @@ Command*                    Command::CURRENT        = nullptr;
 int                         Command::SELECT_LINE    = 0;
 std::thread*                Command::THREAD         = nullptr;
 CommandVector               Command::COMMANDS;
-gnu::FileBuf                Command::BUF;
+gnu::file::Buf              Command::BUF;
 std::string                 Command::LINE_REGEX;
 std::string                 Command::WORKDIR;
 std::vector<std::string>    Command::LINES;
@@ -22177,7 +22767,7 @@ CommandOutput::CommandOutput() : flw::TabsGroup(0, 0, 0, 0) {
 void CommandOutput::create_command_thread(std::string workdir, std::string filename, std::string selection) {
     auto work = Command::CURRENT->workdir;
     auto cmd  = Command::CURRENT->command;
-    auto fi   = gnu::File(filename);
+    auto fi   = gnu::file::File(filename);
     if (filename != "" && work.find("$FILE") != std::string::npos) {
         gnu::str::replace(work, "$FILE", fi.path);
     }
@@ -22226,9 +22816,9 @@ void CommandOutput::create_command_thread(std::string workdir, std::string filen
 #endif
     fl_message_position(top_window());
     if (Command::CURRENT->output == Command::CAPTURE_LIST) {
-        auto rx = new gnu::PCRE(Command::CURRENT->filter_regex, true);
+        auto rx = new gnu::pcre8::PCRE(Command::CURRENT->filter_regex, true);
         if (Command::CURRENT->filter_regex.empty() == false && rx->is_compiled() == false) {
-            fl_alert("error: regex expression!\n%s\n%s", rx->error().c_str(), rx->pattern().c_str());
+            fl_alert("error: regex expression!\n%s\n%s", rx->err().c_str(), rx->pattern().c_str());
             delete rx;
         }
         else {
@@ -22251,7 +22841,7 @@ void CommandOutput::create_command_thread(std::string workdir, std::string filen
         Command::THREAD = new std::thread(CommandOutput::ThreadFuncForTerminalStream, cmd, work, this);
     }
     else {
-        auto ret = gnu::File::Run(cmd.c_str(), true, false);
+        auto ret = gnu::file::run(cmd.c_str(), true, false);
         if (ret != 0) {
             fl_alert("error: failed to execute '%s'\nreturn code is %d", cmd.c_str(), ret);
         }
@@ -22335,7 +22925,7 @@ void CommandOutput::set_list_data(const std::vector<std::string>& lines, std::st
     }
     value(_list);
 }
-void CommandOutput::set_terminal_data(const gnu::FileBuf& buf) {
+void CommandOutput::set_terminal_data(const gnu::file::Buf& buf) {
     reset_terminal(false);
     _terminal->append(buf.p, buf.s);
     value(_terminal);
@@ -22343,20 +22933,20 @@ void CommandOutput::set_terminal_data(const gnu::FileBuf& buf) {
 void CommandOutput::show_editor() {
     static_cast<FlEdit*>(top_window())->editor_take_focus();
 }
-void CommandOutput::ThreadFuncForList(std::string cmd, std::string work, gnu::PCRE* filter_regex, std::string line_regex, CommandOutput* self) {
+void CommandOutput::ThreadFuncForList(std::string cmd, std::string work, gnu::pcre8::PCRE* filter_regex, std::string line_regex, CommandOutput* self) {
     static const size_t BUFFER_READ = 16'384;
     auto start  = gnu::Time::Milli();
     auto handle = static_cast<FILE*>(nullptr);
-    auto old    = gnu::File::WorkDir().filename;
-    gnu::File::ChDir(work);
-    work = gnu::File::WorkDir().filename;
+    auto old    = gnu::file::work_dir().filename;
+    gnu::file::chdir(work);
+    work = gnu::file::work_dir().filename;
     Command::SELECT_LINE = 0;
     Command::LINE_REGEX = line_regex;
     Command::BUF.clear();
     Command::LINES.clear();
     Command::LINES.push_back(gnu::str::format("running in directory %s", work.c_str()));
     Command::LINES.push_back(gnu::str::format("executing %s", cmd.c_str()));
-    handle = gnu::File::Popen(cmd);
+    handle = gnu::file::popen(cmd);
     if (handle == nullptr) {
         Command::LINES.push_back("error: failed to execute command");
     }
@@ -22379,8 +22969,8 @@ void CommandOutput::ThreadFuncForList(std::string cmd, std::string work, gnu::PC
         Command::BUF.add("\0", 1);
         Command::LINES.push_back("Output:");
         Command::SELECT_LINE = (int) Command::LINES.size();
-        for (const auto& line : gnu::str::split(Command::BUF.p, '\n')) {
-            if (filter_regex->is_compiled() == false || filter_regex->exec(line) > 0) {
+        for (const auto& line : gnu::str::split(Command::BUF.p, "\n")) {
+            if (filter_regex->is_compiled() == false || filter_regex->exec(line).size() > 0) {
                 if (Command::LINES.size() == CommandOutput::MAX_LIST_LINES) {
                     Command::LINES.push_back("error: line limits have been reached!");
                     break;
@@ -22395,14 +22985,14 @@ void CommandOutput::ThreadFuncForList(std::string cmd, std::string work, gnu::PC
     }
     delete filter_regex;
     Fl::awake(CommandOutput::Join, self);
-    gnu::File::ChDir(old);
+    gnu::file::chdir(old);
 }
 void CommandOutput::ThreadFuncForTerminal(std::string cmd, std::string work, CommandOutput* self) {
     static const size_t BUFFER_READ = 16'384;
-    auto old = gnu::File::WorkDir().filename;
-    gnu::File::ChDir(work);
-    work = gnu::File::WorkDir().filename;
-    auto handle = gnu::File::Popen(cmd);
+    auto old = gnu::file::work_dir().filename;
+    gnu::file::chdir(work);
+    work = gnu::file::work_dir().filename;
+    auto handle = gnu::file::popen(cmd);
     std::string message;
     if (handle == nullptr) {
         message = "error: failed to execute command " + cmd + " in " + work + "\n";
@@ -22430,14 +23020,14 @@ void CommandOutput::ThreadFuncForTerminal(std::string cmd, std::string work, Com
     self->_terminal->append(nullptr);
     Fl::unlock();
     Fl::awake(CommandOutput::Join, self);
-    gnu::File::ChDir(old);
+    gnu::file::chdir(old);
 }
 void CommandOutput::ThreadFuncForTerminalStream(std::string cmd, std::string work, CommandOutput* self) {
     static const size_t BUFFER_READ = 128;
-    auto old = gnu::File::WorkDir().filename;
-    gnu::File::ChDir(work);
-    work = gnu::File::WorkDir().filename;
-    auto handle = gnu::File::Popen(cmd);
+    auto old = gnu::file::work_dir().filename;
+    gnu::file::chdir(work);
+    work = gnu::file::work_dir().filename;
+    auto handle = gnu::file::popen(cmd);
     auto tot = 0;
     std::string message;
     if (handle == nullptr) {
@@ -22471,7 +23061,7 @@ void CommandOutput::ThreadFuncForTerminalStream(std::string cmd, std::string wor
     self->_terminal->append(nullptr);
     Fl::unlock();
     Fl::awake(CommandOutput::Join, self);
-    gnu::File::ChDir(old);
+    gnu::file::chdir(old);
 }
 void CommandOutput::update_pref() {
     flw::util::labelfont(this);
@@ -22508,7 +23098,7 @@ void DirBrowser::load_dir(std::string path) {
     _path = path;
 }
 void DirBrowser::load_root(std::string path) {
-     gnu::File f(path);
+     gnu::file::File f(path);
      if (f.is_dir() == true) {
         _file = "";
         _root = f.filename;
@@ -22530,10 +23120,10 @@ void DirBrowser::resize(int X, int Y, int W, int H) {
 void DirBrowser::select_file() {
     auto row = _browser->value();
     if (row > 0) {
-        std::string name = _browser->text(row);
-        gnu::File   f(_path + "/" + name);
+        std::string     name = _browser->text(row);
+        gnu::file::File f(_path + "/" + name);
         if (f.name == "..") {
-            f = gnu::File(f.path);
+            f = gnu::file::File(f.path);
             if (f.filename != _root) {
                 load_dir(f.path);
             }
@@ -22552,7 +23142,7 @@ void DirBrowser::update_pref() {
     _browser->textfont(flw::PREF_FONT);
     _browser->textsize(flw::PREF_FONTSIZE);
 }
-ProjectDialog::ProjectDialog(gnu::DB& db) :
+ProjectDialog::ProjectDialog(gnu::db::DB& db) :
 Fl_Double_Window(0, 0, 100, 100, "Load Project"),
 _db(db) {
     end();
@@ -22642,7 +23232,7 @@ void ProjectDialog::update_pref() {
     ProjectDialog::resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 40);
     size_range(flw::PREF_FONTSIZE * 20, flw::PREF_FONTSIZE * 30);
 }
-TextDialog::TextDialog(gnu::DB& db) :
+TextDialog::TextDialog(gnu::db::DB& db) :
 Fl_Double_Window(0, 0, 0, 0, TextDialog::LABEL),
 _db(db) {
     end();
@@ -22836,7 +23426,7 @@ void TextDialog::update_text() {
         return;
     }
     auto name = gnu::str::to_string(_names->text(r));
-    auto text = gnu::str::grab_string(_buffer->text());
+    auto text = gnu::str::grab(_buffer->text());
     if (text.length() > FlEdit::MAX_SNIPPET_LENGTH) {
         fl_alert("error: text is too large (max %u bytes) (%u)", (unsigned) FlEdit::MAX_SNIPPET_LENGTH, (unsigned) text.length());
         return;
@@ -22868,8 +23458,8 @@ FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG)
     _editor          = nullptr;
     _tabs.pref1      = flw::TabsGroup::TABS::NORTH;
     _tabs.pref2      = flw::TabsGroup::TABS::NORTH;
-    _project         = { "", "", };
-    _paths.start_dir = gnu::File::WorkDir().filename;
+    _project         = { "", "", "" };
+    _paths.start_dir = gnu::file::work_dir().filename;
     add(_menu);
     add(_split_main);
     add(_findbar);
@@ -22893,6 +23483,7 @@ FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG)
     _menu->global();
     _menu->add(MENU_FILE_NEW,                   FL_COMMAND + 'n',               FLEDIT_CB1(file_new("")));
     _menu->add(MENU_FILE_OPEN,                  FL_COMMAND + 'o',               FLEDIT_CB1(file_open()));
+    _menu->add(MENU_FILE_OPEN_HEX,              0,                              FLEDIT_CB1(file_open(true)));
     _recent = new flw::RecentMenu(_menu, FlEdit::CallbackRecent, this);
     _menu->add(MENU_FILE_RELOAD,                0,                              FLEDIT_CB1(file_reload()));
     _menu->add(MENU_FILE_READONLY,              0,                              FLEDIT_CB1(file_readonly_mode()), FL_MENU_DIVIDER | FL_MENU_TOGGLE);
@@ -22936,11 +23527,12 @@ FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG)
     _menu->add(MENU_VIEW_SORT_RIGHT_TABS_ASC,   0,                              FLEDIT_CB1(tabs_sort(false, true)));
     _menu->add(MENU_VIEW_SORT_RIGHT_TABS_DESC,  0,                              FLEDIT_CB1(tabs_sort(false, false)));
     _menu->add(MENU_PROJECT_LOAD,               0,                              FLEDIT_CB1(project_load()));
-    _menu->add(MENU_PROJECT_SAVE  ,             0,                              FLEDIT_CB1(project_save()));
-    _menu->add(MENU_PROJECT_SAVEAS,             0,                              FLEDIT_CB1(project_save_as()));
-    _menu->add(MENU_PROJECT_DIR  ,              0,                              FLEDIT_CB1(project_dir()));
+    _menu->add(MENU_PROJECT_SAVE,               0,                              FLEDIT_CB1(project_save()));
+    _menu->add(MENU_PROJECT_SAVEAS,             0,                              FLEDIT_CB1(project_save_as()), FL_MENU_DIVIDER);
     _menu->add(MENU_PROJECT_CLOSE,              0,                              FLEDIT_CB1(project_close(true)));
     _menu->add(MENU_PROJECT_CLOSE2,             0,                              FLEDIT_CB1(project_close(false)), FL_MENU_DIVIDER);
+    _menu->add(MENU_PROJECT_DIR,                0,                              FLEDIT_CB1(project_dir()));
+    _menu->add(MENU_PROJECT_WORDFILE,           0,                              FLEDIT_CB1(project_wordlist()), FL_MENU_DIVIDER);
     _menu->add(MENU_PROJECT_DB_OPEN,            0,                              FLEDIT_CB1(project_open_db()));
     _menu->add(MENU_PROJECT_DB_DEFRAG,          0,                              FLEDIT_CB1(project_defrag_db()));
     _menu->add(MENU_PROJECT_DB_CLOSE,           0,                              FLEDIT_CB1(project_close_db()));
@@ -23010,17 +23602,19 @@ void FlEdit::callback_list() {
         return;
     }
     else if (rx.is_compiled() == false) {
-        fl_alert("error: regex expression!\n%s\n%s", _list_rx.error().c_str(), _list_rx.pattern().c_str());
+        fl_alert("error: regex expression!\n%s\n%s", _list_rx.err().c_str(), _list_rx.pattern().c_str());
         return;
     }
     auto text    = list->text(row);
-    auto matches = rx.exec(text, strlen(text));
-    if (matches > 1) {
-        auto file = rx.substr("file");
-        auto line = gnu::str::to_int(rx.substr("line"), 1);
-        auto col  = gnu::str::to_int(rx.substr("col"), 1);
-        if (file != "") {
-            return tabs_activate_cursor(file, line, col);
+    auto matches = rx.set_names({"file", "line", "col"}).exec(text, strlen(text));
+    if (matches.size() > 1) {
+        auto f = rx.match("file");
+        auto l = rx.match("line");
+        auto c = rx.match("col");
+        auto line = gnu::str::to_int(l.word(), 1);
+        auto col  = gnu::str::to_int(c.word(), 1);
+        if (f.word() != "") {
+            return tabs_activate_cursor(f.word(), line, col);
         }
     }
     if (_editor != nullptr) {
@@ -23103,8 +23697,8 @@ void FlEdit::help_about() {
     text += gnu::str::format("GCC:    %s\n", __VERSION__);
 #endif
     text += gnu::str::format("FLTK:   %d.%d.%d\n", FL_MAJOR_VERSION, FL_MINOR_VERSION, FL_PATCH_VERSION);
-    text += gnu::str::format("SQLite: %s\n", gnu::DB::Version().c_str());
-    text += gnu::str::format("PCRE:   %s\n", gnu::PCRE::Version().c_str());
+    text += gnu::str::format("SQLite: %s\n", gnu::db::DB::Version().c_str());
+    text += gnu::str::format("PCRE:   %s\n", gnu::pcre8::version().c_str());
     text += "\n";
     text += "Current session:\n";
     text += "Database name:       " + _db.filename() + "\n";
@@ -23121,7 +23715,7 @@ void FlEdit::help_about() {
     text += "Start directory:     " + _paths.start_dir + "\n";
     text += "Project directory:   " + _project.dir + "\n";
     text += "Open file directory: " + _paths.open_dir + "\n";
-    text += "Current directory:   " + gnu::File::WorkDir().filename + "\n";
+    text += "Current directory:   " + gnu::file::work_dir().filename + "\n";
     text += "\n";
     flw::dlg::list("About", text, this, true, 45, 55);
 }
@@ -23129,21 +23723,6 @@ void FlEdit::help_fledit() {
     std::string text = FLEDIT_HELP;
     text += fle::help::flags(CONFIG);
     flw::dlg::list("Help", text, this, true, 60, 50);
-}
-void FlEdit::menu_enable(std::string path, bool enable) {
-    auto menu = menu_get(path);
-    if (menu == nullptr) {
-        return;
-    }
-    if (enable == true) {
-        menu->activate();
-    }
-    else {
-        menu->deactivate();
-    }
-}
-Fl_Menu_Item* FlEdit::menu_get(std::string path) {
-    return (Fl_Menu_Item*) _menu->find_item(path.c_str());
 }
 fle::Message::CTRL FlEdit::message(const std::string& message, const std::string& s, const void* p) {
     if (message == fle::message::TEXT_CHANGED || message == fle::message::FILE_LOADED) {
@@ -23160,14 +23739,14 @@ fle::Message::CTRL FlEdit::message(const std::string& message, const std::string
         update_menu();
     }
     else if (message == fle::message::DND_EVENT) {
-        auto lines   = gnu::str::split(s, '\n');
+        auto lines   = gnu::str::split(s, "\n");
         auto discard = static_cast<bool*>(const_cast<void*>(p));
         auto files   = std::vector<std::string>();
         *discard = true;
         for (auto line : lines) {
             gnu::str::replace(line, "file://");
             if (line != "") {
-                auto file = gnu::File(line);
+                auto file = gnu::file::File(line);
                 if (file.is_file() == true) {
                     files.push_back(file.filename);
                 }
@@ -23201,20 +23780,27 @@ fle::Message::CTRL FlEdit::message(const std::string& message, const std::string
     return Message::CTRL::CONTINUE;
 }
 void FlEdit::new_window() {
-    if (gnu::File::Run(executable, true) != 0) {
+    if (gnu::file::run(executable, true) != 0) {
         fl_message_position(this);
         fl_alert("error: failed to open a new window!");
     }
 }
 bool FlEdit::quit() {
-    if (Command::THREAD != nullptr && fl_choice("%s",  "Quit anyway", "&Wait", nullptr, "Command is still running....\nIt might continue to do that forever.\nIf so you must kill it manually!") == 1) {
-        return false;
+    auto answer = 666;
+    if (Command::THREAD != nullptr) {
+        answer = fl_choice_n("%s",  "Quit anyway", "&Wait", nullptr, "Command is still running....\nIt might continue to do that forever.\nIf so you must kill it manually!\nIf you quit now flEdit might freeze or crash.");
+        if (answer == 1 || answer == -1) {
+            return false;
+        }
     }
-    else if (project_close("DUMMY_MENU") == false) {
+    if (project_close(true) == false) {
         return false;
     }
     pref_save();
     hide();
+    if (answer == 0 || Command::THREAD != nullptr) {
+        delete Command::THREAD;
+    }
     return true;
 }
 void FlEdit::resize(int X, int Y, int W, int H) {
@@ -23244,14 +23830,14 @@ void FlEdit::resize(int X, int Y, int W, int H) {
 #endif
 }
 void FlEdit::settings_output_horizontal() {
-    menu_get(MENU_SETTINGS_OUTPUT_HORIZONTAL)->set();
+    flw::menu::setonly_item(_menu, MENU_SETTINGS_OUTPUT_HORIZONTAL);
     _split_edit->direction(flw::SplitGroup::DIRECTION::HORIZONTAL);
     _split_edit->split_pos(h() - 200);
     _output->tabs(flw::TabsGroup::TABS::WEST);
     do_layout();
 }
 void FlEdit::settings_output_vertical() {
-    menu_get(MENU_SETTINGS_OUTPUT_VERTICAL)->set();
+    flw::menu::setonly_item(_menu, MENU_SETTINGS_OUTPUT_VERTICAL);
     _split_edit->direction(flw::SplitGroup::DIRECTION::VERTICAL);
     _split_edit->split_pos(w() - 200);
     _output->tabs(flw::TabsGroup::TABS::NORTH);
@@ -23333,9 +23919,9 @@ void FlEdit::toggle_browser() {
     do_layout();
 }
 void FlEdit::update_menu() {
-    gnu::File   file;
-    std::string changed_name;
-    std::string path;
+    gnu::file::File file;
+    std::string     changed_name;
+    std::string     path;
     if (_editor != nullptr) {
         file         = _editor->filename();
         changed_name = _editor->file_changed_name();
@@ -23346,64 +23932,65 @@ void FlEdit::update_menu() {
             _paths.open_dir = file.path;
         }
         if (_editor->text_is_readonly() == true) {
-            menu_enable(MENU_FILE_SAVE, false);
-            menu_enable(MENU_FILE_SAVEAS, false);
+            flw::menu::enable_item(_menu, MENU_FILE_SAVE, false);
+            flw::menu::enable_item(_menu, MENU_FILE_SAVEAS, false);
         }
         else {
-            menu_enable(MENU_FILE_SAVE);
-            menu_enable(MENU_FILE_SAVEAS);
+            flw::menu::enable_item(_menu, MENU_FILE_SAVE, true);
+            flw::menu::enable_item(_menu, MENU_FILE_SAVEAS, true);
         }
-        menu_enable(MENU_FILE_CLOSE);
-        menu_enable(MENU_FILE_RELOAD);
-        menu_enable(MENU_FILE_READONLY);
-        menu_enable(MENU_VIEW_MOVEGROUP);
-        menu_get(MENU_FILE_READONLY)->value(_editor->text_is_readonly());
+        flw::menu::enable_item(_menu, MENU_FILE_CLOSE, true);
+        flw::menu::enable_item(_menu, MENU_FILE_RELOAD, true);
+        flw::menu::enable_item(_menu, MENU_FILE_READONLY, true);
+        flw::menu::enable_item(_menu, MENU_VIEW_MOVEGROUP, true);
+        flw::menu::set_item(_menu, MENU_FILE_READONLY, _editor->text_is_readonly());
     }
     else {
-        menu_enable(MENU_FILE_CLOSE, true);
-        menu_enable(MENU_FILE_SAVE, false);
-        menu_enable(MENU_FILE_SAVEAS, false);
-        menu_enable(MENU_FILE_RELOAD, false);
-        menu_enable(MENU_FILE_READONLY, false);
-        menu_enable(MENU_VIEW_MOVEGROUP, false);
-        menu_get(MENU_FILE_READONLY)->value(0);
+        flw::menu::enable_item(_menu, MENU_FILE_CLOSE, true);
+        flw::menu::enable_item(_menu, MENU_FILE_SAVE, false);
+        flw::menu::enable_item(_menu, MENU_FILE_SAVEAS, false);
+        flw::menu::enable_item(_menu, MENU_FILE_RELOAD, false);
+        flw::menu::enable_item(_menu, MENU_FILE_READONLY, false);
+        flw::menu::enable_item(_menu, MENU_VIEW_MOVEGROUP, false);
+        flw::menu::set_item(_menu, MENU_FILE_READONLY, false);
     }
-    menu_enable(MENU_FILE_SAVEALL, tabs_count());
-    menu_enable(MENU_FILE_CLOSEALL, tabs_count());
-    menu_enable(MENU_FIND_LINES, tabs_count());
-    menu_enable(MENU_FIND_REPLACE, tabs_count());
-    menu_enable(MENU_FIND_TRAILING, tabs_count());
+    flw::menu::enable_item(_menu, MENU_FILE_SAVEALL, tabs_count());
+    flw::menu::enable_item(_menu, MENU_FILE_CLOSEALL, tabs_count());
+    flw::menu::enable_item(_menu, MENU_FIND_LINES, tabs_count());
+    flw::menu::enable_item(_menu, MENU_FIND_REPLACE, tabs_count());
+    flw::menu::enable_item(_menu, MENU_FIND_TRAILING, tabs_count());
     if (_db.is_open() == true) {
-        menu_enable(MENU_PROJECT_DB_OPEN, false);
-        menu_enable(MENU_PROJECT_DB_CLOSE);
-        menu_enable(MENU_PROJECT_DB_DEFRAG);
-        menu_enable(MENU_PROJECT_LOAD);
-        menu_enable(MENU_PROJECT_SAVEAS);
-        menu_enable(MENU_TOOLS_SNIPPETS);
-        menu_enable(MENU_TOOLS_SAVE_CLIPBOARD);
-        menu_enable(MENU_TOOLS_SAVE_SELECTION);
-        menu_enable(MENU_TOOLS_SAVE_TEXT);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DB_OPEN, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DB_CLOSE, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DB_DEFRAG, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_LOAD, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_SAVEAS, true);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SNIPPETS, true);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SAVE_CLIPBOARD, true);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SAVE_SELECTION, true);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SAVE_TEXT, true);
     }
     else {
-        menu_enable(MENU_PROJECT_DB_OPEN);
-        menu_enable(MENU_PROJECT_DB_CLOSE, false);
-        menu_enable(MENU_PROJECT_DB_DEFRAG, false);
-        menu_enable(MENU_PROJECT_LOAD, false);
-        menu_enable(MENU_PROJECT_SAVEAS, false);
-        menu_enable(MENU_TOOLS_SNIPPETS, false);
-        menu_enable(MENU_TOOLS_SAVE_CLIPBOARD, false);
-        menu_enable(MENU_TOOLS_SAVE_SELECTION, false);
-        menu_enable(MENU_TOOLS_SAVE_TEXT, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DB_OPEN, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DB_CLOSE, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DB_DEFRAG, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_LOAD, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_SAVEAS, false);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SNIPPETS, false);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SAVE_CLIPBOARD, false);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SAVE_SELECTION, false);
+        flw::menu::enable_item(_menu, MENU_TOOLS_SAVE_TEXT, false);
     }
     if (changed_name == "**") {
         changed_name = "*untitled*";
     }
     if (_project.name != "") {
-        menu_enable(MENU_PROJECT_SAVE);
-        menu_enable(MENU_PROJECT_CLOSE);
-        menu_enable(MENU_PROJECT_CLOSE2);
-        menu_enable(MENU_PROJECT_DIR);
-        menu_enable(MENU_VIEW_TOGGLEBROWSER, _project.dir != "");
+        flw::menu::enable_item(_menu, MENU_PROJECT_SAVE, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_CLOSE, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_CLOSE2, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DIR, true);
+        flw::menu::enable_item(_menu, MENU_PROJECT_WORDFILE, true);
+        flw::menu::enable_item(_menu, MENU_VIEW_TOGGLEBROWSER, _project.dir != "");
         if (changed_name != "") {
             copy_label(std::string("flEdit [" + _project.name + "] - " + changed_name + " - " + path).c_str());
         }
@@ -23412,11 +23999,12 @@ void FlEdit::update_menu() {
         }
     }
     else {
-        menu_enable(MENU_PROJECT_SAVE, false);
-        menu_enable(MENU_PROJECT_CLOSE, false);
-        menu_enable(MENU_PROJECT_CLOSE2, false);
-        menu_enable(MENU_PROJECT_DIR, false);
-        menu_enable(MENU_VIEW_TOGGLEBROWSER, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_SAVE, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_CLOSE, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_CLOSE2, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_DIR, false);
+        flw::menu::enable_item(_menu, MENU_PROJECT_WORDFILE, false);
+        flw::menu::enable_item(_menu, MENU_VIEW_TOGGLEBROWSER, false);
         if (changed_name != "") {
             copy_label(std::string("flEdit - " + changed_name + " - " + path).c_str());
         }
@@ -23425,14 +24013,14 @@ void FlEdit::update_menu() {
         }
     }
     if (_tabs.tabs1->visible() != 0 && _tabs.tabs2->visible() == 0) {
-        menu_enable(MENU_VIEW_TOGGLEONE, false);
+        flw::menu::enable_item(_menu, MENU_VIEW_TOGGLEONE, false);
     }
     else if (_tabs.tabs1->visible() == 0 && _tabs.tabs2->visible() != 0) {
-        menu_enable(MENU_VIEW_TOGGLETWO, false);
+        flw::menu::enable_item(_menu, MENU_VIEW_TOGGLETWO, false);
     }
     else {
-        menu_enable(MENU_VIEW_TOGGLEONE);
-        menu_enable(MENU_VIEW_TOGGLETWO);
+        flw::menu::enable_item(_menu, MENU_VIEW_TOGGLEONE, true);
+        flw::menu::enable_item(_menu, MENU_VIEW_TOGGLETWO, true);
     }
 }
 void FlEdit::update_pref() {
@@ -23453,15 +24041,15 @@ bool FlEdit::editor_close(fle::Editor* editor, bool ask) {
         tabs_activate(editor);
        auto answer = 0;
         if (editor->filename() == "") {
-            answer = fl_choice("%s",  "Cancel", "&Save", "Close without saving", "New file is unsaved");
+            answer = fl_choice_n("%s",  "&Save", "Cancel", "Don't save", "New file is unsaved");
         }
         else {
-            answer = fl_choice("%s",  "Cancel", "&Save", "Close without saving", (editor->filename() + " has been changed").c_str());
+            answer = fl_choice_n("%s",  "&Save", "Cancel", "Don't save", (editor->filename() + " has been changed").c_str());
         }
-        if (answer == 0) {
+        if (answer == -1 || answer == 1) {
             return false;
         }
-        else if (answer == 1 && file_save(editor) == false) {
+        else if (answer == 0 && file_save(editor) == false) {
             return false;
         }
     }
@@ -23509,20 +24097,20 @@ void FlEdit::file_close_all() {
         _tabs.split->do_layout();
     }
 }
-fle::Editor* FlEdit::file_load(Fl_Widget* after, std::string filename, bool add_recent, int line) {
+fle::Editor* FlEdit::file_load(Fl_Widget* after, std::string filename, bool add_recent, int line, bool as_hex) {
     fl_message_position(this);
-    auto fi     = gnu::File(filename, true);
+    auto fi     = gnu::file::File(filename, true);
     auto editor = tabs_editor_by_path(fi.filename);
     filename = fi.filename;
     if (fi.is_dir() == true) {
         return nullptr;
     }
-    else if (editor != nullptr) {
+    else if (editor != nullptr && as_hex == false) {
         tabs_activate(editor);
         return editor;
     }
     editor = new fle::Editor(CONFIG, _findbar, _tabs.active->x(), _tabs.active->y(), _tabs.active->w(), _tabs.active->h());
-    auto err = editor->file_load(filename);
+    auto err = editor->file_load(filename, as_hex);
     if (err != "") {
         fl_alert("%s", err.c_str());
         delete editor;
@@ -23552,14 +24140,14 @@ std::vector<std::string> FlEdit::file_load_dialog() {
     }
     return res;
 }
-void FlEdit::file_load_list(Fl_Widget* after, std::vector<std::string> filenames, std::vector<int> filelines) {
+void FlEdit::file_load_list(Fl_Widget* after, std::vector<std::string> filenames, std::vector<int> filelines, bool as_hex) {
 #ifdef DEBUG
     auto time = gnu::Time::Milli();
 #endif
     auto wc = flw::WaitCursor();
     _tabs.split->hide();
     for (size_t f = 0; f < filenames.size(); f++) {
-        file_load(f == 0 ? after : _editor, filenames[f], true, (filelines.size() > f) ? filelines[f] : 0);
+        file_load((f == 0) ? after : _editor, filenames[f], true, (filelines.size() > f) ? filelines[f] : 0, as_hex);
     }
     tabs_check_empty();
     _tabs.split->show();
@@ -23582,7 +24170,7 @@ void FlEdit::file_new(std::string filename) {
 }
 void FlEdit::file_readonly_mode() {
     if (_editor != nullptr) {
-        _editor->text_set_readonly(menu_get(MENU_FILE_READONLY)->value());
+        _editor->text_set_readonly(flw::menu::item_value(_menu, MENU_FILE_READONLY));
     }
 }
 void FlEdit::file_reload(fle::Editor* editor) {
@@ -23627,7 +24215,7 @@ bool FlEdit::file_save_as(fle::Editor* editor) {
     }
     fl_message_position(this);
     auto filename = gnu::str::to_string(fl_file_chooser("Save File As", fle::style::FILE_FILTER, editor->filepath() != "" ? editor->filename().c_str() : _paths.open_dir.c_str()));
-    auto new_file = gnu::File(filename, true);
+    auto new_file = gnu::file::File(filename, true);
     if (new_file.filename == "" || new_file.filename == editor->filename() || new_file.is_other() == true) {
         return false;
     }
@@ -23655,39 +24243,39 @@ void FlEdit::pref_load(bool all) {
     if (all == true) {
         std::string s;
         flw::theme::load_theme_pref(pref);
-        flw::theme::load_win_pref(pref, this, 2);
+        flw::theme::load_win_pref(pref, this);
         pref.get("gui.path", s, "");
-        gnu::File file(s);
+        gnu::file::File file(s);
         if (file.is_dir() == true) {
             _paths.open_dir = file.filename;
         }
         else {
-            _paths.open_dir = gnu::File::WorkDir().filename;
+            _paths.open_dir = gnu::file::work_dir().filename;
         }
         pref.get("gui.split", val, (int) flw::SplitGroup::DIRECTION::VERTICAL);
         if (val == (int) flw::SplitGroup::DIRECTION::HORIZONTAL) {
             _tabs.split->direction(flw::SplitGroup::DIRECTION::HORIZONTAL);
-            menu_get(MENU_SETTINGS_SPLITHORIZONTAL)->set();
+            flw::menu::setonly_item(_menu, MENU_SETTINGS_SPLITHORIZONTAL);
         }
         else {
             _tabs.split->direction(flw::SplitGroup::DIRECTION::VERTICAL);
-            menu_get(MENU_SETTINGS_SPLITVERTICAL)->set();
+            flw::menu::setonly_item(_menu, MENU_SETTINGS_SPLITVERTICAL);
         }
         pref.get("gui.output", val, (int) flw::SplitGroup::DIRECTION::HORIZONTAL);
         if (val == (int) flw::SplitGroup::DIRECTION::HORIZONTAL) {
             _split_edit->direction(flw::SplitGroup::DIRECTION::HORIZONTAL);
             _split_edit->split_pos(h() - 200);
-            menu_get(MENU_SETTINGS_OUTPUT_HORIZONTAL)->set();
+            flw::menu::setonly_item(_menu, MENU_SETTINGS_OUTPUT_HORIZONTAL);
         }
         else {
             _split_edit->direction(flw::SplitGroup::DIRECTION::VERTICAL);
             _split_edit->split_pos(w() - 200);
-            menu_get(MENU_SETTINGS_OUTPUT_VERTICAL)->set();
+            flw::menu::setonly_item(_menu, MENU_SETTINGS_OUTPUT_VERTICAL);
         }
         pref.get("gui.output.clear", val, (int) 0);
-        if (val != 0) menu_get(MENU_SETTINGS_OUTPUT_CLEAR)->set(); else menu_get(MENU_SETTINGS_OUTPUT_CLEAR)->clear();
+        flw::menu::set_item(_menu, MENU_SETTINGS_OUTPUT_CLEAR, val);
         pref.get("gui.output.show", val, (int) 0);
-        if (val != 0) menu_get(MENU_SETTINGS_OUTPUT_UNKNOWN)->set(); else menu_get(MENU_SETTINGS_OUTPUT_UNKNOWN)->clear();
+        flw::menu::set_item(_menu, MENU_SETTINGS_OUTPUT_UNKNOWN, val);
         pref.get("gui.tabspos1", val, 0);
         pref_set_tabspos1(val);
         pref.get("gui.tabspos2", val, 0);
@@ -23793,20 +24381,20 @@ void FlEdit::pref_save() {
 }
 void FlEdit::pref_set_tabspos1(int value) {
     switch (value) {
-        case 1:  _tabs.pref1 = flw::TabsGroup::TABS::SOUTH; menu_get(MENU_SETTINGS_TABG12)->set(); break;
-        case 2:  _tabs.pref1 = flw::TabsGroup::TABS::WEST;  menu_get(MENU_SETTINGS_TABG13)->set(); break;
-        case 3:  _tabs.pref1 = flw::TabsGroup::TABS::EAST;  menu_get(MENU_SETTINGS_TABG14)->set(); break;
-        default: _tabs.pref1 = flw::TabsGroup::TABS::NORTH; menu_get(MENU_SETTINGS_TABG11)->set(); break;
+        case 1:  _tabs.pref1 = flw::TabsGroup::TABS::SOUTH; flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG12); break;
+        case 2:  _tabs.pref1 = flw::TabsGroup::TABS::WEST;  flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG13); break;
+        case 3:  _tabs.pref1 = flw::TabsGroup::TABS::EAST;  flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG14); break;
+        default: _tabs.pref1 = flw::TabsGroup::TABS::NORTH; flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG11); break;
     }
     _tabs.tabs1->tabs(_tabs.pref1);
     do_layout();
 }
 void FlEdit::pref_set_tabspos2(int value) {
     switch (value) {
-        case 1:  _tabs.pref2 = flw::TabsGroup::TABS::SOUTH; menu_get(MENU_SETTINGS_TABG22)->set(); break;
-        case 2:  _tabs.pref2 = flw::TabsGroup::TABS::WEST;  menu_get(MENU_SETTINGS_TABG23)->set(); break;
-        case 3:  _tabs.pref2 = flw::TabsGroup::TABS::EAST;  menu_get(MENU_SETTINGS_TABG24)->set(); break;
-        default: _tabs.pref2 = flw::TabsGroup::TABS::NORTH; menu_get(MENU_SETTINGS_TABG21)->set(); break;
+        case 1:  _tabs.pref2 = flw::TabsGroup::TABS::SOUTH; flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG22); break;
+        case 2:  _tabs.pref2 = flw::TabsGroup::TABS::WEST;  flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG23); break;
+        case 3:  _tabs.pref2 = flw::TabsGroup::TABS::EAST;  flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG24); break;
+        default: _tabs.pref2 = flw::TabsGroup::TABS::NORTH; flw::menu::setonly_item(_menu, MENU_SETTINGS_TABG21); break;
     }
     _tabs.tabs2->tabs(_tabs.pref2);
     do_layout();
@@ -23815,29 +24403,30 @@ bool FlEdit::project_close(bool save) {
     if (tabs_save_all(true) == false) {
         return false;
     }
-    if (_db.is_open() == true && _project.name != "") {
-        if (gnu::File::ChDir(_paths.start_dir) == false) {
+    else if (_db.is_open() == true && _project.name != "") {
+        if (gnu::file::chdir(_paths.start_dir) == false) {
             fl_alert("error: failed to restore original work directory to %s", _paths.start_dir.c_str());
         }
         if (save == true && project_save(_project.name) == false) {
             return false;
         }
-        _project = { "", "", };
-        tabs_close_all();
-        split_view(SPLIT::HIDETWO);
-        split_view(SPLIT::SHOWONE);
-        tabs_check_empty();
-        _dir_browser->hide();
-        _dir_browser->load_root("");
         CONFIG.find_list = _old_find_list;
         CONFIG.replace_list = _old_replace_list;
         _findbar->findreplace().update_lists();
-        do_layout();
     }
+    _project = { "", "", "" };
+    CONFIG.load_custom_wordlist("");
+    tabs_close_all();
+    split_view(SPLIT::HIDETWO);
+    split_view(SPLIT::SHOWONE);
+    tabs_check_empty();
+    _dir_browser->hide();
+    _dir_browser->load_root("");
+    do_layout();
     return true;
 }
 bool FlEdit::project_close_db() {
-    if (project_close(true) == false) {
+    if (_project.name != "" && project_close(true) == false) {
         return false;
     }
     _db.close();
@@ -23865,16 +24454,16 @@ void FlEdit::project_dir() {
         _dir_browser->hide();
         _dir_browser->load_root("");
         do_layout();
-        if (gnu::File::ChDir(_paths.start_dir) == false) {
+        if (gnu::file::chdir(_paths.start_dir) == false) {
             fl_alert("error: failed to restore previous work directory to %s",  _paths.start_dir.c_str());
         }
     }
     else {
-        _project.dir = gnu::File(path).filename;
+        _project.dir = gnu::file::File(path).filename;
         if (_dir_browser->visible() != 0) {
             _dir_browser->load_root(path);
         }
-        if (gnu::File::ChDir(_project.dir) == false) {
+        if (gnu::file::chdir(_project.dir) == false) {
             fl_alert("error: failed to change work directory to %s", _project.dir.c_str());
         }
     }
@@ -23891,20 +24480,9 @@ void FlEdit::project_load() {
     if (name == "") {
         return;
     }
-    if (tabs_save_all(true) == false) {
+    else if (project_close(true) == false) {
         return;
     }
-    if (_project.name == "") {
-        tabs_close_all();
-    }
-    else if (project_save() == true) {
-        tabs_close_all();
-    }
-    else {
-        return;
-    }
-    _dir_browser->hide();
-    _dir_browser->load_root("");
     project_load_from_db(name);
     tabs_check_empty();
     do_layout();
@@ -23914,7 +24492,7 @@ void FlEdit::project_load_from_db(std::string name) {
     auto wc   = flw::WaitCursor();
     auto time = gnu::Time::Milli();
     fl_message_position(this);
-    if (gnu::File::ChDir(_paths.start_dir) == false) {
+    if (gnu::file::chdir(_paths.start_dir) == false) {
         fl_alert("error: failed to restore original work directory to %s", _paths.start_dir.c_str());
     }
     if (_db.is_open() == false) {
@@ -23926,7 +24504,7 @@ void FlEdit::project_load_from_db(std::string name) {
         fl_alert("%s\nsqlite: %s", "error: failed to load project", _db.err_msg.c_str());
         return;
     }
-    auto pile = gnu::Pile(row.value);
+    auto pile = gnu::pile::Pile(row.value);
     if (pile.size() == 0) {
         fl_alert("%s", "error: no data found");
         return;
@@ -24008,13 +24586,20 @@ void FlEdit::project_load_from_db(std::string name) {
     if (editor != nullptr) {
         tabs_activate(editor);
     }
-    _project.name = name;
-    _project.dir  = pile.get_string("gui", "dir");
-    if (gnu::File(_project.dir).is_dir() == false) {
+    _project.name     = name;
+    _project.dir      = pile.get_string("gui", "dir");
+    _project.wordfile = pile.get_string("project", "wordfile");
+    if (gnu::file::File(_project.dir).is_dir() == false) {
         _project.dir = "";
     }
+    if (gnu::file::File(_project.wordfile).is_file() == false) {
+        _project.wordfile = "";
+    }
+    else {
+        CONFIG.load_custom_wordlist(_project.wordfile);
+    }
     update_menu();
-    if (_project.dir != "" && gnu::File::ChDir(_project.dir) == false) {
+    if (_project.dir != "" && gnu::file::chdir(_project.dir) == false) {
         fl_alert("error: failed to restore project work directory to %s", _project.dir.c_str());
     }
 #ifdef DEBUG
@@ -24022,7 +24607,7 @@ void FlEdit::project_load_from_db(std::string name) {
     fflush(stdout);
 #endif
 }
-std::vector<std::string> FlEdit::project_load_list(std::string key, gnu::Pile& pile) {
+std::vector<std::string> FlEdit::project_load_list(std::string key, gnu::pile::Pile& pile) {
     auto count = 1;
     auto res   = std::vector<std::string>();
     while (true) {
@@ -24042,11 +24627,11 @@ void FlEdit::project_open_db() {
     if (filename == "") {
         return;
     }
-    gnu::File file(filename);
+    gnu::file::File file(filename);
     if (file.is_missing() == true && file.ext == "") {
         file += ".fledit";
     }
-    _db = gnu::DB(file.filename);
+    _db = gnu::db::DB(file.filename);
     if (_db.is_open() == false) {
         fl_alert("%s\nsqlite: %s", "error: could not open database file", _db.err_msg.c_str());
     }
@@ -24057,7 +24642,7 @@ bool FlEdit::project_save(std::string name) {
         fl_alert("%s", "error: database is closed");
         return false;
     }
-    auto pile = gnu::Pile();
+    auto pile = gnu::pile::Pile();
     if (_tabs.tabs1->visible() != 0) {
         pile.set_int("gui", "left", 1);
     }
@@ -24106,6 +24691,7 @@ bool FlEdit::project_save(std::string name) {
     }
     pile.set_int("gui", "files", count - 1);
     pile.set_string("gui", "dir", _project.dir);
+    pile.set_string("project", "wordfile", _project.wordfile);
     auto str = pile.export_data();
     if (_db.put(DBKEY_PROJECTS + name, str.c_str(), str.length()) == false) {
         fl_alert("%s\nsqlite: %s", "error: failed to save project", _db.err_msg.c_str());
@@ -24122,7 +24708,7 @@ void FlEdit::project_save_as() {
         project_save(name);
     }
 }
-void FlEdit::project_save_list(std::string key, const std::vector<std::string>& list, gnu::Pile& pile) {
+void FlEdit::project_save_list(std::string key, const std::vector<std::string>& list, gnu::pile::Pile& pile) {
     auto count = 1;
     for (const auto& word : list) {
         pile.set_string(key, pile.make_key(count++), word);
@@ -24157,16 +24743,12 @@ void FlEdit::project_snippets_save(SNIPPET snippet, std::string clip) {
             return;
         }
     }
-    else if (snippet == SNIPPET::SELECTION) {
-        if (_editor != nullptr) {
-            text = _editor->text_get_selection_string();
-        }
+    else if (snippet == SNIPPET::SELECTION && _editor != nullptr) {
+        text = _editor->text_get_selection_string();
     }
-    else if (snippet == SNIPPET::TEXT) {
-        if (_editor != nullptr) {
-            text = gnu::str::grab_string(_editor->buffer().text());
-            name = _editor->file_name() + " " + gnu::Time::FormatUnixToISO(_editor->file_mtime());
-        }
+    else if (snippet == SNIPPET::TEXT && _editor != nullptr) {
+        text = gnu::str::grab(_editor->buffer().text());
+        name = _editor->file_name() + " " + gnu::Time::FormatUnixToISO(_editor->file_mtime());
     }
     if (text == "") {
         fl_alert("%s", "error: nothing to save");
@@ -24185,6 +24767,27 @@ void FlEdit::project_snippets_save(SNIPPET snippet, std::string clip) {
     }
     if (_db.put(DBKEY_SNIPPETS + name, text, text.length()) == false) {
         fl_alert("%s\nsqlite: %s", "error: failed to save snippet", _db.err_msg.c_str());
+    }
+}
+void FlEdit::project_wordlist() {
+    auto start_dir = _project.dir;
+    if (start_dir == "") {
+        if (_editor != nullptr) {
+            start_dir = _editor->filepath();
+        }
+        else {
+            start_dir = _paths.start_dir;
+        }
+    }
+    auto file = fl_file_chooser("Select Wordfile - Press Cancel To Remove Current", "", (_project.wordfile != "") ? _project.wordfile.c_str() : start_dir.c_str(), 0);
+    auto wc   = flw::WaitCursor();
+    if (file == nullptr) {
+        CONFIG.load_custom_wordlist("");
+        _project.wordfile = "";
+    }
+    else {
+        CONFIG.load_custom_wordlist(file);
+        _project.wordfile = file;
     }
 }
 #include <algorithm>
@@ -24227,7 +24830,7 @@ void FlEdit::tabs_activate_cursor(std::string filename, int row, int col) {
     auto found    = (fle::Editor*) nullptr;
     auto partly1  = (fle::Editor*) nullptr;
     auto partly2  = (fle::Editor*) nullptr;
-    auto abs_name = gnu::File(filename).filename;
+    auto abs_name = gnu::file::File(filename).filename;
     while (editor != nullptr) {
         auto filename2 = editor->filename();
         if (filename2 == filename || filename2 == abs_name) {
@@ -24454,6 +25057,7 @@ void FlEdit::tabs_replace_all() {
     auto files    = 0;
     auto replaces = 0;
     auto org      = _editor;
+    auto wc       = flw::WaitCursor();
     while (editor != nullptr) {
         auto count = editor->find_replace_all(find, replace,
             fle::ReplaceDialog::NLTAB,
@@ -24511,8 +25115,8 @@ bool FlEdit::tabs_save_all(bool ask) {
         return true;
     }
     if (ask == true) {
-        auto answer = fl_choice("You have %d unsaved files!",  "Cancel", "&Save All", "Don't Save", unsaved_files);
-        if (answer == 0) {
+        auto answer = fl_choice_n("You have %d unsaved files!",  "&Save all", "Cancel", "Don't save", unsaved_files);
+        if (answer == 1 || answer == -1) {
             return false;
         }
         else if (answer == 2) {
@@ -24587,15 +25191,16 @@ int main(int argc, const char** argv) {
         if (argc > arg) {
             auto files = std::vector<std::string>();
             auto lines = std::vector<int>();
-            auto rx    = gnu::PCRE("(.*):(\\d+)$");
+            auto rx    = gnu::pcre8::PCRE("(.*):(\\d+)$");
             for (int f = arg; f < argc; f++) {
                 auto filename = std::string(argv[f]);
                 auto fileline = 0;
-                if (rx.exec(filename) == 3) {
-                    filename = rx.substr(1);
-                    fileline = gnu::str::to_int(rx.substr(2), 0);
+                auto m        = rx.exec(filename);
+                if (m.size() == 3) {
+                    filename = m[1].word();
+                    fileline = gnu::str::to_int(m[1].word(), 0);
                 }
-                auto file = gnu::File(filename);
+                auto file = gnu::file::File(filename);
                 if (file.is_file() || file.is_missing()) {
                     files.push_back(file.filename);
                     lines.push_back(fileline);
@@ -24612,6 +25217,9 @@ int main(int argc, const char** argv) {
     }
     catch (const char* e) {
         fl_alert("%s\n%s", "error: exception has been thrown, have to quit!", e);
+    }
+    catch (const std::exception& e) {
+        fl_alert("%s\n%s", "error: std::exception has been thrown, have to quit!", e.what());
     }
     catch (...) {
         fl_alert("%s", "error: unknown exception has been thrown, have to quit!");

@@ -1,6 +1,6 @@
 # flEdit
 FlEdit is a portable lightweight text editor that is using the [FLTK](https://github.com/fltk/fltk) gui library.
-It has been tested on Windows 10 and Xubuntu. It might work on macOS with some tweaks.
+It has been tested on Windows 10 and Ubuntu. It might work on macOS with some tweaks.
 The editor widget is based on the Fl_Text_Editor in FLTK but has been extended.
 
 This is a **personal** project that has no intention to become something more than it is now.
@@ -44,11 +44,12 @@ FlEdit is released under the [GNU General Public License v3.0](LICENSE).
 ## Download
 Download flEdit from [here](https://github.com/gnuwimp/test/releases).  
 
-## Compiling
-To build it you need a C++ 17 compiler (gcc/msys2) and [FLTK](https://github.com/fltk/fltk) library. 
-FLTK must be compiled with `--enable-use_std` flag.
-The source will NOT compile with Microsoft Visual Studio.
-It also needs PCRE and sqlite3 libraries but these are included in the source directory.
+## Building
+To build it you need a C++ 17 compiler (gcc/mingw64) and [FLTK](https://github.com/fltk/fltk) library.  
+FLTK must be compiled with `--enable-use_std` flag.  
+For better utf8 drawing in linux, compile with `--enable-pango` flag.  
+The source will NOT compile with Microsoft Visual Studio.  
+It also needs PCRE and sqlite3 libraries but these are included in the source directory.  
 
 ## Screenshots
 One file with two views<br>

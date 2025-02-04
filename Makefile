@@ -41,7 +41,6 @@ else ifeq ($(OS), Windows)
 	CC        = gcc
 else
 	EXE       = fledit
-	LDFLAGS  += -flto
 	CXX       = g++
 	CC        = gcc
 endif
