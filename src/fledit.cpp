@@ -361,7 +361,7 @@ private:
 namespace gnu {
 namespace file {
 class File;
-class Buf;
+struct Buf;
 typedef bool (*CallbackCopy)(int64_t size, int64_t copied, void* data);
 typedef std::vector<File> Files;
 enum class TYPE {
@@ -638,9 +638,11 @@ namespace theme {
     int                         load_font(std::string requested_font);
     void                        load_fonts(bool iso8859_only = true);
     void                        load_icon(Fl_Window* win, int win_resource, const char** xpm_resource = nullptr, const char* name = nullptr);
+    void                        load_rect_pref(Fl_Preferences& pref, Fl_Rect& rect, std::string basename);
     void                        load_theme_pref(Fl_Preferences& pref);
     void                        load_win_pref(Fl_Preferences& pref, Fl_Window* window, bool show = true, int defw = 800, int defh = 600, std::string basename = "gui.");
     bool                        parse(int argc, const char** argv);
+    void                        save_rect_pref(Fl_Preferences& pref, const Fl_Rect& rect, std::string basename);
     void                        save_theme_pref(Fl_Preferences& pref);
     void                        save_win_pref(Fl_Preferences& pref, Fl_Window* window, std::string basename = "gui.");
     enum {
@@ -2535,7 +2537,6 @@ public:
     int                         word_pos() const
                                     { return _word_pos; }
 private:
-    Editor*                     _parent;
     Fl_Hold_Browser*            _browser;
     int                         _word_pos;
     std::string                 _word;
@@ -6564,6 +6565,28 @@ void theme::load_icon(Fl_Window* win, int win_resource, const char** xpm_resourc
     (void) name;
 #endif
 }
+void theme::load_rect_pref(Fl_Preferences& pref, Fl_Rect& rect, std::string basename) {
+    int  x, y, w, h;
+    pref.get((basename + "x").c_str(), x, 0);
+    pref.get((basename + "y").c_str(), y, 0);
+    pref.get((basename + "w").c_str(), w, 0);
+    pref.get((basename + "h").c_str(), h, 0);
+    if (x < 0 || x > Fl::w()) {
+        x = 0;
+    }
+    if (y < 0 || y > Fl::h()) {
+        y = 0;
+    }
+    if (w > Fl::w()) {
+        x = 0;
+        w = Fl::w();
+    }
+    if (h > Fl::h()) {
+        y = 0;
+        h = Fl::h();
+    }
+    rect = Fl_Rect(x, y, w, h);
+}
 void theme::load_theme_pref(Fl_Preferences& pref) {
     auto val = 0;
     char buffer[4000];
@@ -6604,13 +6627,19 @@ void theme::load_win_pref(Fl_Preferences& pref, Fl_Window* window, bool show, in
     pref.get((basename + "y").c_str(), y, 60);
     pref.get((basename + "w").c_str(), w, defw);
     pref.get((basename + "h").c_str(), h, defh);
-    if (w == 0 || h == 0) {
-        w = 800;
-        h = 600;
+    if (x < 0 || x > Fl::w()) {
+        x = 0;
     }
-    if (x + w <= 0 || y + h <= 0 || x >= Fl::w() || y >= Fl::h()) {
-        x = 80;
-        y = 60;
+    if (y < 0 || y > Fl::h()) {
+        y = 0;
+    }
+    if (w > Fl::w()) {
+        x = 0;
+        w = Fl::w();
+    }
+    if (h > Fl::h()) {
+        y = 0;
+        h = Fl::h();
     }
 #ifdef _WIN32
     if (show == true && window->shown() == 0) {
@@ -6639,6 +6668,12 @@ bool theme::parse(int argc, const char** argv) {
     Fl_Tooltip::font(flw::PREF_FONT);
     Fl_Tooltip::size(flw::PREF_FONTSIZE);
     return res;
+}
+void theme::save_rect_pref(Fl_Preferences& pref, const Fl_Rect& rect, std::string basename) {
+    pref.set((basename + "x").c_str(), rect.x());
+    pref.set((basename + "y").c_str(), rect.y());
+    pref.set((basename + "w").c_str(), rect.w());
+    pref.set((basename + "h").c_str(), rect.h());
 }
 void theme::save_theme_pref(Fl_Preferences& pref) {
     pref.set("theme", flw::PREF_THEME.c_str());
@@ -16890,10 +16925,7 @@ void VectorStore::set_node(const Event& node) {
     else {
         _events[_cur] = node;
         _events.resize(_cur + 1);
-        if (_events.size() > 16'192 && _events.capacity() > _events.size() * 2) {
-            _events.shrink_to_fit();
-        }
-        else if (_events.size() < 16'192 && _events.capacity() > _events.size() * 4) {
+        if (_events.capacity() > 4'096 && _events.capacity() - _events.size() > _events.size() * 3) {
             _events.shrink_to_fit();
         }
     }
@@ -17206,7 +17238,7 @@ public:
         }
     }
     int handle(int event) override {
-        if (event == FL_KEYBOARD) {
+        if (event == FL_KEYDOWN) {
             auto key = Fl::event_key();
             if (key == FL_BackSpace) {
                 if (_input.size() > 0) {
@@ -17228,6 +17260,9 @@ public:
             }
             else if (key == FL_Left || key == FL_Right) {
                 return 1;
+            }
+            else if (key == FL_Up || key == FL_Down) {
+                return flw::ScrollBrowser::handle(event);
             }
             else {
                 auto text = Fl::event_text();
@@ -20958,12 +20993,18 @@ Message::CTRL Editor::message(const std::string& message, const std::string& s, 
             return Message::CTRL::ABORT;
         }
         else if (message == message::STATUSBAR_LINE_UNIX) {
+            if (_file_info.flineending == FLINEENDING::WINDOWS) {
+                buffer().set_dirty(true);
+            }
             _file_info.flineending = FLINEENDING::UNIX;
             _findbar->statusbar().update_menus(this);
             take_focus();
             return Message::CTRL::ABORT;
         }
         else if (message == message::STATUSBAR_LINE_WIN) {
+            if (_file_info.flineending == FLINEENDING::UNIX) {
+                buffer().set_dirty(true);
+            }
             _file_info.flineending = FLINEENDING::WINDOWS;
             _findbar->statusbar().update_menus(this);
             take_focus();
@@ -21791,7 +21832,7 @@ static const bool           CLOSE_EDITOR                        = true;
 static const bool           DONT_CLOSE_EDITOR                   = false;
 static const std::string    DBKEY_PROJECTS                      = "projects_";
 static const std::string    DBKEY_SNIPPETS                      = "snippets_";
-static std::string FLEDIT_ABOUT = R"(flEdit r2
+static std::string FLEDIT_ABOUT = R"(flEdit r3b
 
 Copyright 2024 - 2025 gnuwimp@gmail.com.
 Released under the GNU General Public License 3.0
@@ -21822,12 +21863,12 @@ To use the built in file browser set a directory first for the project.
 Autocomplete:
 If it is turned on it will create a word list when the file is opened.
 And then every time it is saved.
-If custom wordfile has been set (only for projects), 
+If custom wordfile has been set (only for projects),
   then those words will be added to each files word list.
 
 Backup files:
 If a backup path has been set then the file is also saved there.
-If a file has the filename /home/user/world.txt, 
+If a file has the filename /home/user/world.txt,
   the backup file name will be /backupdir/_home_user_world.txt,
   or something similar for windows.
 Also a copy of the file will be saved to /backupdir/_home_user_world.txt.YYYY-MM-DD.
@@ -21840,7 +21881,7 @@ You can either run commands in their own processes or capture the output.
 static std::string COMMAND_HELP = R"(Run a command as an external process.
 Or run and capture output from an command.
 Capturing output is done by appending 2>&1 to your command.
-The command is executed in an thread in the background, 
+The command is executed in an thread in the background,
   and only one command can be run at the same time.
 Display the result in a listbox or a (read only) terminal widget.
 
@@ -21955,6 +21996,7 @@ struct Command {
 class CommandDialog : public Fl_Double_Window {
 public:
                                 CommandDialog(CommandVector& commands, Command* select);
+                                ~CommandDialog();
     void                        resize(int X, int Y, int W, int H) override;
     Command*                    run(Fl_Window* parent);
     static void                 Callback(Fl_Widget* w, void* o);
@@ -22054,7 +22096,8 @@ private:
 };
 class ProjectDialog : public Fl_Double_Window {
 public:
-    explicit                    ProjectDialog(gnu::db::DB& db);
+                                ProjectDialog(gnu::db::DB& db);
+                                ~ProjectDialog();
     void                        resize(int X, int Y, int W, int H) override;
     std::string                 run(Fl_Window* parent);
     void                        update_pref();
@@ -22070,7 +22113,7 @@ private:
 };
 class TextDialog : public Fl_Double_Window {
 public:
-    explicit                    TextDialog(gnu::db::DB& db);
+                                TextDialog(gnu::db::DB& db);
                                 ~TextDialog();
     void                        close();
     void                        delete_text();
@@ -22265,6 +22308,9 @@ public:
                                     { return flw::menu::item_value(SELF->_menu, MENU_SETTINGS_OUTPUT_CLEAR); }
     static inline bool          settingsShowUnknown()
                                     { return flw::menu::item_value(SELF->_menu, MENU_SETTINGS_OUTPUT_UNKNOWN); }
+    static Fl_Rect              COMMAND_RECT;
+    static Fl_Rect              PROJECT_RECT;
+    static Fl_Rect              TEXT_RECT;
 private:
     static FlEdit*              SELF;
     CommandOutput*              _output;
@@ -22329,18 +22375,18 @@ CommandDialog::CommandDialog(CommandVector& commands, Command* select) : Fl_Doub
     _current  = nullptr;
     _res      = -1;
     _last     = 0;
-    _grid->add(_list,          1,   1,  40,   -6);
-    _grid->add(_name,         42,   3,  -1,   4);
-    _grid->add(_command,      42,  10,  -1,   4);
-    _grid->add(_workdir,      42,  17,  -1,   4);
-    _grid->add(_run,          42,  23,  -1,   4);
-    _grid->add(_capture,      42,  28,  -1,   4);
-    _grid->add(_terminal,     42,  33,  -1,   4);
-    _grid->add(_stream,       42,  38,  -1,   4);
-    _grid->add(_filter,       42,  46,  -1,   4);
-    _grid->add(_line,         42,  53,  -1,   4);
-    _grid->add(_string,       42,  60,  -1,   4);
-    _grid->add(_label,        42,  67,  -1,   8);
+    _grid->add(_list,          1,   1,  42,   -6);
+    _grid->add(_name,         44,   3,  -1,   4);
+    _grid->add(_command,      44,  10,  -1,   4);
+    _grid->add(_workdir,      44,  17,  -1,   4);
+    _grid->add(_run,          44,  23,  -1,   4);
+    _grid->add(_capture,      44,  28,  -1,   4);
+    _grid->add(_terminal,     44,  33,  -1,   4);
+    _grid->add(_stream,       44,  38,  -1,   4);
+    _grid->add(_filter,       44,  46,  -1,   4);
+    _grid->add(_line,         44,  53,  -1,   4);
+    _grid->add(_string,       44,  60,  -1,   4);
+    _grid->add(_label,        44,  67,  -1,   8);
     _grid->add(_help,       -119,  -5,  16,   4);
     _grid->add(_delete,     -102,  -5,  16,   4);
     _grid->add(_copy,        -85,  -5,  16,   4);
@@ -22410,8 +22456,16 @@ CommandDialog::CommandDialog(CommandVector& commands, Command* select) : Fl_Doub
     callback(CommandDialog::Callback, this);
     set_modal();
     resizable(this);
-    CommandDialog::resize(0, 0, flw::PREF_FONTSIZE * 68, flw::PREF_FONTSIZE * 42);
-    size_range(0, 0, flw::PREF_FONTSIZE * 68, flw::PREF_FONTSIZE * 42);
+    if (FlEdit::COMMAND_RECT.w() != 0 && FlEdit::COMMAND_RECT.h() != 0) {
+        CommandDialog::resize(FlEdit::COMMAND_RECT.x(), FlEdit::COMMAND_RECT.y(), FlEdit::COMMAND_RECT.w(), FlEdit::COMMAND_RECT.h());
+    }
+    else {
+        CommandDialog::resize(0, 0, flw::PREF_FONTSIZE * 68, flw::PREF_FONTSIZE * 42);
+    }
+    size_range(480, 320);
+}
+CommandDialog::~CommandDialog() {
+    FlEdit::COMMAND_RECT = Fl_Rect(this);
 }
 void CommandDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<CommandDialog*>(o);
@@ -23169,6 +23223,16 @@ _db(db) {
     set_modal();
     resizable(_grid);
     update_pref();
+    if (FlEdit::PROJECT_RECT.w() != 0 && FlEdit::PROJECT_RECT.h() != 0) {
+        ProjectDialog::resize(FlEdit::PROJECT_RECT.x(), FlEdit::PROJECT_RECT.y(), FlEdit::PROJECT_RECT.w(), FlEdit::PROJECT_RECT.h());
+    }
+    else {
+        ProjectDialog::resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 40);
+    }
+    size_range(320, 240);
+}
+ProjectDialog::~ProjectDialog() {
+    FlEdit::PROJECT_RECT = Fl_Rect(this);
 }
 void ProjectDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<ProjectDialog*>(o);
@@ -23229,8 +23293,6 @@ void ProjectDialog::update_pref() {
     _projects->textfont(flw::PREF_FIXED_FONT);
     _projects->textsize(flw::PREF_FONTSIZE);
     flw::util::labelfont(this);
-    ProjectDialog::resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 40);
-    size_range(flw::PREF_FONTSIZE * 20, flw::PREF_FONTSIZE * 30);
 }
 TextDialog::TextDialog(gnu::db::DB& db) :
 Fl_Double_Window(0, 0, 0, 0, TextDialog::LABEL),
@@ -23245,8 +23307,8 @@ _db(db) {
     _names  = new Fl_Hold_Browser(0, 0, 0, 0);
     _rename = new Fl_Button(0, 0, 0, 0, "&Rename");
     _update = new Fl_Button(0, 0, 0, 0, "&Update");
-    _grid->add(_names,    1,   1,  40,  -6);
-    _grid->add(_editor,  42,   1,  -1,  -6);
+    _grid->add(_names,    1,   1,  44,  -6);
+    _grid->add(_editor,  46,   1,  -1,  -6);
     _grid->add(_delete, -85,  -5,  16,   4);
     _grid->add(_update, -68,  -5,  16,   4);
     _grid->add(_rename, -51,  -5,  16,   4);
@@ -23282,12 +23344,18 @@ _db(db) {
     callback(TextDialog::Callback, this);
     set_modal();
     resizable(this);
-    TextDialog::resize(0, 0, flw::PREF_FONTSIZE * 80, flw::PREF_FONTSIZE * 50);
+    if (FlEdit::TEXT_RECT.w() != 0 && FlEdit::TEXT_RECT.h() != 0) {
+        TextDialog::resize(FlEdit::TEXT_RECT.x(), FlEdit::TEXT_RECT.y(), FlEdit::TEXT_RECT.w(), FlEdit::TEXT_RECT.h());
+    }
+    else {
+        TextDialog::resize(0, 0, flw::PREF_FONTSIZE * 80, flw::PREF_FONTSIZE * 50);
+    }
     size_range(480, 320);
 }
 TextDialog::~TextDialog() {
     _editor->buffer(nullptr);
     delete _buffer;
+    FlEdit::TEXT_RECT = Fl_Rect(this);
 }
 void TextDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<TextDialog*>(o);
@@ -23441,6 +23509,9 @@ void TextDialog::update_text() {
 #define FLEDIT_CB1(X) [](Fl_Widget*, void* o) { static_cast<FlEdit*>(o)->X; static_cast<FlEdit*>(o)->update_menu(); }, this
 #define FLEDIT_CB2(X,Y) [](Fl_Widget*, void* o) { static_cast<FlEdit*>(o)->X; static_cast<FlEdit*>(o)->Y; static_cast<FlEdit*>(o)->update_menu(); }, this
 FlEdit*     FlEdit::SELF = nullptr;
+Fl_Rect     FlEdit::COMMAND_RECT;
+Fl_Rect     FlEdit::PROJECT_RECT;
+Fl_Rect     FlEdit::TEXT_RECT;
 fle::Config CONFIG;
 FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG) {
     end();
@@ -23608,9 +23679,9 @@ void FlEdit::callback_list() {
     auto text    = list->text(row);
     auto matches = rx.set_names({"file", "line", "col"}).exec(text, strlen(text));
     if (matches.size() > 1) {
-        auto f = rx.match("file");
-        auto l = rx.match("line");
-        auto c = rx.match("col");
+        auto f    = rx.match("file");
+        auto l    = rx.match("line");
+        auto c    = rx.match("col");
         auto line = gnu::str::to_int(l.word(), 1);
         auto col  = gnu::str::to_int(c.word(), 1);
         if (f.word() != "") {
@@ -23936,7 +24007,7 @@ void FlEdit::update_menu() {
             flw::menu::enable_item(_menu, MENU_FILE_SAVEAS, false);
         }
         else {
-            flw::menu::enable_item(_menu, MENU_FILE_SAVE, true);
+            flw::menu::enable_item(_menu, MENU_FILE_SAVE, _editor->text_is_dirty());
             flw::menu::enable_item(_menu, MENU_FILE_SAVEAS, true);
         }
         flw::menu::enable_item(_menu, MENU_FILE_CLOSE, true);
@@ -24186,7 +24257,7 @@ void FlEdit::file_reload(fle::Editor* editor) {
     }
 }
 bool FlEdit::file_save(fle::Editor* editor) {
-    if (editor == nullptr || editor->text_is_dirty() == false) {
+    if (editor == nullptr) {
         return true;
     }
     if (editor->filename() == "") {
@@ -24244,6 +24315,9 @@ void FlEdit::pref_load(bool all) {
         std::string s;
         flw::theme::load_theme_pref(pref);
         flw::theme::load_win_pref(pref, this);
+        flw::theme::load_rect_pref(pref, FlEdit::COMMAND_RECT, "command.");
+        flw::theme::load_rect_pref(pref, FlEdit::PROJECT_RECT, "project.");
+        flw::theme::load_rect_pref(pref, FlEdit::TEXT_RECT, "text.");
         pref.get("gui.path", s, "");
         gnu::file::File file(s);
         if (file.is_dir() == true) {
@@ -24349,6 +24423,9 @@ void FlEdit::pref_save() {
     pref.set("gui.tabspos1", (int) _tabs.pref1);
     pref.set("gui.tabspos2", (int) _tabs.pref2);
     flw::theme::save_theme_pref(pref);
+    flw::theme::save_rect_pref(pref, FlEdit::COMMAND_RECT, "command.");
+    flw::theme::save_rect_pref(pref, FlEdit::PROJECT_RECT, "project.");
+    flw::theme::save_rect_pref(pref, FlEdit::TEXT_RECT, "text.");
     flw::theme::save_win_pref(pref, this);
     CONFIG.save_pref(pref, &_findbar->findreplace());
     fle::style::save_pref(pref);
@@ -24825,12 +24902,15 @@ void FlEdit::tabs_activate(fle::Editor* editor) {
     redraw();
 }
 void FlEdit::tabs_activate_cursor(std::string filename, int row, int col) {
+    if (filename.find("..") == 0) {
+        filename = gnu::file::work_dir().filename + "/" + filename;
+    }
     auto tabindex = 0;
     auto editor   = tabs_editor_by_index(tabindex);
     auto found    = (fle::Editor*) nullptr;
     auto partly1  = (fle::Editor*) nullptr;
     auto partly2  = (fle::Editor*) nullptr;
-    auto abs_name = gnu::file::File(filename).filename;
+    auto abs_name = gnu::file::File(filename, true).filename;
     while (editor != nullptr) {
         auto filename2 = editor->filename();
         if (filename2 == filename || filename2 == abs_name) {
