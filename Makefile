@@ -33,6 +33,8 @@ all: obj $(EXECUTABLE)
 obj:
 	mkdir obj
 
+OBJ = obj/fledit.o obj/pcre8.o obj/sqlite3.o obj/rainbow.o
+
 $(RESOURCE): res/fledit.rc
 	windres res/fledit.rc -O coff -o $(RESOURCE)
 
@@ -42,14 +44,18 @@ obj/pcre8.o: src/pcre8.c src/pcre8.h
 obj/sqlite3.o: src/sqlite3.c src/sqlite3.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
+obj/rainbow.o: src/rainbow.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 obj/fledit.o: src/fledit.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(EXECUTABLE): obj/fledit.o obj/pcre8.o obj/sqlite3.o $(RESOURCE)
+$(EXECUTABLE): $(OBJ) $(RESOURCE)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f $(EXECUTABLE) $(RESOURCE) obj/*
+	rm -f $(EXECUTABLE) $(RESOURCE)
+	rm -f -R obj/*
 
 pgo:
 	make clean
