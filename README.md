@@ -45,7 +45,7 @@ FlEdit is released under the [GNU General Public License v3.0](LICENSE).
 Download flEdit from [here](https://github.com/gnuwimp/test/releases).  
 
 ## Building
-To build it you need a C++ 17 compiler (gcc/mingw64) and [FLTK](https://github.com/fltk/fltk) library.  
+To build it you need a C++ 17 compiler (gcc/mingw64) and [FLTK 1.4](https://github.com/fltk/fltk) library.  
 FLTK must be compiled with `--enable-use_std` flag.  
 The source will NOT compile with Microsoft Visual Studio.  
 It also needs PCRE and sqlite3 libraries but these are included in the source directory.  
