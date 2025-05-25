@@ -50,15 +50,5 @@ FLTK must be compiled with `--enable-use_std` flag.
 The source will NOT compile with Microsoft Visual Studio.  
 It also needs PCRE and sqlite3 libraries but these are included in the source directory.  
 
-## Screenshots
-One file with two views<br>
+## Screenshot
 <img src="images/fledit1.png"/>
-
-Project with 372 files<br>
-<img src="images/fledit2.png"/>
-
-Preference dialog<br>
-<img src="images/fledit3.png"/>
-
-Color scheme dialog<br>
-<img src="images/fledit4.png"/>

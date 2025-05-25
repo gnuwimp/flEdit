@@ -42,7 +42,7 @@ obj/pcre8.o: src/pcre8.c src/pcre8.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/sqlite3.o: src/sqlite3.c src/sqlite3.h
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ -Wno-unused-parameter
 
 obj/rainbow.o: src/rainbow.c
 	$(CC) $(CFLAGS) -c $< -o $@
