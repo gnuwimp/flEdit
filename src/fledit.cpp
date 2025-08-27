@@ -10,24 +10,25 @@ struct sqlite3;
 struct sqlite3_stmt;
 namespace gnu {
 namespace db2 {
+class Row;
+typedef std::vector<Row> Rows;
 enum class LOAD {
-                                FILE,
-                                BACKUP,
-                                BACKUP_ON_ERROR,
+                                FILE,               ///< @brief Load file/row.
+                                BACKUP,             ///< @brief Load backup row.
+                                BACKUP_ON_ERROR,    ///< @brief Load backup if FILE option failed.
 };
 static constexpr const char*    ERROR_ARGUMENTS = "error: invalid arguments!";
 static constexpr const char*    ERROR_CHECKSUM  = "error: could not load data due to checksum error!";
 static constexpr const char*    ERROR_CLOSED    = "error: database is closed!";
 static constexpr const char*    ERROR_FILENAME  = "error: empty filename!";
 static constexpr const char*    ERROR_OPEN      = "error: database could not be opened!";
-class Row;
-typedef std::vector<Row> Rows;
 class Row {
 public:
                                 Row()
-                                    { _value = nullptr; _size = 0; _time = -1; }
+                                    { _value = nullptr; _size = 0; _time = -1; } ///< @brief Create empty row.
                                 Row(const std::string& key, char* value, size_t size, int64_t time = -1);
                                 Row(const std::string& key, const char* value, size_t size, int64_t time = -1);
+                                Row(const std::string& key, const std::string& value, int64_t time = -1);
                                 Row(const Row& r);
                                 Row(Row&& r);
     virtual                     ~Row()
@@ -35,15 +36,17 @@ public:
     Row&                        operator=(const Row& r);
     Row&                        operator=(Row&& r);
     const char*                 c_str() const
-                                    { return _value; }
+                                    { return _value; } ///< @brief Get row value.
     const std::string&          key() const
-                                    { return _key; }
+                                    { return _key; } ///< @brief Get row key.
     void                        debug(bool print_value = false) const;
+    bool                        is_null() const
+                                    { return _value == nullptr; } ///< @brief Is value NULL?
     size_t                      size() const
-                                    { return _size; }
+                                    { return _size; } ///< @brief Get value size.
     int64_t                     time() const
-                                    { return _time; }
-    static void                 Debug(const Rows& v, bool print_value = false);
+                                    { return _time; } ///< @brief Get value timestamp.
+    static void                 Debug(const Rows& rows, bool print_value = false);
 private:
     std::string                 _key;
     char*                       _value;
@@ -63,39 +66,39 @@ public:
                                     { close(); }
     DB&                         operator=(DB&&  other);
     bool                        begin()
-                                    { return execute("BEGIN TRANSACTION"); }
+                                    { return execute("BEGIN TRANSACTION"); } ///< @brief Begin a transaction.
     bool                        close();
     bool                        commit()
-                                    { return execute("COMMIT TRANSACTION"); }
+                                    { return execute("COMMIT TRANSACTION"); } ///< @brief Commit transactions.
     bool                        defrag()
-                                    { return execute("VACUUM"); }
+                                    { return execute("VACUUM"); } ///< @brief Defrag file.
     bool                        execute(const std::string& sql);
     std::string                 filename() const
-                                    { return _filename; }
+                                    { return _filename; } ///< @brief Return current database name.
     Row                         get(const std::string& ns, const std::string& key);
     Rows                        get_keys(const std::string& ns, const std::string& wildcard = "", int64_t from_time = -1, int64_t to_time = -1);
     Rows                        get_rows(const std::string& ns, const std::string& wildcard = "", int64_t from_time = -1, int64_t to_time = -1);
     sqlite3*                    handle()
-                                    { return _sql; }
+                                    { return _sql; } ///< @brief Return sqlite3 object.
     bool                        has_key(const std::string& ns, const std::string& key);
     bool                        is_busy() const
-                                    { return err_code == 5; }
+                                    { return err_code == 5; } ///< @brief Return true if database is current busy (in multithreading use)
     bool                        is_open() const
-                                    { return _sql != nullptr; }
+                                    { return _sql != nullptr; } ///< @brief Is it open?
     bool                        open(const std::string& filename);
     bool                        put(const std::string& ns, const std::string& key, const char* in, size_t in_size, int64_t time = -1);
     bool                        put(const std::string& ns, const std::string& key, const std::string& value, int64_t time = -1)
-                                    { return put(ns, key, value.c_str(), value.length(), time); }
+                                    { return put(ns, key, value.c_str(), value.length(), time); } ///< @brief Save as tring value.
     bool                        put(const std::string& ns, const Row& r)
-                                    { return put(ns, r.key(), r.c_str(), r.size(), r.time()); }
+                                    { return put(ns, r.key(), r.c_str(), r.size(), r.time()); } ///< @brief Save a Row object.
     int                         remove(const std::string& ns, const std::string& key, bool wildcard = false);
     bool                        rename(const std::string& ns, const std::string& key, const std::string& new_key);
     bool                        rollback()
-                                    { return execute("ROLLBACK TRANSACTION"); }
+                                    { return execute("ROLLBACK TRANSACTION"); } ///< @brief Rollback transactions.
     int64_t                     rows(const std::string& ns)
-                                    { return _count(ns, "rows"); }
+                                    { return _count(ns, "rows"); } ///< @brief Return number of rows for all namespace or a specific namespace.
     int64_t                     size(const std::string& ns)
-                                    { return _count(ns, "size"); }
+                                    { return _count(ns, "size"); } ///< @brief Return number of bytes for all namespace or a specific namespace.
     static bool                 Defrag(std::string& err, const std::string& filename);
     static Row                  Load(std::string& err, const std::string& filename, const std::string& key, LOAD load = LOAD::FILE);
     static Rows                 LoadRows(std::string& err, const std::string& filename, const std::string& wildcard = "");
@@ -126,8 +129,8 @@ private:
 namespace gnu {
 namespace pcre8 {
 class Match;
-typedef std::vector<Match> MatchVector;
-typedef std::vector<MatchVector> MatchCaptures;
+typedef std::vector<Match>       MatchVector;   ///< @brief Vector of regex matches.
+typedef std::vector<MatchVector> MatchCaptures; ///< @brief Vector with all captures from PCRE::capture_all().
 std::string                     escape(std::string string);
 std::string                     format512(const char* format, ...);
 std::string                     replace_all(const std::string& string, const std::string& find, const std::string& replace = "");
@@ -136,32 +139,32 @@ std::string                     version();
 class Match {
 public:
                                 Match()
-                                    { _start = _count = 0; }
+                                    { _start = _count = 0; } ///< @brief Empty match.
                                 Match(const std::string& word, int start, int count, const std::string& name = "")
-                                    { _word = word; _start = start; _count = count; _name = name; assert(start >= 0 && count >= 0);  }
+                                    { _word = word; _start = start; _count = count; _name = name; assert(start >= 0 && count >= 0);  } ///< @brief Match with all fields set.
     bool                        operator==(const Match& m) const
-                                    { return _word == m._word && _start == m._start && _count == m._count; }
+                                    { return _word == m._word && _start == m._start && _count == m._count; } ///< @brief Compare matches.
     int                         count() const
-                                    { return _count; }
+                                    { return _count; } ///< @brief Size of match (bytes).
     Match&                      count(size_t count)
-                                    { _count = count; return *this; }
+                                    { _count = count; return *this; } ///< @brief Set length. @param[in] count  Length in bytes.
     void                        debug() const;
     int                         end() const
-                                    { return _start + _count; }
+                                    { return _start + _count; } ///< @brief Last byte of match.
     void                        inc_start()
-                                    { _start++; }
+                                    { _start++; } ///< @brief Force advancing start when captures have 0 length.
     const std::string&          name() const
-                                    { return _name; }
+                                    { return _name; } ///< @brief Name of this match.
     Match&                      name(const std::string& name)
-                                    { _name = name; return *this; }
+                                    { _name = name; return *this; } ///< @brief Set name.
     void                        print(int i = 0) const;
     bool                        replace(std::string& subject) const;
     int                         start() const
-                                    { return _start; }
+                                    { return _start; } ///< @brief First byte of match.
     const std::string&          word() const
-                                    { return _word; }
+                                    { return _word; } ///< @brief Found word.
     Match&                      word(const std::string& word)
-                                    { _word = word; return *this; }
+                                    { _word = word; return *this; } ///< @brief Set word. @param[in] word  New word.
     static Match                Find(const MatchVector& matches, const std::string& name);
     static void                 Print(const MatchVector& matches, bool header = true, int capture = 0);
     static void                 Print(const MatchCaptures& captures);
@@ -188,38 +191,38 @@ public:
     std::string                 compile(const std::string& pattern, bool useutf = false);
     void                        debug(bool print_matches = false);
     const std::string&          err() const
-                                    { return _error; }
+                                    { return _error; } ///< @brief Get error string.
     MatchVector                 exec(const char* subject, size_t length);
     MatchVector                 exec(const std::string& subject)
-                                    { return exec(subject.c_str(), subject.length()); }
+                                    { return exec(subject.c_str(), subject.length()); } ///< @brief Execute a query.
     MatchVector                 exec_next(const Match& last);
     bool                        find(const char* subject)
-                                    { return exec(subject, strlen(subject)).size() > 0; }
+                                    { return exec(subject, strlen(subject)).size() > 0; } ///< @brief Execute a query and find a match or not.
     bool                        find(const std::string& subject)
-                                    { return exec(subject.c_str(), subject.length()).size() > 0; }
+                                    { return exec(subject.c_str(), subject.length()).size() > 0; } ///< @brief Execute a query and find a match or not.
     bool                        has_error() const
-                                    { return _error != ""; }
+                                    { return _error != ""; } ///< @brief Has a error?
     bool                        is_compiled() const
-                                    { return _pcre != nullptr; }
+                                    { return _pcre != nullptr; } ///< @brief Has it compiled a regex?
     bool                        has_utf() const
-                                    { return _utf; }
+                                    { return _utf; } ///< @brief Has utf support.
     Match                       match(const std::string& name) const;
     MatchVector                 matches() const
-                                    { return _matches; }
+                                    { return _matches; } ///< @brief Number of matches from last execution.
     PCRE&                       notbol(bool val = false)
-                                    { _notbol = val; return *this; }
+                                    { _notbol = val; return *this; } ///< @brief Set beginning of line flag. @param[in] val  Default false which mean a line has a beginning.
     PCRE&                       noteol(bool val = false)
-                                    { _noteol = val; return *this; }
+                                    { _noteol = val; return *this; } ///< @brief Set end of line flag. @param[in] val  Default false which mean a line has an end.
     PCRE&                       notempty(bool val = false)
-                                    { _notempty = val; return *this; }
+                                    { _notempty = val; return *this; } ///< @brief Set empty result flag. @param[in] val  Default false which mean empty match does not generate any match.
     const std::string&          pattern() const
-                                    { return _pattern; }
+                                    { return _pattern; } ///< @brief Compiled pattern.
     PCRE&                       reset_options()
-                                    { _notbol = _noteol = _notempty = false; return *this; }
+                                    { _notbol = _noteol = _notempty = false; return *this; } ///< @brief Reset all options to default values (notbol(), noteol(), notempty() to false).
     PCRE&                       set_names(const std::vector<std::string>& names)
-                                    { _names = names; return *this; }
+                                    { _names = names; return *this; } ///< @brief Set capture name list.
     const std::string&          subject() const
-                                    { return _subject; }
+                                    { return _subject; } ///< @brief Get subject string.
     std::string                 to_string() const;
     static MatchCaptures        Captures(const std::string& regex, const std::string& subject);
     static size_t               Find(const std::string& regex, const std::string& subject);
@@ -253,27 +256,27 @@ std::string make_key(unsigned key, uint8_t width = 3);
 class Buf {
 public:
                                 Buf()
-                                    { _p = nullptr; _s = 0; }
+                                    { _p = nullptr; _s = 0; } ///< @brief Create empty buffer.
     explicit                    Buf(size_t s);
                                 Buf(const char* p, size_t s);
                                 Buf(const Buf& b);
                                 Buf(Buf&& b)
-                                    { _p = b._p; _s = b._s; b._p = nullptr; }
+                                    { _p = b._p; _s = b._s; b._p = nullptr; } ///< @brief Move buffer.
     virtual                     ~Buf()
-                                    { free(_p); }
+                                    { free(_p); } ///< @brief Free memory.
     Buf&                        operator=(const Buf& b);
     Buf&                        operator=(Buf&& b)
-                                    { free(_p); _p = b._p; _s = b._s; b._p = nullptr; return *this; }
+                                    { free(_p); _p = b._p; _s = b._s; b._p = nullptr; return *this; }  ///< @brief Move buffer.
     Buf&                        operator+=(const Buf& b);
     bool                        operator==(const Buf& b) const;
     const char*                 c_str() const
-                                    { return _p; }
+                                    { return _p; } ///< @brief Buffer pointer, can be NULL.
     void                        set(char c, size_t index)
-                                    { assert(index < _s); if (index < _s) _p[index] = c; }
+                                    { assert(index < _s); if (index < _s) _p[index] = c; } ///< @brief Set byte, range checked. @param[in] c Byte to set. @param[in] index Valid index in buffer.
     size_t                      size() const
-                                    { return _s; }
+                                    { return _s; } ///< @brief Return size in bytes.
     static inline Buf           Grab(char* p, size_t s)
-                                    { auto res = Buf(); res._p = p; res._s = s; return res; }
+                                    { auto res = Buf(); res._p = p; res._s = s; return res; } ///< @brief Create a buffer and take ownership of input buffer.
 private:
     char*                       _p;
     size_t                      _s;
@@ -281,9 +284,9 @@ private:
 class Pile {
 public:
     explicit                    Pile(const char* values = nullptr)
-                                    { _buf[0] = 0; import_data(values); }
+                                    { _buf[0] = 0; import_data(values); } ///< @brief Create new empty buffer or import a string.
     void                        clear()
-                                    { _values.clear(); }
+                                    { _values.clear(); } ///< @brief Delete all values.
     void                        debug() const;
     std::string                 export_data() const;
     Buf                         get_buf(const std::string& section, const std::string& key) const;
@@ -295,14 +298,14 @@ public:
     std::vector<std::string>    sections() const;
     bool                        set(const std::string& section, const std::string& key, const char* buffer, size_t buffer_len);
     bool                        set_buf(const std::string& section, const std::string& key, const Buf& buf)
-                                    { return set(section, key, buf.c_str(), buf.size()); }
+                                    { return set(section, key, buf.c_str(), buf.size()); } ///< @brief Set buffer.
     bool                        set_double(const std::string& section, const std::string& key, double value)
-                                    { snprintf(_buf, 500, "%f", value); return set_string(section, key, _buf); }
+                                    { snprintf(_buf, 500, "%f", value); return set_string(section, key, _buf); } ///< @brief Set a double number.
     bool                        set_int(const std::string& section, const std::string& key, int64_t value)
-                                    { snprintf(_buf, 500, "%lld", (long long int) value); return set_string(section, key, _buf); }
+                                    { snprintf(_buf, 500, "%lld", (long long int) value); return set_string(section, key, _buf); } ///< @brief Set a integer.
     bool                        set_string(const std::string& section, const std::string& key, const std::string& string);
     size_t                      size() const
-                                    { return _values.size(); }
+                                    { return _values.size(); } ///< @brief Return number of items.
 private:
     std::map<std::string, std::string> _values;
     char                            _buf[500];
@@ -314,30 +317,34 @@ private:
 #include <vector>
 namespace gnu {
 namespace str {
+size_t                          find_first_of(const std::string& string, const std::string& list, size_t pos = 0);
+size_t                          find_last_of(const std::string& string, const std::string& list, size_t pos = -1);
 std::string                     format(const char* format, ...);
 std::string                     format_int(int64_t num, char del = ' ');
 std::string                     format_double(double num, size_t decimals, char del = ' ');
-inline std::string              grab(char* str)
-                                    { std::string res = (str != nullptr) ? str : ""; free(str); return res;}
-bool                            is_whitespace(const std::string& str);
+inline std::string              grab(char* string)
+                                    { std::string res = (string != nullptr) ? string : ""; free(string); return res;} ///< Create a string and free input memory. @param[in,out] string  Input string, can be NULL.
+bool                            has_whitespace(const std::string& string);
+bool                            is_whitespace(const std::string& string);
 size_t                          list_append(std::vector<std::string>& strings, const std::string& string, size_t max_size);
 size_t                          list_insert(std::vector<std::string>& strings, const std::string& string, size_t max_size);
-std::string&                    replace(std::string& str, const std::string& find, const std::string& replace = "", size_t max = -1);
-std::string                     replace_const(const std::string& str, const std::string& find, const std::string& = "", size_t max = -1);
+std::string&                    replace(std::string& string, const std::string& find, const std::string& replace = "", size_t max = -1);
+std::string                     replace_const(const std::string& string, const std::string& find, const std::string& = "", size_t max = -1);
 std::string                     replace_std(const std::string& string, const std::string& find, const std::string& replace);
-const char*                     reverse(char* str, size_t len);
-inline std::string&             reverse(std::string& str)
-                                    { reverse(const_cast<char*>(str.c_str()), str.length()); return str; }
-std::vector<std::string>        split(const std::string& str, const std::string& split);
-std::vector<const char*>        split_fast(char* cstr, char split);
-std::string                     substr(const std::string& in, std::string::size_type pos, std::string::size_type size = std::string::npos, const std::string& def = "");
-double                          to_double(const std::string& str, double def = 0.0);
-long long int                   to_int(const std::string& str, long long int def = 0);
-inline std::string              to_string(const char* cstr)
-                                    { return (cstr != nullptr) ? cstr : ""; }
-std::string&                    trim(std::string& str);
-std::string                     trim_const(const std::string& str);
-size_t                          utf_len(const char* p);
+std::string                     reverse(const std::string& string);
+std::vector<std::string>        split(const std::string& string, const std::string& split);
+std::vector<const char*>        split_fast(char* string, char split);
+std::string                     substr(const std::string& string, std::string::size_type pos, std::string::size_type count = std::string::npos);
+std::string                     substr_utf(const std::string& string, std::string::size_type pos, std::string::size_type count = std::string::npos);
+double                          to_double(const std::string& string, double def = 0.0);
+long long int                   to_int(const std::string& string, long long int def = 0);
+inline std::string              to_string(const char* string)
+                                    { return (string != nullptr) ? string : ""; } ///< @brief Safe conversion of pointer to string. @param[in] string  String pointer, NULL pointer is valid.
+std::string&                    trim(std::string& string);
+std::string                     trim_const(const std::string& string);
+std::string                     utf_char(const char* string);
+std::vector<std::string>        utf_chars(const char* string);
+size_t                          utf_len(const char* string);
 }
 }
 #include <cstdint>
@@ -382,6 +389,134 @@ private:
     bool                        _paused;
 };
 }
+#include <cstdint>
+#include <string>
+namespace gnu {
+class Date {
+public:
+    enum class UTC {
+                                ON,
+                                OFF,
+    };
+    enum class US {
+                                ON,
+                                OFF,
+    };
+    enum class COMPARE {
+                                YYYYMM,
+                                YYYYMMDD,
+                                YYYYMMDDHH,
+                                YYYYMMDDHHMM,
+                                YYYYMMDDHHMMSS,
+                                LAST = YYYYMMDDHHMMSS,
+    };
+    enum class DAY {
+                                INVALID,
+                                MONDAY,
+                                TUESDAY,
+                                WENDSDAY,
+                                THURSDAY,
+                                FRIDAY,
+                                SATURDAY,
+                                SUNDAY,
+                                LAST = SUNDAY,
+    };
+    enum class FORMAT {
+                                ISO,
+                                ISO_LONG,
+                                ISO_TIME,
+                                ISO_TIME_LONG,
+                                TIME,
+                                TIME_LONG,
+                                US,
+                                WORLD,
+                                DAY_MONTH_YEAR,
+                                DAY_MONTH_YEAR_SHORT,
+                                WEEKDAY_MONTH_YEAR,
+                                WEEKDAY_MONTH_YEAR_SHORT,
+                                LAST = WEEKDAY_MONTH_YEAR_SHORT,
+    };
+    static const int            SECS_PER_HOUR = 3600;
+    static const int            SECS_PER_DAY  = 3600 * 24;
+    static const int            SECS_PER_WEEK = 3600 * 24 * 7;
+    explicit                    Date(Date::UTC utc = Date::UTC::OFF);
+                                Date(int year, int month, int day, int hour = 0, int min = 0, int sec = 0);
+    explicit                    Date(int64_t unix_time, Date::UTC utc = Date::UTC::OFF);
+    explicit                    Date(const std::string& date, Date::US us = Date::US::OFF);
+    bool                        operator<(const Date& other) const
+                                    { return compare(other) < 0 ? true : false; }
+    bool                        operator<=(const Date& other) const
+                                    { return compare(other) <= 0 ? true : false; }
+    bool                        operator>(const Date& other) const
+                                    { return compare(other) > 0 ? true : false; }
+    bool                        operator>=(const Date& other) const
+                                    { return compare(other) >= 0 ? true : false; }
+    bool                        operator==(const Date& other) const
+                                    { return compare(other) == 0 ? true : false; }
+    bool                        operator!=(const Date& other) const
+                                    { return compare(other) != 0 ? true : false; }
+    bool                        add_days(int days);
+    bool                        add_months(int months);
+    bool                        add_seconds(int64_t seconds);
+    bool                        add_years(int years)
+                                    { return add_months(years * 12); }
+    Date&                       clear()
+                                    { _year = _month = _day = _hour = _min = _sec = 0; return *this; }
+    Date&                       clear_time()
+                                    { _hour = _min = _sec = 0; return *this; }
+    int                         compare(const Date& other, Date::COMPARE flag = Date::COMPARE::YYYYMMDDHHMMSS) const;
+    int                         day() const
+                                    { return _day; }
+    int                         days_in_month() const;
+    int                         days_into_year() const;
+    void                        debug() const;
+    int                         diff_days(const Date& other) const;
+    int                         diff_months(const Date& other) const;
+    int                         diff_seconds(const Date& other) const;
+    std::string                 format(Date::FORMAT format = Date::FORMAT::ISO) const;
+    int                         hour() const
+                                    { return _hour; }
+    bool                        is_invalid() const
+                                    { return _year == 0 || _month == 0 || _day == 0; }
+    bool                        is_leapyear() const;
+    int                         minute() const
+                                    { return _min; }
+    int                         month() const
+                                    { return _month; }
+    const char*                 month_name() const;
+    const char*                 month_name_short() const;
+    int                         second() const
+                                    { return _sec; }
+    Date&                       set(const Date& other);
+    Date&                       set(const std::string& date, Date::US us = Date::US::OFF);
+    Date&                       set(int year, int month, int day, int hour = 0, int min = 0, int sec = 0);
+    Date&                       set_day(int day);
+    Date&                       set_day_to_last_in_month()
+                                    { _day = days_in_month(); return *this; }
+    Date&                       set_hour(int hour);
+    Date&                       set_minute(int min);
+    Date&                       set_month(int month);
+    Date&                       set_second(int sec);
+    Date&                       set_weekday(Date::DAY weekday);
+    Date&                       set_year(int year);
+    int64_t                     time() const;
+    int                         week() const;
+    Date::DAY                   weekday() const;
+    const char*                 weekday_name() const;
+    const char*                 weekday_name_short() const;
+    int                         year() const
+                                    { return _year; }
+    static inline bool          Compare(const Date& a, const Date& b)
+                                    { return a.compare(b) < 0; }
+private:
+    short                       _year;
+    char                        _month;
+    char                        _day;
+    char                        _hour;
+    char                        _min;
+    char                        _sec;
+};
+}
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -392,12 +527,13 @@ namespace gnu {
 namespace file {
 class File;
 class Buf;
-typedef bool (*CallbackCopy)(int64_t size, int64_t copied, void* data);
+typedef bool (*CallbackCopy)(int64_t size, int64_t copied, void* data); ///< @brief Callback for file copy.
+typedef std::vector<File> Files;
 enum class TYPE {
-                                MISSING,
-                                DIR,
-                                FILE,
-                                OTHER,
+                                MISSING,    ///< @brief File does not exist.
+                                DIR,        ///< @brief It is a directory.
+                                FILE,       ///< @brief A regular file.
+                                OTHER,      ///< @brief Something else (not used in windows),
 };
 #ifdef _WIN32
     static const int            DEFAULT_DIR_MODE  = 0x00000080;
@@ -426,8 +562,8 @@ std::string                     os();
 FILE*                           popen(const std::string& cmd, bool write = false);
 Buf                             read(const std::string& path);
 Buf*                            read2(const std::string& path);
-std::vector<File>               read_dir(const std::string& path);
-std::vector<File>               read_dir_rec(const std::string& path);
+Files                           read_dir(const std::string& path);
+Files                           read_dir_rec(const std::string& path);
 bool                            redirect_stderr();
 bool                            redirect_stdout();
 bool                            remove(const std::string& path);
@@ -442,63 +578,63 @@ bool                            write(const std::string& path, const Buf& buf, b
 class Buf {
 public:
                                 Buf()
-                                    { _str = nullptr; _size = 0; }
+                                    { _str = nullptr; _size = 0; } ///< @brief Create empty buffer with NULL data.
     explicit                    Buf(size_t size);
                                 Buf(const char* buffer, size_t size);
                                 Buf(const Buf& b);
                                 Buf(Buf&& b)
-                                    { _str = b._str; _size = b._size; b._str = nullptr; }
+                                    { _str = b._str; _size = b._size; b._str = nullptr; } ///< @brief Move buffer.
                                 Buf(const std::string& string)
-                                    { _str = nullptr; add(string.c_str(), string.length()); }
+                                    { _str = nullptr; add(string.c_str(), string.length()); } ///< @brief Copy input string.
     virtual                     ~Buf()
-                                    { free(_str); }
+                                    { free(_str); } ///< @brief Free memory.
     unsigned char&              operator[](size_t index)
-                                    { if (index >= _size || _str == nullptr) throw std::string("error: gnu::file::Buf::[]: index is out of range"); return ((unsigned char*) _str)[index]; }
+                                    { if (index >= _size || _str == nullptr) throw std::string("error: gnu::file::Buf::[]: index is out of range"); return ((unsigned char*) _str)[index]; } ///< @brief Return byte. @throws std::string exception on error.
     unsigned char               operator[](size_t index) const
-                                    { if (index >= _size || _str == nullptr) throw std::string("error: gnu::file::Buf::[]: index is out of range"); return ((unsigned char*) _str)[index]; }
+                                    { if (index >= _size || _str == nullptr) throw std::string("error: gnu::file::Buf::[]: index is out of range"); return ((unsigned char*) _str)[index]; } ///< @brief Return byte. @throws std::string exception on error.
     Buf&                        operator=(const Buf& b)
-                                    { return set(b._str, b._size); }
+                                    { return set(b._str, b._size); } ///< @brief Copy other buffer.
     Buf&                        operator=(Buf&& b)
-                                    { free(_str); _str = b._str; _size = b._size; b._str = nullptr; return *this; }
+                                    { free(_str); _str = b._str; _size = b._size; b._str = nullptr; return *this; } ///< @brief Move data to this object.
     Buf&                        operator=(const std::string& string)
-                                    { free(_str); _str = nullptr; add(string.c_str(), string.length()); return *this; }
+                                    { free(_str); _str = nullptr; add(string.c_str(), string.length()); return *this; } ///< @brief Copy string.
     Buf&                        operator+=(const Buf& b)
-                                    { return add(b._str, b._size); }
+                                    { return add(b._str, b._size); } ///< @brief Add buffer. @throws std::string exception on error.
     bool                        operator==(const Buf& other) const;
     bool                        operator!=(const Buf& other) const
-                                    { return (*this == other) == false; }
+                                    { return (*this == other) == false; } ///< @brief Compare buffer objects.
     Buf&                        add(const char* buffer, size_t size);
     const char*                 c_str() const
-                                    { return _str; }
+                                    { return _str; } ///< @brief Return buffer data, can be NULL.
     void                        clear()
-                                    { free(_str); _str = nullptr; _size = 0; }
+                                    { free(_str); _str = nullptr; _size = 0; } ///< @brief Delete memory and set internal buffer to NULL.
     std::array<size_t, 257>     count() const
-                                    { return Buf::Count(_str, _size); }
+                                    { return Buf::Count(_str, _size); } ///< @brief Count bytes and longest text line.
     void                        debug() const
-                                    { printf("gnu::Buf(0x%p, %llu)\n", _str, (long long unsigned) _size); }
+                                    { printf("gnu::Buf(0x%p, %llu)\n", _str, (long long unsigned) _size); } ///< @brief Print debug info.
     uint64_t                    fletcher64() const
-                                    { return file::fletcher64(_str, _size); }
+                                    { return file::fletcher64(_str, _size); } ///< @brief Return checksum for this object.
     Buf&                        grab(char* buffer, size_t size)
-                                    { free(_str); _str = buffer; _size = size; return *this; }
+                                    { free(_str); _str = buffer; _size = size; return *this; } ///< @brief Delete internal memory and take control of input buffer.
     Buf                         insert_cr(bool dos = true, bool trailing = false) const
-                                    { return Buf::InsertCR(_str, _size, dos, trailing); }
+                                    { return Buf::InsertCR(_str, _size, dos, trailing); } ///< @brief Insert "\r" and remove trailing whitespace. @throws std::string exception on error.
     char*                       release()
-                                    { auto res = _str; _str = nullptr; _size = 0; return res; }
+                                    { auto res = _str; _str = nullptr; _size = 0; return res; } ///< @brief Release control of internal buffer and return memory (internal memory will be set to NULL).
     Buf                         remove_cr() const
-                                    { return Buf::RemoveCR(_str, _size); }
+                                    { return Buf::RemoveCR(_str, _size); } ///< @brief Remove "\r" from buffer. @throws std::string exception on error.
     Buf&                        set(const char* buffer, size_t size);
     size_t                      size() const
-                                    { return _size; }
+                                    { return _size; } ///< @brief Return size in bytes.
     void                        size(size_t size)
-                                    {  if (size >= _size) throw std::string("error: gnu::file::Buf::size(): size is out of range"); _size = size; }
+                                    {  if (size >= _size) throw std::string("error: gnu::file::Buf::size(): size is out of range"); _size = size; } ///< @brief Set new size, must be less or equal than current size. @throws std::string exception on error.
     char*                       str()
-                                    { return _str; }
+                                    { return _str; } ///< @brief Return buffer data, can be NULL.
     bool                        write(const std::string& path, bool flush = true) const;
     static std::array<size_t, 257> Count(const char* buffer, size_t size);
     static inline Buf           Grab(char* string)
-                                    { auto res = Buf(); res._str = string; res._size = strlen(string); return res; }
+                                    { auto res = Buf(); res._str = string; res._size = strlen(string); return res; } ///< @brief Create new object that takes control of input string.
     static inline Buf           Grab(char* buffer, size_t size)
-                                    { auto res = Buf(); res._str = buffer; res._size = size; return res; }
+                                    { auto res = Buf(); res._str = buffer; res._size = size; return res; } ///< @brief Create new object that takes control of input buffer.
     static Buf                  InsertCR(const char* buffer, size_t size, bool dos, bool trailing = false);
     static Buf                  RemoveCR(const char* buffer, size_t size);
 private:
@@ -509,55 +645,55 @@ class File {
 public:
     explicit                    File(const std::string& path = "", bool realpath = false);
     bool                        operator==(const File& other) const
-                                    { return _filename == other._filename; }
+                                    { return _filename == other._filename; } ///< @brief Compare filenames.
     bool                        operator<(const File& other) const
-                                    { return _filename < other._filename; }
+                                    { return _filename < other._filename; } ///< @brief Compare filenames.
     bool                        operator<=(const File& other) const
-                                    { return _filename <= other._filename; }
+                                    { return _filename <= other._filename; } ///< @brief Compare filenames.
     const char*                 c_str() const
-                                    { return _filename.c_str(); }
+                                    { return _filename.c_str(); } ///< @brief Return filename.
     File                        canonical() const
-                                    { return file::canonical(_filename); }
+                                    { return file::canonical(_filename); } ///< @brief Return canonical file name.
     int64_t                     ctime() const
-                                    { return _ctime; }
+                                    { return _ctime; } ///< @brief Return created file time.
     void                        debug(bool short_version = true) const
-                                    { printf("%s\n", to_string(short_version).c_str()); fflush(stdout); }
+                                    { printf("%s\n", to_string(short_version).c_str()); fflush(stdout); } ///< @brief Print file info to stdout.
     bool                        exist() const
-                                    { return _type != TYPE::MISSING; }
+                                    { return _type != TYPE::MISSING; } ///< @brief Does file exist?
     const std::string&          ext() const
-                                    { return _ext; }
+                                    { return _ext; } ///< @brief Return file extension, not for directories.
     const std::string&          filename() const
-                                    { return _filename; }
+                                    { return _filename; } ///< @brief Return full filename.
     bool                        is_circular() const
-                                    { return file::is_circular(_filename); }
+                                    { return file::is_circular(_filename); } ///< @brief Is link to a directory a circular one?
     bool                        is_dir() const
-                                    { return _type == TYPE::DIR; }
+                                    { return _type == TYPE::DIR; } ///< @brief Is file a directory?
     bool                        is_file() const
-                                    { return _type == TYPE::FILE; }
+                                    { return _type == TYPE::FILE; } ///< @brief Is file a plain file?
     bool                        is_link() const
-                                    { return _link; }
+                                    { return _link; } ///< @brief Is file a link?
     bool                        is_missing() const
-                                    { return _type == TYPE::MISSING; }
+                                    { return _type == TYPE::MISSING; }  ///< @brief Is file missing?
     bool                        is_other() const
-                                    { return _type == TYPE::OTHER; }
+                                    { return _type == TYPE::OTHER; }  ///< @brief Is file something else?
     File                        linkname() const
-                                    { return file::linkname(_filename); }
+                                    { return file::linkname(_filename); } ///< @brief Read link name.
     int                         mode() const
-                                    { return _mode; }
+                                    { return _mode; } ///< @brief Return file mode.
     int64_t                     mtime() const
-                                    { return _mtime; }
+                                    { return _mtime; } ///< @brief Return file modified time.
     const std::string&          name() const
-                                    { return _name; }
+                                    { return _name; } ///< @brief Return name without path.
     std::string                 name_without_ext() const;
     const std::string&          parent() const
-                                    { return _path; }
+                                    { return _path; } ///< @brief Return parent path.
     const std::string&          path() const
-                                    { return _path; }
+                                    { return _path; } ///< @brief Same as parent(), return parent path.
     int64_t                     size() const
-                                    { return _size; }
+                                    { return _size; } ///< @brief Return size in bytes.
     std::string                 to_string(bool short_version = true) const;
     TYPE                        type() const
-                                    { return _type; }
+                                    { return _type; } ///< @brief Return file type.
     std::string                 type_name() const;
 private:
     TYPE                        _type;
@@ -638,24 +774,24 @@ private:
 #define FLW_TEST_TRUE(X)
 #endif
 namespace flw {
-extern int                      PREF_FIXED_FONT;
-extern std::string              PREF_FIXED_FONTNAME;
-extern int                      PREF_FIXED_FONTSIZE;
-extern Fl_Font                  PREF_FONT;
-extern int                      PREF_FONTSIZE;
-extern std::string              PREF_FONTNAME;
-extern std::vector<char*>       PREF_FONTNAMES;
-extern double                   PREF_SCALE;
-extern bool                     PREF_SCALE_ON;
-extern std::string              PREF_THEME;
-extern const char* const        PREF_THEMES[];
-typedef std::vector<std::string> StringVector;
-typedef std::vector<void*>       VoidVector;
-typedef std::vector<Fl_Widget*>  WidgetVector;
-typedef bool (*PrintCallback)(void* data, int pw, int ph, int page);
+extern int                      PREF_FIXED_FONT;                        ///< @brief Fixed font - default FL_COURIER.
+extern std::string              PREF_FIXED_FONTNAME;                    ///< @brief Fixed font name - default "FL_COURIER".
+extern int                      PREF_FIXED_FONTSIZE;                    ///< @brief Fixed font size - default 14.
+extern Fl_Font                  PREF_FONT;                              ///< @brief Default font - default FL_HELVETICA.
+extern int                      PREF_FONTSIZE;                          ///< @brief Default font size - default 14.
+extern std::string              PREF_FONTNAME;                          ///< @brief Default font name - default "FL_HELVETICA".
+extern std::vector<char*>       PREF_FONTNAMES;                         ///< @brief List of font names - used internally - load with flw::theme::load_fonts().
+extern double                   PREF_SCALE_VAL;                         ///< @brief Scale value.
+extern bool                     PREF_SCALE_ON;                          ///< @brief Scale on or off.
+extern std::string              PREF_THEME;                             ///< @brief Name of theme - default "default".
+extern const char* const        PREF_THEMES[];                          ///< @brief Name of themes.
+typedef std::vector<std::string> StringVector;                          ///< @brief Vector with strings.
+typedef std::vector<void*>       VoidVector;                            ///< @brief Vector with void pointers
+typedef std::vector<Fl_Widget*>  WidgetVector;                          ///< @brief Vector with widget pointers.
+typedef bool (*PrintCallback)(void* data, int pw, int ph, int page);    ///< @brief A drawing callback for printing to postscript.
 namespace debug {
-    void                        print(const Fl_Widget* widget);
-    void                        print(const Fl_Widget* widget, std::string& indent);
+    void                        print(const Fl_Widget* widget, bool recursive = true);
+    void                        print(const Fl_Widget* widget, std::string& indent, bool recursive = true);
     bool                        test(bool val, int line, const char* func);
     bool                        test(const char* ref, const char* val, int line, const char* func);
     bool                        test(int64_t ref, int64_t val, int line, const char* func);
@@ -673,9 +809,9 @@ namespace util {
     void                        center_window(Fl_Window* window, Fl_Window* parent = nullptr);
     double                      clock();
     int                         count_decimals(double number);
-    Fl_Widget*                  find_widget(Fl_Group* group, std::string label);
-    std::string                 fix_menu_string(std::string in);
-    std::string                 format(const char* format, ...);
+    Fl_Widget*                  find_widget(Fl_Group* group, const std::string& label);
+    std::string                 fix_menu_string(const std::string& label);
+    std::string                 format(const std::string& format, ...);
     std::string                 format_double(double num, int decimals = 0, char del = ' ');
     std::string                 format_int(int64_t num, char del = ' ');
     bool                        is_whitespace_or_empty(const char* str);
@@ -690,6 +826,7 @@ namespace util {
     void                        sleep(int milli);
     StringVector                split_string(const std::string& string, std::string split);
     std::string                 substr(std::string in, std::string::size_type pos, std::string::size_type size = std::string::npos);
+    void                        swap_rect(Fl_Widget* w1, Fl_Widget* w2);
     double                      to_double(std::string s, double def = INFINITY);
     long long                   to_long(std::string s, long long def = 0);
     static inline std::string   to_string(const char* text)
@@ -748,7 +885,7 @@ namespace color {
 }
 class PrintText {
 public:
-                                PrintText(std::string filename,
+                                PrintText(const std::string& filename,
                                     Fl_Paged_Device::Page_Format format = Fl_Paged_Device::Page_Format::A4,
                                     Fl_Paged_Device::Page_Layout layout = Fl_Paged_Device::Page_Layout::PORTRAIT,
                                     Fl_Font font = FL_COURIER,
@@ -759,19 +896,19 @@ public:
                                     int line_num = 0);
                                 ~PrintText();
     Fl_Fontsize                 fontsize() const
-                                    { return _fontsize; }
+                                    { return _fontsize; } ///< @brief Return font size
     int                         page_count() const
-                                    { return _page_count; }
+                                    { return _page_count; } ///< @brief Return page count.
     std::string                 print(const char* text, unsigned replace_tab_with_space = 0);
     std::string                 print(const std::string& text, unsigned replace_tab_with_space = 0);
     std::string                 print(const StringVector& lines, unsigned replace_tab_with_space = 0);
 private:
-    void                        check_for_new_page();
-    void                        measure_lw_lh(const std::string& text);
-    void                        print_line(const std::string& line);
-    void                        print_wrapped_line(const std::string& line);
-    std::string                 start();
-    std::string                 stop();
+    void                        _check_for_new_page();
+    void                        _measure_lw_lh(const std::string& text);
+    void                        _print_line(const std::string& line);
+    void                        _print_wrapped_line(const std::string& line);
+    std::string                 _start();
+    std::string                 _stop();
     Fl_Align                    _align;
     Fl_Font                     _font;
     Fl_Fontsize                 _fontsize;
@@ -804,19 +941,50 @@ public:
     void                        adjust(Fl_Widget* widget, int L = 0, int R = 0, int T = 0, int B = 0);
     void                        clear();
     void                        do_layout()
-                                    { resize(x(), y(), w(), h()); Fl::redraw(); }
+                                    { resize(x(), y(), w(), h()); Fl::redraw(); } ///< @brief Resize all child widgets.
     int                         handle(int event) override;
     Fl_Widget*                  remove(Fl_Widget* widget);
     void                        resize(int X, int Y, int W, int H) override;
     void                        resize(Fl_Widget* widget, int X, int Y, int W, int H);
     int                         size() const
-                                    { return _size; }
+                                    { return _size; } ///< @brief Get grid size. @return Size in pixels.
     void                        size(int size)
-                                    { _size = (size >= 4 && size <= 72) ? size : 0; }
+                                    { _size = (size >= 4 && size <= 72) ? size : 0; } ///< @brief Set grid size. @param[in] size  From 4 to 72 pixel.
 private:
     void                        _last_active_widget(Fl_Widget** first, Fl_Widget** last);
     VoidVector                  _widgets;
     int                         _size;
+};
+}
+#include <FL/Fl_Group.H>
+namespace flw {
+class ToolGroup : public Fl_Group {
+public:
+    enum class DIRECTION {
+                                HORIZONTAL,
+                                VERTICAL,
+    };
+    explicit                    ToolGroup(DIRECTION direction = DIRECTION::HORIZONTAL, int X = 0, int Y = 0, int W = 0, int H = 0, const char* l = nullptr);
+                                ~ToolGroup();
+    void                        add(Fl_Widget* widget, int SIZE = 0);
+    void                        clear();
+    DIRECTION                   direction() const
+                                    { return _direction; }
+    void                        direction(DIRECTION direction)
+                                    { _direction = direction; }
+    void                        do_layout()
+                                    { resize(x(), y(), w(), h()); Fl::redraw(); }
+    bool                        expand_last() const
+                                    { return _expand; }
+    void                        expand_last(bool value)
+                                    { _expand = value; }
+    Fl_Widget*                  remove(Fl_Widget* widget);
+    void                        resize(int X, int Y, int W, int H) override;
+    void                        resize(Fl_Widget* widget, int SIZE = 0);
+private:
+    DIRECTION                   _direction;
+    VoidVector                  _widgets;
+    bool                        _expand;
 };
 }
 #include <FL/Fl_Hold_Browser.H>
@@ -857,6 +1025,33 @@ private:
 }
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Button.H>
+#include <FL/Fl_Group.H>
+namespace flw {
+class DateChooser : public GridGroup {
+public:
+    explicit                    DateChooser(int X = 0, int Y = 0, int W = 0, int H = 0, const char* l = nullptr);
+    void                        draw() override;
+    void                        focus();
+    gnu::Date                   get() const;
+    int                         handle(int event) override;
+    void                        set(const gnu::Date& date);
+private:
+    static void                 _Callback(Fl_Widget* w, void* o);
+    void                        _set_label();
+    Fl_Box*                     _month_label;
+    Fl_Button*                  _b1;
+    Fl_Button*                  _b2;
+    Fl_Button*                  _b3;
+    Fl_Button*                  _b4;
+    Fl_Button*                  _b5;
+    Fl_Button*                  _b6;
+    Fl_Button*                  _b7;
+    Fl_Widget*                  _canvas;
+    ToolGroup*                  _buttons;
+};
+}
+#include <FL/Fl_Box.H>
+#include <FL/Fl_Button.H>
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Hold_Browser.H>
 #include <FL/Fl_Hor_Fill_Slider.H>
@@ -866,80 +1061,56 @@ namespace dlg {
 extern const char*              PASSWORD_CANCEL;
 extern const char*              PASSWORD_OK;
 void                            center_message_dialog();
-StringVector                    check(std::string title, const StringVector& list, Fl_Window* parent = nullptr);
-int                             choice(std::string title, const StringVector& list, int selected = 0, Fl_Window* parent = nullptr);
+bool                            date(const std::string& title, gnu::Date& date, Fl_Window* parent = nullptr, int W = 33, int H = 21);
 bool                            font(Fl_Font& font, Fl_Fontsize& fontsize, std::string& fontname, bool limit_to_default = false);
-void                            html(std::string title, const std::string& text, Fl_Window* parent = nullptr, int W = 40, int H = 23);
-void                            list(std::string title, const StringVector& list, Fl_Window* parent = nullptr, bool fixed_font = false, int W = 40, int H = 23);
-void                            list(std::string title, const std::string& list, Fl_Window* parent = nullptr, bool fixed_font = false, int W = 40, int H = 23);
-void                            list_file(std::string title, std::string file, Fl_Window* parent = nullptr, bool fixed_font = false, int W = 40, int H = 23);
-void                            panic(std::string message);
-bool                            password(std::string title, std::string& password, Fl_Window* parent = nullptr);
-bool                            password_check(std::string title, std::string& password, Fl_Window* parent = nullptr);
-bool                            password_check_with_file(std::string title, std::string& password, std::string& file, Fl_Window* parent = nullptr);
-bool                            password_with_file(std::string title, std::string& password, std::string& file, Fl_Window* parent = nullptr);
-void                            print(std::string title, PrintCallback cb, void* data = nullptr, int from = 1, int to = 0, Fl_Window* parent = nullptr);
-bool                            print_text(std::string title, const std::string& text, Fl_Window* parent = nullptr);
-bool                            print_text(std::string title, const StringVector& text, Fl_Window* parent = nullptr);
-int                             select(std::string title, const StringVector& list, int select_row, Fl_Window* parent = nullptr, bool fixed_font = false, int W = 40, int H = 23);
-int                             select(std::string title, const StringVector& list, const std::string& select_row, Fl_Window* parent = nullptr, bool fixed_font = false, int W = 40, int H = 23);
-bool                            slider(std::string title, double min, double max, double& value, double step = 1.0, Fl_Window* parent = nullptr);
-void                            text(std::string title, const std::string& text, Fl_Window* parent = nullptr, int W = 40, int H = 23);
-bool                            text_edit(std::string title, std::string& text, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+void                            html(const std::string& title, const std::string& text, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+void                            list(const std::string& title, const StringVector& list, bool fixed_font = false, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+void                            list(const std::string& title, const std::string& list, bool fixed_font = false, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+void                            list_file(const std::string& title, const std::string& file, bool fixed_font = false, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+void                            panic(const std::string& message);
+bool                            password(const std::string& title, std::string& password, Fl_Window* parent = nullptr);
+bool                            password_confirm(const std::string& title, std::string& password, Fl_Window* parent = nullptr);
+bool                            password_confirm_and_file(const std::string& title, std::string& password, std::string& file, Fl_Window* parent = nullptr);
+bool                            password_and_file(const std::string& title, std::string& password, std::string& file, Fl_Window* parent = nullptr);
+void                            print(const std::string& title, PrintCallback cb, void* data = nullptr, int from = 1, int to = 0, Fl_Window* parent = nullptr);
+bool                            print_text(const std::string& title, const std::string& text, Fl_Window* parent = nullptr);
+bool                            print_text(const std::string& title, const StringVector& text, Fl_Window* parent = nullptr);
+StringVector                    select_checkboxes(const std::string& title, const StringVector& list, Fl_Window* parent = nullptr);
+int                             select_choice(const std::string& title, const StringVector& list, int selected = 0, Fl_Window* parent = nullptr);
+int                             select_string(const std::string& title, const StringVector& list, int select_row, bool fixed_font = false, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+int                             select_string(const std::string& title, const StringVector& list, const std::string& select_row, bool fixed_font = false, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+bool                            slider(const std::string& title, double min, double max, double& value, double step = 1.0, Fl_Window* parent = nullptr);
+void                            text(const std::string& title, const std::string& text, Fl_Window* parent = nullptr, int W = 40, int H = 23);
+bool                            text_edit(const std::string& title, std::string& text, Fl_Window* parent = nullptr, int W = 40, int H = 23);
 void                            theme(bool enable_font = false, bool enable_fixedfont = false, Fl_Window* parent = nullptr);
-class AbortDialog : public Fl_Double_Window {
-    using Fl_Double_Window::show;
-public:
-                                AbortDialog(const AbortDialog&) = delete;
-                                AbortDialog(AbortDialog&&) = delete;
-    AbortDialog&                operator=(const AbortDialog&) = delete;
-    AbortDialog&                operator=(AbortDialog&&) = delete;
-    explicit                    AbortDialog(std::string label = "", double min = 0.0, double max = 0.0);
-    bool                        check(int milliseconds = 200);
-    bool                        check(double value, double min, double max, int milliseconds = 200);
-    bool                        aborted()
-                                    { return _abort; }
-    void                        range(double min, double max);
-    void                        resize(int X, int Y, int W, int H) override
-                                    { Fl_Double_Window::resize(X, Y, W, H); _grid->resize(0, 0, W, H); }
-    void                        show(const std::string& label, Fl_Window* parent = nullptr);
-    void                        value(double value);
-    static void                 Callback(Fl_Widget* w, void* o);
-private:
-    Fl_Button*                  _button;
-    Fl_Hor_Fill_Slider*         _progress;
-    GridGroup*                  _grid;
-    bool                        _abort;
-    int64_t                     _last;
-};
 class FontDialog : public Fl_Double_Window {
 public:
                                 FontDialog(const FontDialog&) = delete;
                                 FontDialog(FontDialog&&) = delete;
     FontDialog&                 operator=(const FontDialog&) = delete;
     FontDialog&                 operator=(FontDialog&&) = delete;
-                                FontDialog(Fl_Font font, Fl_Fontsize fontsize, const std::string& label, bool limit_to_default = false);
-                                FontDialog(std::string font, Fl_Fontsize fontsize, std::string label, bool limit_to_default = false);
+                                FontDialog(Fl_Font font, Fl_Fontsize fontsize, const std::string& title = "Select Font", bool limit_to_default = false);
+                                FontDialog(const std::string& font, Fl_Fontsize fontsize, const std::string& title = "Select Font", bool limit_to_default = false);
     void                        activate_font()
-                                    { static_cast<Fl_Widget*>(_fonts)->activate(); }
+                                    { static_cast<Fl_Widget*>(_fonts)->activate(); } ///< @brief Turn on font list, active by default.
+    void                        activate_font_size()
+                                    { static_cast<Fl_Widget*>(_fonts)->activate(); } ///< @brief Turn on font size list, active by default.
     void                        deactivate_font()
-                                    { static_cast<Fl_Widget*>(_fonts)->deactivate(); }
+                                    { static_cast<Fl_Widget*>(_fonts)->deactivate(); } ///< @brief Turn of font list.
     void                        deactivate_fontsize()
-                                    { static_cast<Fl_Widget*>(_sizes)->deactivate(); }
+                                    { static_cast<Fl_Widget*>(_sizes)->deactivate(); } ///< @brief Turn of font size list.
     int                         font()
-                                    { return _font; }
+                                    { return _font; } ///< @brief Return selected font.
     std::string                 fontname()
-                                    { return _fontname; }
+                                    { return _fontname; } ///< @brief Return selected font name.
     int                         fontsize()
-                                    { return _fontsize; }
-    void                        resize(int X, int Y, int W, int H) override
-                                    { Fl_Double_Window::resize(X, Y, W, H); _grid->resize(0, 0, W, H); }
+                                    { return _fontsize; } ///< @brief Return selected font size.
     bool                        run(Fl_Window* parent = nullptr);
-    static void                 Callback(Fl_Widget* w, void* o);
 private:
     void                        _activate();
-    void                        _create(Fl_Font font, std::string fontname, Fl_Fontsize fontsize, std::string label, bool limit_to_default);
-    void                        _select_name(std::string font_name);
+    void                        _create(Fl_Font font, const std::string& fontname, Fl_Fontsize fontsize, const std::string& label, bool limit_to_default);
+    void                        _select_name(const std::string& font_name);
+    static void                 Callback(Fl_Widget* w, void* o);
     Fl_Box*                     _label;
     Fl_Button*                  _cancel;
     Fl_Button*                  _select;
@@ -947,26 +1118,32 @@ private:
     ScrollBrowser*              _fonts;
     ScrollBrowser*              _sizes;
     bool                        _ret;
+    bool                        _run;
     int                         _font;
     int                         _fontsize;
     std::string                 _fontname;
 };
 class WorkDialog : public Fl_Double_Window {
 public:
-                                WorkDialog(const char* title, Fl_Window* parent, bool cancel, bool pause, int W = 40, int H = 10);
-    void                        resize(int X, int Y, int W, int H) override
-                                    { Fl_Double_Window::resize(X, Y, W, H); _grid->resize(0, 0, W, H); }
-    bool                        run(double update_time, const StringVector& messages);
-    bool                        run(double update_time, const std::string& message);
-    static void                 Callback(Fl_Widget* w, void* o);
+                                WorkDialog(const std::string& title, bool cancel = false, bool pause = false, double min = 0.0, double max = 0.0);
+    void                        range(double min, double max);
+    void                        start(Fl_Window* parent = nullptr);
+    bool                        update(const StringVector& messages, unsigned milli = 100);
+    bool                        update(double value, const StringVector& messages, unsigned milli = 100);
+    bool                        update(const std::string& message, unsigned milli = 100);
+    bool                        update(double value, const std::string& message, unsigned milli = 100);
+    double                      value() const
+                                    { return _progress->value(); } ///< @brief Return progress bar value.
+    void                        value(double value);
 private:
+    static void                 Callback(Fl_Widget* w, void* o);
     Fl_Button*                  _cancel;
     Fl_Hold_Browser*            _label;
+    Fl_Hor_Fill_Slider*         _progress;
     Fl_Toggle_Button*           _pause;
     GridGroup*                  _grid;
     bool                        _ret;
-    double                      _last;
-    std::string                 _message;
+    unsigned                    _last;
 };
 }
 }
@@ -983,25 +1160,30 @@ public:
     InputMenu&                  operator=(InputMenu&&) = delete;
     explicit                    InputMenu(int X = 0, int Y = 0, int W = 0, int H = 0, const char* l = nullptr);
     void                        clear();
-    bool                        enable_menu() const
-                                    { return _menu->visible() != 0; }
-    void                        enable_menu(bool value)
-                                    { if (value == true) _menu->show(); else _menu->hide(); resize(x(), y(), w(), h()); }
-    StringVector                get_history() const;
-    Fl_Input*                   input()
+    Fl_Input*                   input() ///< @brief Get input widget.
                                     { return reinterpret_cast<Fl_Input*>(_input); }
-    void                        insert(std::string string, int max_list_len);
+    void                        insert(const std::string& string, unsigned max_list_len);
     Fl_Menu_Button*             menu()
-                                    { return _menu; }
+                                    { return _menu; } ///< @brief Get menu widget.
+    bool                        menu_visible() const
+                                    { return _menu->visible() != 0; } ///< @brief Is menu button visible?
+    void                        menu_visible(bool value)
+                                    { if (value == true) _menu->show(); else _menu->hide(); resize(x(), y(), w(), h()); } ///< @brief Hide or show menu button.
+    StringVector                get_history() const;
     void                        resize(int X, int Y, int W, int H) override;
     void                        update_pref(Fl_Font text_font = flw::PREF_FONT, Fl_Fontsize text_size = flw::PREF_FONTSIZE);
-    const char*                 value() const;
-    void                        value(const char* string);
-    void                        values(const StringVector& list, bool copy_first_to_input = true);
-    static void                 Callback(Fl_Widget*, void*);
+    std::string                 value() const;
+    void                        value(const std::string& string);
+    void                        values(const StringVector& list, const std::string& input_value)
+                                    { _values(list, input_value); } ///< @brief Set a list of string and input value. @param[in] list  List of strings. @param[in]  input_value Optional input string.
+    void                        values(const StringVector& list, size_t list_index = -1)
+                                    { _values(list, list.size() > list_index ? list[list_index] : ""); } ///< @brief Set a list of string and an optional input value. @param[in] list  List of strings. @param[in] list_index  Optional input string.
 private:
     void                        _add(bool insert, const std::string& string, int max_list_len);
     void                        _add(bool insert, const StringVector& list);
+    void                        _values(const StringVector& list, const std::string& value);
+    static void                 _CallbackInput(Fl_Widget*, void*);
+    static void                 _CallbackMenu(Fl_Widget*, void*);
     _InputMenu*                 _input;
     Fl_Menu_Button*             _menu;
 };
@@ -1009,34 +1191,40 @@ private:
 #include <FL/Fl_Menu_.H>
 #include <FL/Fl_Preferences.H>
 namespace flw {
-    class RecentMenu {
-    public:
-                                        RecentMenu(Fl_Menu_* menu, Fl_Callback* file_callback, void* userdata, std::string base_label = "&File/Open recent", std::string clear_label = "/Clear");
-        void                            append(std::string file)
-                                            { return _add(file, true); }
-        static void                     CallbackClear(Fl_Widget*, void* o);
-        void                            insert(std::string file)
-                                            { return _add(file, false); }
-        StringVector                    items() const
-                                            { return _files; }
-        void                            max_items(size_t max)
-                                            { if (max > 0 && max <= 100) _max = max; }
-        Fl_Menu_*                       menu()
-                                            { return _menu; }
-        void                            load_pref(Fl_Preferences& pref, std::string base_name = "files");
-        void                            save_pref(Fl_Preferences& pref, std::string base_name = "files");
-    private:
-        void                            _add(std::string file, bool append);
-        size_t                          _add_string(StringVector& in, size_t max_size, std::string string);
-        size_t                          _insert_string(StringVector& in, size_t max_size, std::string string);
-        std::string                     _base;
-        Fl_Callback*                    _callback;
-        std::string                     _clear;
-        StringVector                    _files;
-        size_t                          _max;
-        Fl_Menu_*                       _menu;
-        void*                           _user;
-    };
+class RecentMenu {
+public:
+                                    RecentMenu(Fl_Menu_* menu, Fl_Callback* callback, void* userdata = nullptr, const std::string& base_label = "&File/Open recent", const std::string& clear_label = "/Clear");
+    void                            append(const std::string& item)
+                                        { return _add(item, true); } ///< @brief Append item last in menu. @param[in] item  Menu label.
+    void                            insert(const std::string& item)
+                                        { return _add(item, false); } ///< @brief Insert item first in menu. @param[in] item  Menu label.
+    StringVector                    items() const
+                                        { return _items; } ///< @brief Number of items.
+    size_t                          max_items() const
+                                        { return _max; } ///< @brief Get max number of items.
+    void                            max_items(size_t max)
+                                        { if (max > 0 && max <= 100) _max = max; } ///< @brief Set max number of items. @param[in] max  From 1 to 100.
+    Fl_Menu_*                       menu()
+                                        { return _menu; } ///< @brief Get menu object.
+    void                            load_pref(Fl_Preferences& pref, const std::string& base_name = "files");
+    void                            save_pref(Fl_Preferences& pref, const std::string& base_name = "files");
+    void*                           user_data()
+                                        { return _user; } ///< @brief Get user data.
+    void                            user_data(void* data)
+                                        { _user = data; } ///< @brief Set user data.
+    static void                     CallbackClear(Fl_Widget*, void* o);
+private:
+    void                            _add(const std::string& item, bool append);
+    size_t                          _add_string(StringVector& items, size_t max_size, const std::string& string);
+    size_t                          _insert_string(StringVector& items, size_t max_size, const std::string& string);
+    std::string                     _base;
+    Fl_Callback*                    _callback;
+    std::string                     _clear;
+    StringVector                    _items;
+    size_t                          _max;
+    Fl_Menu_*                       _menu;
+    void*                           _user;
+};
 }
 #include <FL/Fl.H>
 #include <FL/Fl_Group.H>
@@ -1089,57 +1277,69 @@ namespace flw {
 namespace flw {
 class TabsGroup : public Fl_Group {
 public:
-    static const int            DEFAULT_SPACE_PX = 2;
-    static int                  MIN_WIDTH_NORTH_SOUTH;
-    static int                  MIN_WIDTH_EAST_WEST;
+    static const int            DEFAULT_SPACE_PX = 2;   ///< @brief Default space between buttons.
+    static int                  MIN_WIDTH_NORTH_SOUTH;  ///< @brief Minimum width of top/bottom buttons, default 4 (4 * flw::PREF_FONTSIZE).
+    static int                  MIN_WIDTH_EAST_WEST;    ///< @brief Minimum width of left/right buttons, default 4 (4 * flw::PREF_FONTSIZE).
     enum class TABS {
-                                NORTH,
-                                SOUTH,
-                                WEST,
-                                EAST,
+                                NORTH,          ///< @brief Top of container.
+                                TOP = NORTH,    ///< @brief Top of container.
+                                SOUTH,          ///< @brief Bottom of container.
+                                BOTTOM = SOUTH, ///< @brief Bottom of container.
+                                WEST,           ///< @brief On the left side of container.
+                                LEFT = WEST,    ///< @brief On the left side of container.
+                                EAST,           ///< @brief On the right side of the container.
+                                RIGHT = EAST,   ///< @brief On the right side of the container.
     };
     explicit                    TabsGroup(int X = 0, int Y = 0, int W = 0, int H = 0, const char* l = nullptr);
+    void                        activate(Fl_Widget* widget)
+                                    { _activate(widget, false); } ///< @brief Activate and show button and child widget.
     void                        add(const std::string& label, Fl_Widget* widget, const Fl_Widget* after =  nullptr);
     void                        border(int n = 0, int s = 0, int w = 0, int e = 0)
-                                    { _n = n; _s = s; _w = w; _e = e; do_layout(); }
+                                    { _n = n; _s = s; _w = w; _e = e; do_layout(); } ///< @brief Set border around active child widget.
     Fl_Widget*                  child(int index) const;
     int                         children() const
-                                    { return (int) _widgets.size(); }
+                                    { return (int) _widgets.size(); } ///< @brief Return number of child widgets (tab buttons are not included).
     void                        clear();
-    void                        debug() const;
+    void                        debug(bool all = true) const;
+    void                        disable_keyboard()
+                                    { _disable_k = true; } ///< @brief Disable all keyboard shortcuts.
     void                        do_layout()
-                                    { TabsGroup::resize(x(), y(), w(), h()); Fl::redraw(); }
+                                    { TabsGroup::resize(x(), y(), w(), h()); Fl::redraw(); } ///< @brief Resize all widgets.
     void                        draw() override;
+    void                        enable_keyboard()
+                                    { _disable_k = false; } ///< @brief Enable all keyboard shortcuts.
     int                         find(const Fl_Widget* widget) const;
     int                         handle(int event) override;
     void                        hide_tabs();
     void                        insert(const std::string& label, Fl_Widget* widget, const Fl_Widget* before = nullptr);
     bool                        is_tabs_visible() const
-                                    { return _scroll->visible(); }
+                                    { return _scroll->visible(); } ///< @brief Is tab buttons visible?
     std::string                 label(Fl_Widget* widget);
     void                        label(const std::string& label, Fl_Widget* widget);
     Fl_Widget*                  remove(int index);
     Fl_Widget*                  remove(Fl_Widget* widget)
-                                    { return TabsGroup::remove(find(widget)); }
+                                    { return TabsGroup::remove(find(widget)); } ///< @brief Remove widget and return it.
     void                        resize(int X, int Y, int W, int H) override;
     void                        show_tabs();
     void                        sort(bool ascending = true, bool casecompare = false);
-    void                        swap(int from, int to);
+    int                         swap(int from, int to);
     TABS                        tabs() const
-                                    { return _tabs; }
+                                    { return _tabs; } ///< @brief Pos of the tab buttons (TABS::NORTH, TABS::SOUTH, TABS::EAST, TABS::WEST).
     void                        tabs(TABS value, int space_max_20 = TabsGroup::DEFAULT_SPACE_PX);
+    void                        tooltip(const std::string& label, Fl_Widget* widget);
     void                        update_pref(unsigned characters = 10, Fl_Font font = flw::PREF_FONT, Fl_Fontsize fontsize = flw::PREF_FONTSIZE);
     Fl_Widget*                  value() const;
     void                        value(int num);
     void                        value(Fl_Widget* widget)
-                                    { value(find(widget)); }
+                                    { value(find(widget)); } ///< @brief Set active child widget.
     static void                 Callback(Fl_Widget* sender, void* object);
     static const char*          Help();
 private:
+    void                        _activate(Fl_Widget* widget, bool kludge);
     Fl_Widget*                  _active_button();
+    void                        _resize_active_widget();
     void                        _resize_east_west(int X, int Y, int W, int H);
     void                        _resize_north_south(int X, int Y, int W, int H);
-    void                        _resize_widgets();
     Fl_Align                    _align;
     Fl_Pack*                    _pack;
     Fl_Rect                     _area;
@@ -1147,7 +1347,9 @@ private:
     TABS                        _tabs;
     WidgetVector                _widgets;
     bool                        _drag;
-    int                         _active;
+    bool                        _disable_k;
+    int                         _active1;
+    int                         _active2;
     int                         _e;
     int                         _n;
     int                         _pos;
@@ -1218,8 +1420,8 @@ enum class FDEL_KEY {
     DEL,
 };
 enum class FDEL_TEXT {
-    WORD,
-    LINE,
+    WORD,                       ///< Delete word only.
+    LINE,                       ///< Delete until end/start of line.
 };
 enum class FHIDE_FIND {
     NO,
@@ -1233,6 +1435,7 @@ enum class FFIND_LINES {
     GETINPUT,
     RUNAGAIN,
 };
+///< These must have same sort order in enum as in KeyConf array.
 enum FKEY {
     FKEY_KOMMAND_START,
     FKEY_KOMMAND_STOP,
@@ -1275,6 +1478,8 @@ enum FKEY {
     FKEY_SELECT_STYLE,
     FKEY_SHIFT_LEFT,
     FKEY_SHIFT_RIGHT,
+    FKEY_SHOW_CUSTOM1,
+    FKEY_SHOW_CUSTOM2,
     FKEY_SHOW_FIND_REPLACE,
     FKEY_SORT_ASCENDING,
     FKEY_SORT_DESCENDING,
@@ -1297,10 +1502,10 @@ enum class FMOVE_V {
     DOWN,
 };
 enum class FNL_TAB {
-    NO,
-    FIND,
-    REPLACE,
-    YES,
+    NO,                         ///< Dont convert.
+    FIND,                       ///< Replace in find string.
+    REPLACE,                    ///< Replace in replace string.
+    YES,                        ///< Replace in both strings.
 };
 enum class FOUTPUT {
     SHOW_HORIZONTAL,
@@ -1313,17 +1518,17 @@ enum class FREGEX {
     YES,
 };
 enum class FREGEX_TYPE {
-    REPLACE,
-    INSERT,
-    APPEND,
+    REPLACE,                    ///< Replace found string.
+    INSERT,                     ///< Insert text before found string.
+    APPEND,                     ///< Append text after found string.
 };
 enum class FSAVE_WORD {
     NO,
     YES,
 };
 enum class FSEARCH_DIR {
-    FORWARD,
-    BACKWARD,
+    FORWARD,                    ///< Forward/down in text.
+    BACKWARD,                   ///< Back/up in text.
 };
 enum class FSELECTION {
     NO,
@@ -1420,6 +1625,7 @@ namespace info {
 }
 namespace message {
     const std::string CUSTOM_AUTOCOMPLETE     = "message: custom wordfile has changed settings";
+    const std::string CUSTOM_CALLBACK         = "message: custom callback (s = selected, p = editor)";
     const std::string DND_EVENT               = "message: editor has received an dnd event (p = bool*)";
     const std::string EDITOR_FOCUS            = "message: editor has focus (p = Editor*)";
     const std::string FILE_LOADED             = "message: editor has loaded a file (p = Editor*)";
@@ -1427,6 +1633,8 @@ namespace message {
     const std::string HIDE_FIND               = "message: hide find widget (p = FindReplace*)";
     const std::string PREF_CHANGED            = "message: pref has been changed";
     const std::string RESET_INSERT_MODE       = "message: reset insert mode to default";
+    const std::string SHOW_CUSTOM1            = "message: show custom1 widget (p = Editor*)";
+    const std::string SHOW_CUSTOM2            = "message: show custom2 widget (p = Editor*)";
     const std::string SHOW_FIND               = "message: show find widget (p = FindReplace*)";
     const std::string STATUSBAR_LINE_UNIX     = "message: unix line ending";
     const std::string STATUSBAR_LINE_WIN      = "message: windows line ending";
@@ -1593,7 +1801,7 @@ struct Config {
     void                        load_pref(Fl_Preferences& preferences, FindReplace* findreplace = nullptr);
     void                        remove_receiver(const Message* object);
     void                        save_pref(Fl_Preferences& preferences, FindReplace* findreplace = nullptr);
-    void                        send_message(std::string message, std::string s = "", const void* p = nullptr);
+    void                        send_message(const std::string& message, const std::string& s1 = "", const std::string& s2 = "", void* p = nullptr);
 private:
     int                         _id;
     bool                        _del;
@@ -1698,7 +1906,6 @@ public:
                                 CONTINUE,
                                 ABORT,
     };
-    static const std::string    EMPTY_STRING;
                                 Message() = delete;
                                 Message(const Message&) = delete;
                                 Message(Message&&) = delete;
@@ -1706,7 +1913,7 @@ public:
     Message&                    operator=(Message&&) = delete;
                                 Message(Config& config);
     virtual                     ~Message();
-    virtual Message::CTRL       message(const std::string& message, const std::string& s = EMPTY_STRING, const void* p = nullptr) = 0;
+    virtual Message::CTRL       message(const std::string& message, const std::string& s1 = "", const std::string& s2 = "", void* p = nullptr) = 0;
     int                         object_id() const
                                     { return _id; }
 private:
@@ -2111,20 +2318,20 @@ void                            set_tab_width(const std::string& name, unsigned 
 namespace fle {
 namespace undo {
 enum class EVENT : uint8_t {
-                                NIL       =   0,
-                                INSERT    =   1,
-                                ERASED    =   2,
-                                REPLACE   =   4,
-                                BACKSPACE =   8,
-                                SELECTED  =  16,
-                                CUSTOM1   =  32,
-                                CUSTOM2   =  64,
+                                NIL       =   0,    ///< No event.
+                                INSERT    =   1,    ///< Text has been inserted.
+                                ERASED    =   2,    ///< Text has been deleted.
+                                REPLACE   =   4,    ///< Text has been replaced (delete + insert combined).
+                                BACKSPACE =   8,    ///< Text has been deleted with backspace.
+                                SELECTED  =  16,    ///< Text has been selected.
+                                CUSTOM1   =  32,    ///< Some custom node, cursor related.
+                                CUSTOM2   =  64,    ///< String 2 is custom, also cursor related.
 };
 enum class STATUS : unsigned {
-                                INIT,
-                                ADDED,
-                                APPENDED,
-                                REMOVED,
+                                INIT,       ///< Start value.
+                                ADDED,      ///< Text has been added, not used.
+                                APPENDED,   ///< Text has been appended, increase append counter.
+                                REMOVED,    ///< Text has been removed, check save point in TextBuffer.
 };
 class Event {
     friend class VectorStore;
@@ -2279,11 +2486,11 @@ public:
 private:
     bool                        _buffer_decrease();
     bool                        _buffer_increase(ssize_t requested_bcap);
-    char*                       _buf;
-    MOVE                        _move;
-    ssize_t                     _bcap;
-    ssize_t                     _bcur;
-    ssize_t                     _bend;
+    char*                       _buf;   ///< Storage buffer.
+    MOVE                        _move;  ///< Flag for when changing moving direction (left to right or right to left), current object should be reused.
+    ssize_t                     _bcap;  ///< Buffer capacity.
+    ssize_t                     _bcur;  ///< Current cursor.
+    ssize_t                     _bend;  ///< End of used buffer.
 };
 class VectorStore : public Store {
     friend class Undo;
@@ -2321,9 +2528,9 @@ public:
     ssize_t                     size() const override
                                     { return _cur; }
 private:
-    std::vector<Event>          _events;
-    ssize_t                     _cur;
-    MOVE                        _move;
+    std::vector<Event>          _events;    ///< All undo events.
+    ssize_t                     _cur;       ///< Current cursor.
+    MOVE                        _move;      ///< Flag for when changing moving direction (left to right or right to left), current object should be reused.
 };
 class Undo {
 public:
@@ -2384,20 +2591,20 @@ protected:
     bool                        _is_cursor_at_end() const
                                     { return _store->is_cursor_at_end(); }
     void                        _push_node_to_buf(Event node);
-    Event                       _custom1;
-    FUNDO_MODE_FLE              _fundoappend;
-    Store*                      _store;
-    Token                       _tokens;
-    bool                        _group_lock;
-    double                      _break_time;
-    double                      _time;
-    int                         _break;
-    size_t                      _break_at;
-    ssize_t                     _save_point;
-    std::string                 _custom2;
-    uint16_t                    _group;
-    uint16_t                    _prev_type;
-    uint8_t                     _append_len;
+    Event                       _custom1;       ///< Custom events for restoring cursors and like.
+    FUNDO_MODE_FLE              _fundoappend;   ///< One of three types of grouping characters.
+    Store*                      _store;         ///< Backend storage of undo data.
+    Token                       _tokens;        ///< Char type grouping for FUNDO_MODE_FLE:::TYPE.
+    bool                        _group_lock;    ///< Lock group counter for batch text operations.
+    double                      _break_time;    ///< Timeout for time based grouping (FUNDO_MODE_FLE::TIME).
+    double                      _time;          ///< Current time for time based grouping (FUNDO_MODE_FLE::TIME)
+    int                         _break;         ///< Break counter, used for when appends have to stopped (1 for TYPE, 2 for TIME/HARD).
+    size_t                      _break_at;      ///< Force break at this char count.
+    ssize_t                     _save_point;    ///< Edito can call Undo and let it set save index in storage when saving text.
+    std::string                 _custom2;       ///< Custom string.
+    uint16_t                    _group;         ///< Group counter.
+    uint16_t                    _prev_type;     ///< Previous character type for FUNDO_MODE_FLE:::TYPE.
+    uint8_t                     _append_len;    ///< Current append length (see _break_At).
 };
 }
 }
@@ -2449,9 +2656,9 @@ public:
                                     { return _checksum; }
     std::string                 checksum_calc(const char* text = nullptr) const;
     void                        checksum_clear()
-                                    { _checksum = ""; }
+                                    { _checksum = ""; } ///< @brief Clear checksum when saving file failes.
     std::string                 checksum_set(const char* text = nullptr)
-                                    { _checksum = checksum_calc(text); return _checksum; }
+                                    { _checksum = checksum_calc(text); return _checksum; } ///< @brief Set new checksum, with option to use already retrieved text (as when text has been saved). @param[in] text  If NULL use internal text. @return New checksum.
     void                        clear_key()
                                     { _fdelkey = FDEL_KEY::NIL; }
     CursorPos                   comment_block(const std::string& block_start, const std::string& block_end);
@@ -2641,9 +2848,11 @@ class FindReplace;
 class StatusBar;
 class AutoComplete : public Fl_Group {
 public:
-    explicit                    AutoComplete();
+    explicit                    AutoComplete(const std::string& event);
+    std::string                 event() const
+                                    { return _event; }
     int                         handle(int event) override;
-    int                         populate(Fl_Fontsize fontsize, const std::set<std::string>& words, std::string word, int word_pos);
+    int                         populate(Fl_Fontsize fontsize, const std::set<std::string>& words, const std::string& word, int word_pos);
     void                        popup(int X, int Y, int W, int H);
     std::string                 selected() const;
     std::string                 word() const
@@ -2653,6 +2862,7 @@ public:
 private:
     Fl_Hold_Browser*            _browser;
     int                         _word_pos;
+    std::string                 _event;
     std::string                 _word;
 };
 class FindBar : public Fl_Group {
@@ -2689,6 +2899,7 @@ private:
     Fl_Check_Button*            _regex;
     Fl_Check_Button*            _trim;
     bool                        _ret;
+    bool                        _run;
     flw::GridGroup*             _grid;
     flw::InputMenu*             _find;
 };
@@ -2699,7 +2910,7 @@ public:
     void                        add_replace_word(std::string word);
     void                        callback(Fl_Callback* cb, void* obj);
     void                        enable_buttons();
-    FCASE_COMPARE                fcasecompare() const
+    FCASE_COMPARE               fcasecompare() const
                                     { return (_case->value() != 0 && _case->active() != 0) ? FCASE_COMPARE::YES : FCASE_COMPARE::NO; }
     void                        fcasecompare(FCASE_COMPARE value)
                                     { _case->value((value == FCASE_COMPARE::NO) ? 0 : 1); }
@@ -2709,7 +2920,7 @@ public:
                                     { return _find_input->value(); }
     void                        find_string(std::string value)
                                     { _find_input->value(value.c_str()); }
-    FNL_TAB                      fnltab() const;
+    FNL_TAB                     fnltab() const;
     void                        fnltab(FNL_TAB fnltab);
     FREGEX                      fregex() const
                                     { return (_regex->value() != 0) ? FREGEX::YES : FREGEX::NO; }
@@ -2719,7 +2930,7 @@ public:
                                     { return (_selection->value() != 0) ? FSELECTION::YES : FSELECTION::NO; }
     void                        fselection(FSELECTION value)
                                     { _selection->value((value == FSELECTION::NO) ? 0 : 1); }
-    FWORD_COMPARE                fwordcompare() const
+    FWORD_COMPARE               fwordcompare() const
                                     { return (_word->value() != 0 && _word->active() != 0) ? FWORD_COMPARE::YES : FWORD_COMPARE::NO; }
     void                        fwordcompare(FWORD_COMPARE value)
                                     { _word->value((value == FWORD_COMPARE::NO) ? 0 : 1); }
@@ -2771,11 +2982,11 @@ private:
 };
 class ReplaceDialog : public Fl_Double_Window {
 public:
-    static FCASE_COMPARE         CASECOMPARE;
-    static FNL_TAB               NLTAB;
+    static FCASE_COMPARE        CASECOMPARE;
+    static FNL_TAB              NLTAB;
     static FREGEX               REGEX;
     static FSELECTION           SELECTION;
-    static FWORD_COMPARE         WORDCOMPARE;
+    static FWORD_COMPARE        WORDCOMPARE;
                                 ReplaceDialog(std::string label, std::string& find, std::string& replace, const std::vector<std::string>& find_list, const std::vector<std::string>& replace_list);
     void                        check_buttons();
     int                         handle(int event) override;
@@ -2794,6 +3005,7 @@ private:
     Fl_Check_Button*            _selection;
     Fl_Check_Button*            _word;
     bool                        _ret;
+    bool                        _run;
     flw::GridGroup*             _grid;
     flw::InputMenu*             _find_input;
     flw::InputMenu*             _replace_input;
@@ -2864,7 +3076,7 @@ public:
     void                        init(View* view1);
     int                         pos_to_line_and_col(int pos, int& row, int& col)
                                     { return position_to_linecol(pos, &row, &col); }
-    Message::CTRL               message(const std::string& message, const std::string& s, const void* p) override;
+    Message::CTRL               message(const std::string& message, const std::string& s1, const std::string& s2, void* p) override;
     int                         take_focus();
     int                         top_line() const
                                     { return get_absolute_top_line_number(); }
@@ -2917,6 +3129,9 @@ public:
                                     { _saved_cursor = cursor(true); }
     CursorPos                   cursor_saved() const
                                     { return _saved_cursor; }
+    void                        custom_callback();
+    void                        custom_remove();
+    void                        custom_show(const std::set<std::string>& list, const std::string& event, const std::string& word = "");
     void                        deactivate();
     void                        debug(int what = 0);
     std::string                 debug_save_style(std::string filename = "", bool add_pos = true) const;
@@ -2968,14 +3183,14 @@ public:
     void                        help() const;
     bool                        home();
     size_t                      memory_usage(size_t& buffer, size_t& style, size_t& undo) const;
-    Message::CTRL               message(const std::string& message, const std::string& s, const void* p) override;
+    Message::CTRL               message(const std::string& message, const std::string& s1, const std::string& s2, void* p) override;
     int                         redo(FUNDO_RANGE fundocount = FUNDO_RANGE::ONE);
     void                        resize(int X, int Y, int W, int H) override
                                     { Fl_Group::resize(X, Y, W, H); _main->resize(X, Y, W, H); Fl::redraw(); }
     void                        select_color();
     void                        select_pair(bool move_cursor);
     void                        show_find()
-                                    { _config.send_message(message::SHOW_FIND, "", &_findbar->findreplace()); }
+                                    { _config.send_message(message::SHOW_FIND, "", "", &_findbar->findreplace()); }
     size_t                      show_find_lines_dialog_or_run_again(FFIND_LINES find);
     void                        show_menu();
     void                        show_output(FOUTPUT foutput);
@@ -3101,10 +3316,12 @@ private:
     int                         _tmp_fixed_fontsize() const
                                     { return (_config.pref_tmp_fontsize > 0) ? _config.pref_tmp_fontsize : flw::PREF_FIXED_FONTSIZE; }
     static void                 CallbackAutoComplete(Fl_Widget* sender, void* o);
+    static void                 CallbackCustom(Fl_Widget* sender, void* o);
     static void                 CallbackFind(Fl_Widget* sender, void* o);
     static void                 CallbackGoto(Fl_Widget* sender, void* o);
     static void                 CallbackOutput(Fl_Widget* w, void* o);
     AutoComplete*               _autocomplete;
+    AutoComplete*               _custom;
     Bookmarks                   _bookmarks;
     Config&                     _config;
     CursorPos                   _saved_cursor;
@@ -3172,6 +3389,15 @@ Row::Row(const std::string& key, const char* value, const size_t size, const int
         memcpy(_value, value, _size);
     }
 }
+Row::Row(const std::string& key, const std::string& value, const int64_t time) {
+    _key   = key;
+    _size  = value.length();
+    _time  = time;
+    _value = strdup(value.c_str());
+    if (_value == nullptr) {
+        throw std::string("error: memory allocation failed");
+    }
+}
 Row::Row(const Row& r) {
     _key   = r._key;
     _size  = r._size;
@@ -3225,9 +3451,11 @@ void Row::debug(bool print_value) const {
     printf("Row(%s): size(%u), time(%lld), value(%s)\n", _key.c_str(), (unsigned) _size, (long long int) _time, (print_value == true) ? (_value != nullptr) ? _value : "NULL" : "not shown");
     fflush(stdout);
 }
-void Row::Debug(const Rows& v, bool print_value) {
-    printf("\nRow[%d]:\n", (int) v.size());
-    for (const auto& k : v) k.debug(print_value);
+void Row::Debug(const Rows& rows, bool print_value) {
+    printf("\nRow[%d]:\n", (int) rows.size());
+    for (const auto& k : rows) {
+        k.debug(print_value);
+    }
 }
 DB::DB() {
     _sql  = nullptr;
@@ -4628,6 +4856,35 @@ static char* _replace_long(const char* in, const size_t in_len, const char* find
     auto shrink = static_cast<char*>(realloc(res, cur_len + 1));
     return (shrink != nullptr) ? shrink : res;
 }
+size_t find_first_of(const std::string& string, const std::string& list, const size_t pos) {
+    auto res = std::string::npos;
+    if (list == "" || pos >= string.length()) {
+        return res;
+    }
+    for (auto& c : str::utf_chars(list.c_str())) {
+        size_t found = string.find(c.c_str(), pos);
+        if (found < res) {
+            res = found;
+        }
+    }
+    return res;
+}
+size_t find_last_of(const std::string& string, const std::string& list, size_t pos) {
+    auto res = std::string::npos;
+    if (pos == std::string::npos) {
+        pos = string.length() - 1;
+    }
+    if (list == "" || pos >= string.length()) {
+        return res;
+    }
+    for (auto& c : str::utf_chars(list.c_str())) {
+        size_t found = string.rfind(c.c_str(), pos);
+        if (found != std::string::npos && (found > res || res == std::string::npos)) {
+            res = found;
+        }
+    }
+    return res;
+}
 std::string format(const char* format, ...) {
     int len = 0;
     va_list args;
@@ -4667,7 +4924,8 @@ std::string format_int(const int64_t num, char del) {
     return r;
 }
 std::string format_double(const double num, size_t decimals, char del) {
-    if (num > 9'007'199'254'740'992.0) {
+    auto anum = std::fabs(num);
+    if (anum > 9'007'199'254'740'992.0) {
         return "";
     }
     if (del < 32) {
@@ -4677,8 +4935,8 @@ std::string format_double(const double num, size_t decimals, char del) {
         return str::format_int(static_cast<int64_t>(num), del);
     }
     char fr_str[100];
-    auto int_num    = static_cast<int64_t>(fabs(num));
-    auto double_num = static_cast<double>(fabs(num) - int_num);
+    auto int_num    = static_cast<int64_t>(anum);
+    auto double_num = static_cast<double>(anum - int_num);
     auto res        = str::format_int(int_num, del);
     auto n          = snprintf(fr_str, 100, "%.*f", static_cast<int>(decimals), double_num);
     if (num < 0.0) {
@@ -4688,6 +4946,27 @@ std::string format_double(const double num, size_t decimals, char del) {
         res += fr_str + 1;
     }
     return res;
+}
+bool has_whitespace(const std::string& string) {
+    for (auto c : string) {
+        auto u = static_cast<unsigned>(c);
+        if (u == '\f' || u == '\n' || u == '\r' || u == '\t' || u == '\v' || u == ' ') {
+            return true;
+        }
+    }
+    return false;
+}
+bool is_whitespace(const std::string& string) {
+    if (string == "") {
+        return false;
+    }
+    for (auto c : string) {
+        auto u = static_cast<unsigned>(c);
+        if (u != '\f' && u != '\n' && u != '\r' && u != '\t' && u != '\v' && u != ' ') {
+            return false;
+        }
+    }
+    return true;
 }
 size_t list_append(std::vector<std::string>& strings, const std::string& string, size_t max_size) {
     for (auto it = strings.begin(); it != strings.end(); ++it) {
@@ -4715,27 +4994,21 @@ size_t list_insert(std::vector<std::string>& strings, const std::string& string,
     }
     return strings.size();
 }
-bool is_whitespace(const std::string& str) {
-    for (auto c : str) {
-        if (c != 9 && c != 32) return false;
-    }
-    return true;
-}
-std::string& replace(std::string& str, const std::string& find, const std::string& replace, size_t max) {
+std::string& replace(std::string& string, const std::string& find, const std::string& replace, size_t max) {
     auto replaced = (size_t) 0;
     auto res      = (char*) nullptr;
-    if (str == "" || find == "") {
-        return str;
+    if (string == "" || find == "") {
+        return string;
     }
     if (find.length() == 1 && replace.length() <= 1) {
-        res = str::_replace_short(str.c_str(), str.length(), find.c_str(), replace.c_str(), replace.length(), max, replaced);
+        res = str::_replace_short(string.c_str(), string.length(), find.c_str(), replace.c_str(), replace.length(), max, replaced);
     }
     else {
-        res = str::_replace_long(str.c_str(), str.length(), find.c_str(), find.length(), replace.c_str(), replace.length(), max, replaced);
+        res = str::_replace_long(string.c_str(), string.length(), find.c_str(), find.length(), replace.c_str(), replace.length(), max, replaced);
     }
-    str = res;
+    string = res;
     free(res);
-    return str;
+    return string;
 }
 std::string replace_const(const std::string& str, const std::string& find, const std::string& replace, size_t max) {
     auto res = str;
@@ -4762,32 +5035,33 @@ std::string replace_std(const std::string& string, const std::string& find, cons
         return string;
     }
 }
-const char* reverse(char* str, size_t len) {
-    auto middle = static_cast<size_t>(len / 2);
-    for (size_t f = 0; f < middle; f++) {
-        auto e = len - f - 1;
-        auto c = str[f];
-        str[f] = str[e];
-        str[e] = c;
+std::string reverse(const std::string& string) {
+    auto res = std::string();
+    auto vec = str::utf_chars(string.c_str());
+    if (vec.size() == 0) {
+        return res;
     }
-    return str;
+    for (ssize_t f = vec.size() - 1; f >= 0; f--) {
+        res += vec[f];
+    }
+    return res;
 }
-std::vector<std::string> split(const std::string& str, const std::string& split) {
+std::vector<std::string> split(const std::string& string, const std::string& split) {
     auto res = std::vector<std::string>();
     try {
         if (split == "") {
-            res.push_back(str);
+            res.push_back(string);
             return res;
         }
         auto pos1 = (std::string::size_type) 0;
-        auto pos2 = str.find(split);
+        auto pos2 = string.find(split);
         while (pos2 != std::string::npos) {
-            res.push_back(str.substr(pos1, pos2 - pos1));
+            res.push_back(string.substr(pos1, pos2 - pos1));
             pos1 = pos2 + split.size();
-            pos2 = str.find(split, pos1);
+            pos2 = string.find(split, pos1);
         }
-        if (pos1 <= str.size()) {
-            res.push_back(str.substr(pos1));
+        if (pos1 <= string.size()) {
+            res.push_back(string.substr(pos1));
         }
     }
     catch(...) {
@@ -4795,13 +5069,13 @@ std::vector<std::string> split(const std::string& str, const std::string& split)
     }
     return res;
 }
-std::vector<const char*> split_fast(char* buf, char split) {
+std::vector<const char*> split_fast(char* string, char split) {
     auto res   = std::vector<const char*>();
-    auto start = buf;
-    auto end   = buf + strlen(buf);
+    auto start = string;
+    auto end   = string + strlen(string);
     auto found = strchr(start, split);
     if (split == 0) {
-        res.push_back(buf);
+        res.push_back(string);
         return res;
     }
     while (found != nullptr) {
@@ -4815,53 +5089,154 @@ std::vector<const char*> split_fast(char* buf, char split) {
     }
     return res;
 }
-std::string substr(const std::string& str, std::string::size_type pos, std::string::size_type size, const std::string& def) {
-    try { return str.substr(pos, size); }
-    catch(...) { return def; }
+std::string substr(const std::string& string, std::string::size_type pos, std::string::size_type count) {
+    try {
+        return (pos > string.size()) ? "" : string.substr(pos, count);
+    }
+    catch(...) {
+        return "";
+    }
 }
-double to_double(const std::string& str, double def) {
-    try { return std::stod(str, 0); }
-    catch (...) { return def; }
+std::string substr_utf(const std::string& string, std::string::size_type pos, std::string::size_type count) {
+    try {
+        auto res = std::string();
+        auto vec = str::utf_chars(string.c_str());
+        if (count == std::string::npos) {
+            count = string.length();
+        }
+        for (size_t f = pos; f < pos + count && f < vec.size(); f++) {
+            res += vec[f];
+        }
+        return res;
+    }
+    catch(...) {
+        return "";
+    }
 }
-long long int to_int(const std::string& str, long long int def) {
-    try { return std::stoll(str, 0, 0); }
-    catch (...) { return def; }
+double to_double(const std::string& string, double def) {
+    try {
+        return std::stod(string, 0);
+    }
+    catch (...) {
+        return def;
+    }
 }
-std::string& trim(std::string& str) {
-    str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](auto c) { return !std::isspace(c);} ));
-    str.erase(std::find_if(str.rbegin(), str.rend(), [](int ch) { return !std::isspace(ch); }).base(), str.end());
-    return str;
+long long int to_int(const std::string& string, long long int def) {
+    try {
+        return std::stoll(string, 0, 0);
+    }
+    catch (...) {
+        return def;
+    }
+}
+std::string& trim(std::string& string) {
+    string.erase(string.begin(), std::find_if(string.begin(), string.end(), [](auto c) { return !std::isspace(c);} ));
+    string.erase(std::find_if(string.rbegin(), string.rend(), [](int ch) { return !std::isspace(ch); }).base(), string.end());
+    return string;
 }
 std::string trim_const(const std::string& str) {
-    auto s = str;
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](auto c) { return !std::isspace(c);} ));
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
-    return s;
+    auto res = str;
+    return str::trim(res);
 }
-size_t utf_len(const char* p) {
+std::string utf_char(const char* string) {
+    auto f     = (size_t) 0;
+    auto u     = reinterpret_cast<const unsigned char*>(string);
+    auto c     = (unsigned) u[0];
+    auto res   = std::string();
+    if (c != 0) {
+        res += c;
+        if (c >= 128) {
+            if (c >= 194 && c <= 223) {
+                c = u[++f];
+                if (c < 128 || c > 191) {
+                    return "";
+                }
+                res += c;
+            }
+            else if (c >= 224 && c <= 239) {
+                c = u[++f];
+                if (c < 128 || c > 191) {
+                    return "";
+                }
+                res += c;
+                c = u[++f];
+                if (c < 128 || c > 191) {
+                    return "";
+                }
+                res += c;
+            }
+            else if (c >= 240 && c <= 244) {
+                c = u[++f];
+                if (c < 128 || c > 191) {
+                    return "";
+                }
+                res += c;
+                c = u[++f];
+                if (c < 128 || c > 191) {
+                    return "";
+                }
+                res += c;
+                c = u[++f];
+                if (c < 128 || c > 191) {
+                    return "";
+                }
+                res += c;
+            }
+            else {
+                return "";
+            }
+        }
+    }
+    return res;
+}
+std::vector<std::string> utf_chars(const char* string) {
+    auto res = std::vector<std::string>();
+    while (*string != 0) {
+        auto l = str::utf_char(string);
+        if (l == "") {
+            return res;
+        }
+        res.push_back(l);
+        string += l.length();
+    }
+    return res;
+}
+size_t utf_len(const char* string) {
     auto count = (size_t) 0;
     auto f     = (size_t) 0;
-    auto u     = reinterpret_cast<const unsigned char*>(p);
+    auto u     = reinterpret_cast<const unsigned char*>(string);
     auto c     = (unsigned) u[0];
     while (c != 0) {
         if (c >= 128) {
             if (c >= 194 && c <= 223) {
                 c = u[++f];
-                if (c < 128 || c > 191) return 0;
+                if (c < 128 || c > 191) {
+                    return 0;
+                }
             }
             else if (c >= 224 && c <= 239) {
                 c = u[++f];
-                if (c < 128 || c > 191) return 0;
+                if (c < 128 || c > 191) {
+                    return 0;
+                }
                 c = u[++f];
-                if (c < 128 || c > 191) return 0;
+                if (c < 128 || c > 191) {
+                    return 0;
+                }
             }
             else if (c >= 240 && c <= 244) {
                 c = u[++f];
-                if (c < 128 || c > 191) return 0;
+                if (c < 128 || c > 191) {
+                    return 0;
+                }
                 c = u[++f];
-                if (c < 128 || c > 191) return 0;
+                if (c < 128 || c > 191) {
+                    return 0;
+                }
                 c = u[++f];
-                if (c < 128 || c > 191) return 0;
+                if (c < 128 || c > 191) {
+                    return 0;
+                }
             }
             else {
                 return 0;
@@ -4948,6 +5323,688 @@ void Time::SleepMilli(unsigned milliseconds) {
 #endif
 }
 }
+#include <cstring>
+#include <cassert>
+#include <ctime>
+namespace gnu {
+static int          _DATE_DAYS_MONTH[]      = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static int          _DATE_DAYS_MONTH_LEAP[] = {0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const char*  _DATE_WEEKDAYS[]        = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", ""};
+static const char*  _DATE_WEEKDAYS_SHORT[]  = {"", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", ""};
+static const char*  _DATE_MONTHS[]          = {"", "January", "February", "Mars", "April", "May", "June", "July", "August", "September", "October", "November", "December", ""};
+static const char*  _DATE_MONTHS_SHORT[]    = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", ""};
+static int _date_days_in_month(int year, int month) {
+    if (year < 1 || year > 9999 || month < 1 || month > 12) {
+        return 0;
+    }
+    else if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) {
+        return _DATE_DAYS_MONTH_LEAP[month];
+    }
+    return _DATE_DAYS_MONTH[month];
+}
+static void _date_from_time(int64_t seconds, Date::UTC utc, int& year, int& month, int& day, int& hour, int& min, int& sec) {
+    year = month = day = 1;
+    hour = min = sec = 0;
+    if (seconds < 0) {
+        return;
+    }
+    time_t    rawtime  = seconds;
+    const tm* timeinfo = (utc == Date::UTC::ON) ? gmtime(&rawtime) : localtime(&rawtime);
+    if (timeinfo == nullptr) {
+        return;
+    }
+    year  = timeinfo->tm_year + 1900;
+    month = timeinfo->tm_mon + 1;
+    day   = timeinfo->tm_mday;
+    hour  = timeinfo->tm_hour;
+    min   = timeinfo->tm_min;
+    sec   = timeinfo->tm_sec;
+}
+static Date::DAY _date_weekday(int year, int month, int day) {
+    if (year > 0 && year < 10000 && month > 0 && month < 13 && day > 0 && day <= _date_days_in_month(year, month)) {
+        int start = 0;
+        int y1    = year - 1;
+        int pre   = ((year < 1582) || ((year == 1582) && (month <= 10)));
+        if (pre) {
+            start = 6 + y1 + (y1 / 4);
+        }
+        else {
+            start = 1 + y1 + (y1 / 4) - (y1 / 100) + (y1 / 400);
+        }
+        for (int i = 1; i < month; i++) {
+            int days = _date_days_in_month(year, i);
+            if (days) {
+                start += days;
+            }
+            else {
+                return Date::DAY::INVALID;
+            }
+        }
+        start = start % 7;
+        start = start == 0 ? 7 : start;
+        for (int i = 2; i <= day; i++) {
+            start++;
+            if (start > 7) {
+                start = 1;
+            }
+        }
+        if (start < 1 || start > 7) {
+            return Date::DAY::INVALID;
+        }
+        else {
+            return (Date::DAY) start;
+        }
+    }
+    return Date::DAY::INVALID;
+}
+static bool _date_is_leapyear(int year) {
+    if (year < 1 || year > 9999) {
+        return false;
+    }
+    else if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) {
+        return true;
+    }
+    else {
+       return false;
+    }
+}
+Date::Date(Date::UTC utc) {
+    int y, m, d, ho, mi, se;
+    _year = _month = _day = _hour = _min = _sec = 0;
+    _date_from_time(::time(nullptr), utc, y, m, d, ho, mi, se);
+    set(y, m, d, ho, mi, se);
+}
+Date::Date(int year, int month, int day, int hour, int min, int sec) {
+    _year = _month = _day = _hour = _min = _sec = 0;
+    set(year, month, day, hour, min, sec);
+}
+Date::Date(int64_t unix_time, Date::UTC utc) {
+    int y, m, d, ho, mi, se;
+    _date_from_time(unix_time, utc, y, m, d, ho, mi, se);
+    set(y, m, d, ho, mi, se);
+}
+Date::Date(const std::string& date, Date::US us) {
+    _year = _month = _day = _hour = _min = _sec = 0;
+    set(date, us);
+}
+bool Date::add_days(const int days) {
+    if (days == 0) {
+        return 0;
+    }
+    int daym = _date_days_in_month(_year, _month);
+    if (daym == 0) {
+        return false;
+    }
+    int inc = days > 0 ? 1 : -1;
+    int y   = _year;
+    int m   = _month;
+    int d   = _day;
+    for (int f = 0; f < abs(days); f++) {
+        d += inc;
+        if (inc < 0 && d == 0) {
+            m--;
+            if (m == 0) {
+                m = 12;
+                y--;
+                if (y < 1) {
+                    return false;
+                }
+            }
+            d = _date_days_in_month(y, m);
+            if (d == 0) {
+                return false;
+            }
+        }
+        else if (inc > 0 && d > daym) {
+            d = 1;
+            m++;
+            if (m == 13) {
+                m = 1;
+                y++;
+                if (y > 9999) {
+                    return false;
+                }
+            }
+            daym = _date_days_in_month(y, m);
+            if (daym == 0) {
+                return false;
+            }
+        }
+    }
+    _year  = y;
+    _month = m;
+    _day   = d;
+    return true;
+}
+bool Date::add_months(const int months) {
+    if (months == 0) {
+        return false;
+    }
+    int inc = months > 0 ? 1 : -1;
+    int m   = _month;
+    int y   = _year;
+    for (int f = 0; f < abs(months); f++) {
+        m += inc;
+        if (m == 0) {
+            m = 12;
+            y--;
+            if (y < 1) {
+                return false;
+            }
+        }
+        else if (m > 12) {
+            m = 1;
+            y++;
+            if (y > 9999) {
+                return false;
+            }
+        }
+    }
+    const int days = _date_days_in_month(y, m);
+    if (days <= 0) {
+        return false;
+    }
+    _year  = y;
+    _month = m;
+    if (_day > days) {
+        _day = days;
+    }
+    return true;
+}
+bool Date::add_seconds(const int64_t seconds) {
+    if (seconds == 0) {
+        return false;
+    }
+    int inc = seconds > 0 ? 1 : -1;
+    int h   = _hour;
+    int m   = _min;
+    int s   = _sec;
+    for (int64_t f = 0; f < llabs(seconds); f++) {
+        s += inc;
+        if (inc < 0 && s == -1) {
+            m--;
+            if (m == -1) {
+                m = 59;
+                h--;
+                if (h == -1) {
+                    h = 23;
+                    if (add_days(-1) == false) {
+                        return false;
+                    }
+                }
+            }
+            s = 59;
+        }
+        else if (inc > 0 && s == 60) {
+            m++;
+            if (m == 60) {
+                m = 0;
+                h++;
+                if (h == 24) {
+                    h = 0;
+                    if (add_days(1) == false) {
+                        return false;
+                    }
+                }
+            }
+            s = 0;
+        }
+    }
+    _hour = h;
+    _min  = m;
+    _sec  = s;
+    return true;
+}
+int Date::compare(const Date& other, Date::COMPARE flag) const {
+    if (_year < other._year) {
+        return -1;
+    }
+    else if (_year > other._year) {
+        return 1;
+    }
+    if (_month < other._month) {
+        return -1;
+    }
+    else if (_month > other._month) {
+        return 1;
+    }
+    if (flag >= Date::COMPARE::YYYYMMDD) {
+        if (_day < other._day) {
+            return -1;
+        }
+        else if (_day > other._day) {
+            return 1;
+        }
+    }
+    if (flag >= Date::COMPARE::YYYYMMDDHH) {
+        if (_hour < other._hour) {
+            return -1;
+        }
+        else if (_hour > other._hour) {
+            return 1;
+        }
+    }
+    if (flag >= Date::COMPARE::YYYYMMDDHHMM) {
+        if (_min < other._min) {
+            return -1;
+        }
+        else if (_min > other._min) {
+            return 1;
+        }
+    }
+    if (flag >= Date::COMPARE::YYYYMMDDHHMMSS) {
+        if (_sec < other._sec) {
+            return -1;
+        }
+        else if (_sec > other._sec) {
+            return 1;
+        }
+    }
+    return 0;
+}
+int Date::days_in_month() const {
+    return _date_days_in_month(_year, _month);
+}
+int Date::days_into_year() const {
+    auto res  = 0;
+    auto leap = _date_is_leapyear(_year);
+    for (auto m = 1; m < _month && m < 13; m++) {
+        if (leap) {
+            res += _DATE_DAYS_MONTH_LEAP[m];
+        }
+        else {
+            res += _DATE_DAYS_MONTH[m];
+        }
+    }
+    return res + _day;
+}
+void Date::debug() const {
+    printf("Date| %s\n", format(Date::FORMAT::ISO_TIME_LONG).c_str());
+    fflush(stdout);
+}
+int Date::diff_days(const Date& date) const {
+    Date d(date);
+    int  res = 0;
+    if (compare(d, Date::COMPARE::YYYYMMDD) < 0) {
+        while (compare(d, Date::COMPARE::YYYYMMDD) != 0) {
+            d.add_days(-1);
+            res++;
+        }
+    }
+    else if (compare(d, Date::COMPARE::YYYYMMDD) > 0) {
+        while (compare(d, Date::COMPARE::YYYYMMDD) != 0) {
+            d.add_days(1);
+            res--;
+        }
+    }
+    return res;
+}
+int Date::diff_months(const Date& date) const {
+    Date d(date);
+    int  res = 0;
+    if (compare(d, Date::COMPARE::YYYYMM) < 0) {
+        while (compare(d, Date::COMPARE::YYYYMM)) {
+            d.add_months(-1);
+            res++;
+        }
+    }
+    else if (compare(d, Date::COMPARE::YYYYMM) > 0) {
+        while (compare(d, Date::COMPARE::YYYYMM)) {
+            d.add_months(1);
+            res--;
+        }
+    }
+    return res;
+}
+int Date::diff_seconds(const Date& date) const {
+    int64_t unix1 = time();
+    int64_t unix2 = date.time();
+    if (unix1 >= 0 && unix2 >= 0) {
+        return unix2 - unix1;
+    }
+    return 0;
+}
+std::string Date::format(Date::FORMAT format) const {
+    char tmp[100];
+    int  n = 0;
+    if (format == Date::FORMAT::ISO) {
+        n = snprintf(tmp, 100, "%04d%02d%02d", _year, _month, _day);
+    }
+    else if (format == Date::FORMAT::ISO_LONG) {
+        n = snprintf(tmp, 100, "%04d-%02d-%02d", _year, _month, _day);
+    }
+    else if (format == Date::FORMAT::ISO_TIME) {
+        n = snprintf(tmp, 100, "%04d%02d%02d %02d%02d%02d", _year, _month, _day, _hour, _min, _sec);
+    }
+    else if (format == Date::FORMAT::ISO_TIME_LONG) {
+        n = snprintf(tmp, 100, "%04d-%02d-%02d %02d:%02d:%02d", _year, _month, _day, _hour, _min, _sec);
+    }
+    else if (format == Date::FORMAT::TIME) {
+        n = snprintf(tmp, 100, "%02d%02d%02d", _hour, _min, _sec);
+    }
+    else if (format == Date::FORMAT::TIME_LONG) {
+        n = snprintf(tmp, 100, "%02d:%02d:%02d", _hour, _min, _sec);
+    }
+    else if (format == Date::FORMAT::US) {
+        n = snprintf(tmp, 100, "%d/%d/%04d", _month, _day, _year);
+    }
+    else if (format == Date::FORMAT::WORLD) {
+        n = snprintf(tmp, 100, "%d/%d/%04d", _day, _month, _year);
+    }
+    else if (format == Date::FORMAT::DAY_MONTH_YEAR) {
+        n = snprintf(tmp, 100, "%d %s %04d", _day, month_name(), _year);
+    }
+    else if (format == Date::FORMAT::DAY_MONTH_YEAR_SHORT) {
+        n = snprintf(tmp, 100, "%d %s, %04d", _day, month_name_short(), _year);
+    }
+    else if (format == Date::FORMAT::WEEKDAY_MONTH_YEAR) {
+        n = snprintf(tmp, 100, "%s %d %s %04d", weekday_name(), _day, month_name(), _year);
+    }
+    else if (format == Date::FORMAT::WEEKDAY_MONTH_YEAR_SHORT) {
+        n = snprintf(tmp, 100, "%s, %d %s, %04d", weekday_name_short(), _day, month_name_short(), _year);
+    }
+    if (n < 0 || n >= 100) {
+        *tmp = 0;
+    }
+    return tmp;
+}
+bool Date::is_leapyear() const {
+    return _date_is_leapyear(_year);
+}
+const char* Date::month_name() const {
+    return _DATE_MONTHS[(int) _month];
+}
+const char* Date::month_name_short() const {
+    return _DATE_MONTHS_SHORT[(int) _month];
+}
+Date& Date::set(const Date& date) {
+    _year  = date._year;
+    _month = date._month;
+    _day   = date._day;
+    _hour  = date._hour;
+    _min   = date._min;
+    _sec   = date._sec;
+    return *this;
+}
+Date& Date::set(const std::string& date, Date::US us) {
+    auto str1 = date.c_str();
+    auto len1 = static_cast<int>(date.length());
+    auto str2 = strstr(str1, " ");
+    while (str2 != nullptr && *str2 == ' ') {
+        str2++;
+        if (*str2 == 0) {
+            str2 = nullptr;
+        }
+    }
+    int      len2    = (str2 != nullptr) ? strlen(str2) : 0;
+    int      year    = 0;
+    int      month   = 0;
+    int      day     = 0;
+    int      hour    = 0;
+    int      min     = 0;
+    int      sec     = 0;
+    int      Y       = 0;
+    bool     time    = false;
+    unsigned val[14] = { 0 };
+    unsigned EMPTY   = -1;
+    if (len1 >= 10 && str1[4] == '-' && str1[7] == '-' && str1[10] <= ' ') {
+        us     = US::OFF;
+        val[4] = str1[5] - '0';
+        val[5] = str1[6] - '0';
+        val[6] = str1[8] - '0';
+        val[7] = str1[9] - '0';
+    }
+    else if (len1 >= 8 && str1[1] == '/' && str1[3] == '/' && str1[8] <= ' ') {
+        Y      = 4;
+        val[4] = str1[2] - '0';
+        val[5] = EMPTY;
+        val[6] = str1[0] - '0';
+        val[7] = EMPTY;
+    }
+    else if (len1 >= 9 && str1[1] == '/' && str1[4] == '/' && str1[9] <= ' ') {
+        Y      = 5;
+        val[4] = str1[2] - '0';
+        val[5] = str1[3] - '0';
+        val[6] = str1[0] - '0';
+        val[7] = EMPTY;
+    }
+    else if (len1 >= 9 && str1[2] == '/' && str1[4] && str1[9] <= ' ') {
+        Y      = 5;
+        val[4] = str1[3] - '0';
+        val[5] = EMPTY;
+        val[6] = str1[0] - '0';
+        val[7] = str1[1] - '0';
+    }
+    else if (len1 >= 10 && str1[2] == '/' && str1[5] == '/' && str1[10] <= ' ') {
+        Y      = 6;
+        val[4] = str1[3] - '0';
+        val[5] = str1[4] - '0';
+        val[6] = str1[0] - '0';
+        val[7] = str1[1] - '0';
+    }
+    else if (len1 >= 8 && str1[8] <= ' ') {
+        us     = US::OFF;
+        val[4] = str1[4] - '0';
+        val[5] = str1[5] - '0';
+        val[6] = str1[6] - '0';
+        val[7] = str1[7] - '0';
+    }
+    else {
+        return *this;
+    }
+    val[0] = str1[Y] - '0';
+    val[1] = str1[Y + 1] - '0';
+    val[2] = str1[Y + 2] - '0';
+    val[3] = str1[Y + 3] - '0';
+    if (str2 != nullptr && str2[0] >= '0' && str2[0] <= '9') {
+        if (len2 >= 4 && str2[4] <= ' ') {
+            time    = true;
+            val[8]  = str2[0] - '0';
+            val[9]  = str2[1] - '0';
+            val[10] = str2[2] - '0';
+            val[11] = str2[3] - '0';
+        }
+        else if (len2 >= 5 && str2[2] == ':' && str2[5] <= ' ') {
+            time    = true;
+            val[8]  = str2[0] - '0';
+            val[9]  = str2[1] - '0';
+            val[10] = str2[3] - '0';
+            val[11] = str2[4] - '0';
+        }
+        else if (len2 >= 6 && str2[6] <= ' ') {
+            time    = true;
+            val[8]  = str2[0] - '0';
+            val[9]  = str2[1] - '0';
+            val[10] = str2[2] - '0';
+            val[11] = str2[3] - '0';
+            val[12] = str2[4] - '0';
+            val[13] = str2[5] - '0';
+        }
+        else if (len2 >= 8 && str2[2] == ':' && str2[5] == ':' && str2[8] <= ' ') {
+            time    = true;
+            val[8]  = str2[0] - '0';
+            val[9]  = str2[1] - '0';
+            val[10] = str2[3] - '0';
+            val[11] = str2[4] - '0';
+            val[12] = str2[6] - '0';
+            val[13] = str2[7] - '0';
+        }
+        for (int f = 8; f < 14 && time == true; f++) {
+            if (val[f] > 9) {
+                time = false;
+            }
+        }
+        if (time == true) {
+            hour = val[8] * 10 + val[9];
+            min  = val[10] * 10 + val[11];
+            sec  = val[12] * 10 + val[13];
+            if (hour < 0 || hour > 23) {
+                time = false;
+            }
+            else if (min < 0 || min > 59) {
+                time = false;
+            }
+            else if (sec < 0 || sec > 59) {
+                time = false;
+            }
+        }
+    }
+    for (int f = 0; f < 8; f++) {
+        if (f == 5 && val[5] == EMPTY) {
+        }
+        else if (f == 7 && val[7] == EMPTY) {
+        }
+        else if (val[f] > 9) {
+            return *this;
+        }
+    }
+    year  = val[0] * 1000 + val[1] * 100 + val[2] * 10 + val[3];
+    month = (val[5] == EMPTY) ? val[4] : val[4] * 10 + val[5];
+    day   = (val[7] == EMPTY) ? val[6] : val[6] * 10 + val[7];
+    if (us == US::ON) {
+        int tmp = month;
+        month   = day;
+        day     = tmp;
+    }
+    if (time == true) {
+        set(year, month, day, hour, min, sec);
+    }
+    else {
+        set(year, month, day);
+    }
+    return *this;
+}
+Date& Date::set(int year, int month, int day, int hour, int min, int sec) {
+    if (year < 1 || year > 9999 ||
+        month < 1 || month > 12 ||
+        day < 1 || day > _date_days_in_month(year, month) ||
+        hour < 0 || hour > 23 ||
+        min < 0 || min > 59 ||
+        sec < 0 || sec > 59) {
+        return *this;
+    }
+    else {
+        _year  = year;
+        _month = month;
+        _day   = day;
+        _hour  = hour;
+        _min   = min;
+        _sec   = sec;
+        return *this;
+    }
+}
+Date& Date::set_day(int day) {
+    if (day > 0 && day <= _date_days_in_month(_year, _month)) {
+        _day = day;
+    }
+    return *this;
+}
+Date& Date::set_hour(int hour) {
+    if (hour >= 0 && hour <= 23) {
+        _hour = hour;
+    }
+    return *this;
+}
+Date& Date::set_minute(int min) {
+    if (min >= 0 && min <= 59) {
+        _min = min;
+    }
+    return *this;
+}
+Date& Date::set_month(int month) {
+    if (_day >= 1 &&
+        _day <= _date_days_in_month(_year, month) &&
+        month >= 1 && month <= 12) {
+        _month = month;
+    }
+    return *this;
+}
+Date& Date::set_second(int sec) {
+    if (sec >= 0 && sec <= 59) {
+        _sec = sec;
+    }
+    return *this;
+}
+Date& Date::set_weekday(Date::DAY day) {
+    if (weekday() < day) {
+        while (weekday() < day) {
+            add_days(1);
+        }
+    }
+    else if (weekday() > day) {
+        while (weekday() > day) {
+            add_days(-1);
+        }
+    }
+    return *this;
+}
+Date& Date::set_year(int year) {
+    if (year >= 1 && year <= 9999) {
+        _year = year;
+    }
+    return *this;
+}
+int64_t Date::time() const {
+    tm t;
+    if (_year < 1970) {
+        return -1;
+    }
+    memset(&t, '\0', sizeof(t));
+    t.tm_year = _year - 1900;
+    t.tm_mon  = _month - 1;
+    t.tm_mday = _day;
+    t.tm_hour = _hour;
+    t.tm_min  = _min;
+    t.tm_sec  = _sec;
+    return mktime(&t);
+}
+int Date::week() const {
+    Date::DAY wday  = _date_weekday(_year, _month, _day);
+    Date::DAY wday1 = _date_weekday(_year, 1, 1);
+    if (wday != Date::DAY::INVALID && wday1 != Date::DAY::INVALID) {
+        auto w     = 0;
+        auto y1    = _year - 1;
+        auto leap  = _date_is_leapyear(_year);
+        auto leap1 = _date_is_leapyear(y1);
+        auto yday  = days_into_year();
+        if (yday <= (8 - (int) wday1) && wday1 > Date::DAY::THURSDAY) {
+            if (wday1 == Date::DAY::FRIDAY || (wday1 == Date::DAY::SATURDAY && leap1)) {
+                w = 53;
+            }
+            else {
+                w = 52;
+            }
+        }
+        else {
+            auto days = leap ? 366 : 365;
+            if ((days - yday) < (4 - (int) wday)) {
+                w = 1;
+            }
+            else {
+                days = yday + (7 - (int) wday) + ((int) wday1 - 1);
+                days = days / 7;
+                if (wday1 > Date::DAY::THURSDAY) {
+                    days--;
+                }
+                w = days;
+            }
+        }
+        if (w > 0 && w < 54) {
+            return w;
+        }
+    }
+    return 0;
+}
+Date::DAY Date::weekday() const {
+    return _date_weekday(_year, _month, _day);
+}
+const char* Date::weekday_name() const {
+    return _DATE_WEEKDAYS[(int) _date_weekday(_year, _month, _day)];
+}
+const char* Date::weekday_name_short() const {
+    return _DATE_WEEKDAYS_SHORT[(int) _date_weekday(_year, _month, _day)];
+}
+}
 #include <algorithm>
 #include <filesystem>
 #include <climits>
@@ -4979,7 +6036,7 @@ static bool                 _open_redirect(int type);
 static unsigned             _rand();
 static void                 _read(const std::string& path, Buf& buf);
 static std::string&         _replace_all(std::string& string, const std::string& find, const std::string& replace);
-static void                 _read_dir_rec(std::vector<File>& res, std::vector<File>& files);
+static void                 _read_dir_rec(Files& res, Files& files);
 static std::string&         _replace_all(std::string& string, const std::string& find, const std::string& replace);
 static void                 _split_paths(const std::string& filename, std::string& path, std::string& name, std::string& ext);
 static std::string          _substr(const std::string& in, std::string::size_type pos, std::string::size_type size = std::string::npos);
@@ -5087,7 +6144,7 @@ static void _read(const std::string& path, Buf& buf) {
     fclose(handle);
     buf.grab(out, file.size());
 }
-static void _read_dir_rec(std::vector<File>& res, std::vector<File>& files) {
+static void _read_dir_rec(Files& res, Files& files) {
     for (auto& file : files) {
         res.push_back(file);
         if (file.type() == file::TYPE::DIR && file.is_link() == false) {
@@ -5547,9 +6604,9 @@ Buf* read2(const std::string& path) {
     file::_read(path, *buf);
     return buf;
 }
-std::vector<File> read_dir(const std::string& path) {
+Files read_dir(const std::string& path) {
     auto file = File(path, false);
-    auto res  = std::vector<File>();
+    auto res  = Files();
     if (file.type() != TYPE::DIR || file::is_circular(path) == true) {
         return res;
     }
@@ -5591,8 +6648,8 @@ std::vector<File> read_dir(const std::string& path) {
     std::sort(res.begin(), res.end());
     return res;
 }
-std::vector<File> read_dir_rec(const std::string& path) {
-    auto res   = std::vector<File>();
+Files read_dir_rec(const std::string& path) {
+    auto res   = Files();
     auto files = file::read_dir(path);
     file::_read_dir_rec(res, files);
     return res;
@@ -6107,8 +7164,8 @@ int                         PREF_FIXED_FONTSIZE     = 14;
 int                         PREF_FONT               = FL_HELVETICA;
 int                         PREF_FONTSIZE           = 14;
 std::string                 PREF_FONTNAME           = "FL_HELVETICA";
-double                      PREF_SCALE              = 1.0;
-bool                        PREF_SCALE_ON           = false;
+double                      PREF_SCALE_VAL          = 0.0;
+bool                        PREF_SCALE_ON           = true;
 std::string                 PREF_THEME              = "default";
 const char* const           PREF_THEMES[]           = {
                                 "default",
@@ -6142,7 +7199,14 @@ const char* const           PREF_THEMES2[]           = {
                                 "tan_plastic",
                                 nullptr,
 };
-static std::string _flw_print(std::string ps_filename, Fl_Paged_Device::Page_Format format, Fl_Paged_Device::Page_Layout layout, PrintCallback cb, void* data, int from, int to) {
+static std::string _flw_print(
+    const std::string& ps_filename,
+    Fl_Paged_Device::Page_Format format,
+    Fl_Paged_Device::Page_Layout layout,
+    PrintCallback cb,
+    void* data,
+    int from,
+    int to) {
     bool                      cont = true;
     FILE*                     file = nullptr;
     Fl_PostScript_File_Device printer;
@@ -6181,18 +7245,18 @@ ERR:
     fclose(file);
     return res;
 }
-void debug::print(const Fl_Widget* widget) {
+void debug::print(const Fl_Widget* widget, bool recursive) {
     std::string indent;
-    debug::print(widget, indent);
+    debug::print(widget, indent, recursive);
 }
-void debug::print(const Fl_Widget* widget, std::string& indent) {
+void debug::print(const Fl_Widget* widget, std::string& indent, bool recursive) {
     if (widget == nullptr) {
         puts("flw::debug::print() => null widget");
     }
     else {
         printf("%sx=%4d, y=%4d, w=%4d, h=%4d, %c, \"%s\"\n", indent.c_str(), widget->x(), widget->y(), widget->w(), widget->h(), widget->visible() ? 'V' : 'H', widget->label() ? widget->label() : "NULL");
         auto group = widget->as_group();
-        if (group != nullptr) {
+        if (group != nullptr && recursive == true) {
             indent += "\t";
             for (int f = 0; f < group->children(); f++) {
                 debug::print(group->child(f), indent);
@@ -6255,9 +7319,15 @@ static Fl_Menu_Item* _item(Fl_Menu_* menu, const char* text, void* v = nullptr) 
 }
 void menu::enable_item(Fl_Menu_* menu, const char* text, bool value) {
     auto item = _item(menu, text);
-    if (item == nullptr) return;
-    if (value == true) item->activate();
-    else item->deactivate();
+    if (item == nullptr) {
+        return;
+    }
+    if (value == true) {
+        item->activate();
+    }
+    else {
+        item->deactivate();
+    }
 }
 Fl_Menu_Item* menu::get_item(Fl_Menu_* menu, const char* text) {
     return _item(menu, text);
@@ -6267,18 +7337,28 @@ Fl_Menu_Item* menu::get_item(Fl_Menu_* menu, void* v) {
 }
 bool menu::item_value(Fl_Menu_* menu, const char* text) {
     auto item = _item(menu, text);
-    if (item == nullptr) return false;
+    if (item == nullptr) {
+        return false;
+    }
     return item->value();
 }
 void menu::set_item(Fl_Menu_* menu, const char* text, bool value) {
     auto item = _item(menu, text);
-    if (item == nullptr) return;
-    if (value == true) item->set();
-    else item->clear();
+    if (item == nullptr) {
+        return;
+    }
+    if (value == true) {
+        item->set();
+    }
+    else {
+        item->clear();
+    }
 }
 void menu::setonly_item(Fl_Menu_* menu, const char* text) {
     auto item = _item(menu, text);
-    if (item == nullptr) return;
+    if (item == nullptr) {
+        return;
+    }
     menu->setonly(item);
 }
 void util::center_window(Fl_Window* window, Fl_Window* parent) {
@@ -6345,7 +7425,7 @@ int util::count_decimals(double num) {
     res = strlen(buffer) - 2;
     return res;
 }
-Fl_Widget* util::find_widget(Fl_Group* group, std::string label) {
+Fl_Widget* util::find_widget(Fl_Group* group, const std::string& label) {
     for (int f = 0; f < group->children(); f++) {
         auto w = group->child(f);
         if (w->label() != nullptr && label == w->label()) {
@@ -6364,23 +7444,25 @@ Fl_Widget* util::find_widget(Fl_Group* group, std::string label) {
     }
     return nullptr;
 }
-std::string util::fix_menu_string(std::string in) {
-    std::string res = in;
+std::string util::fix_menu_string(const std::string& label) {
+    std::string res = label;
     util::replace_string(res, "\\", "\\\\");
     util::replace_string(res, "_", "\\_");
     util::replace_string(res, "/", "\\/");
     util::replace_string(res, "&", "&&");
     return res;
 }
-std::string util::format(const char* format, ...) {
-    if (format == nullptr || *format == 0) return "";
+std::string util::format(const std::string& format, ...) {
+    if (format == "") {
+        return "";
+    }
     int         l   = 128;
     int         n   = 0;
     char*       buf = static_cast<char*>(calloc(l, 1));
     std::string res;
     va_list     args;
     va_start(args, format);
-    n = vsnprintf(buf, l, format, args);
+    n = vsnprintf(buf, l, format.c_str(), args);
     va_end(args);
     if (n < 0) {
         free(buf);
@@ -6396,7 +7478,7 @@ std::string util::format(const char* format, ...) {
     buf = static_cast<char*>(calloc(l, 1));
     if (buf == nullptr) return res;
     va_start(args, format);
-    vsnprintf(buf, l, format, args);
+    vsnprintf(buf, l, format.c_str(), args);
     va_end(args);
     res = buf;
     free(buf);
@@ -6635,6 +7717,12 @@ std::string util::substr(std::string in, std::string::size_type pos, std::string
     catch(...) {
         return "";
     }
+}
+void util::swap_rect(Fl_Widget* w1, Fl_Widget* w2) {
+    auto r1 = Fl_Rect(w1);
+    auto r2 = Fl_Rect(w2);
+    w1->resize(r2.x(), r2.y(), r2.w(), r2.h());
+    w2->resize(r1.x(), r1.y(), r1.w(), r1.h());
 }
 double util::to_double(std::string num, double def) {
     try {
@@ -7148,12 +8236,12 @@ double theme::load_win_pref(Fl_Preferences& pref, Fl_Window* window, bool show, 
         window->show();
     }
 #endif
-    flw::PREF_SCALE_ON = s;
-    flw::PREF_SCALE    = Fl::screen_scale(window->screen_num());
+    flw::PREF_SCALE_ON  = s;
+    flw::PREF_SCALE_VAL = Fl::screen_scale(window->screen_num());
     if (flw::PREF_SCALE_ON == false) {
         Fl::screen_scale(window->screen_num(), 1.0);
     }
-    return flw::PREF_SCALE;
+    return flw::PREF_SCALE_VAL;
 }
 bool theme::parse(int argc, const char** argv) {
     auto res = false;
@@ -7164,6 +8252,17 @@ bool theme::parse(int argc, const char** argv) {
         auto fontsize = atoi(argv[f]);
         if (fontsize >= 6 && fontsize <= 72) {
             flw::PREF_FONTSIZE = fontsize;
+        }
+        if (std::string("scaleoff") == argv[f] && flw::PREF_SCALE_VAL < 0.1) {
+            flw::PREF_SCALE_ON = false;
+            if (Fl::first_window() != nullptr) {
+                flw::PREF_SCALE_VAL = Fl::screen_scale(Fl::first_window()->screen_num());
+                Fl::screen_scale(Fl::first_window()->screen_num(), 1.0);
+            }
+            else {
+                flw::PREF_SCALE_VAL = Fl::screen_scale(0);
+                Fl::screen_scale(0, 1.0);
+            }
         }
     }
     flw::PREF_FIXED_FONTSIZE = flw::PREF_FONTSIZE;
@@ -7192,7 +8291,7 @@ void theme::save_win_pref(Fl_Preferences& pref, Fl_Window* window, const std::st
     pref.set((basename + "h").c_str(), window->h());
     pref.set((basename + "s").c_str(), flw::PREF_SCALE_ON);
 }
-PrintText::PrintText(std::string filename,
+PrintText::PrintText(const std::string& filename,
     Fl_Paged_Device::Page_Format page_format,
     Fl_Paged_Device::Page_Layout page_layout,
     Fl_Font font,
@@ -7208,16 +8307,16 @@ PrintText::PrintText(std::string filename,
     _filename    = filename;
     _font        = font;
     _fontsize    = fontsize;
-    _line_num    = (align == FL_ALIGN_LEFT) ? line_num : 0;
+    _line_num    = (align == FL_ALIGN_LEFT && line_num > 0 && line_num < 9) ? line_num : 0;
     _page_format = page_format;
     _page_layout = page_layout;
     _printer     = nullptr;
     _wrap        = wrap;
 }
 PrintText::~PrintText() {
-    stop();
+    _stop();
 }
-void PrintText::check_for_new_page() {
+void PrintText::_check_for_new_page() {
     if (_py + _lh > _ph || _page_count == 0) {
         if (_page_count > 0) {
             fl_pop_clip();
@@ -7241,7 +8340,7 @@ void PrintText::check_for_new_page() {
         }
         else {
             fl_rect(0, 0, _pw, _ph);
-            measure_lw_lh("M");
+            _measure_lw_lh("M");
             _px  = _lw;
             _py  = _lh;
             _pw -= _lw * 2;
@@ -7250,7 +8349,7 @@ void PrintText::check_for_new_page() {
         _page_count++;
     }
 }
-void PrintText::measure_lw_lh(const std::string& text) {
+void PrintText::_measure_lw_lh(const std::string& text) {
     _lw = _lh = 0;
     fl_measure(text.c_str(), _lw, _lh, 0);
 }
@@ -7269,19 +8368,19 @@ std::string PrintText::print(const StringVector& lines, unsigned replace_tab_wit
     }
     try {
         auto wc = WaitCursor();
-        res = start();
+        res = _start();
         if (res == "") {
             for (auto& line : lines) {
                 if (tab != "") {
                     auto l = line;
                     util::replace_string(l, "\t", "    ");
-                    print_line(l == "" ? " " : l);
+                    _print_line(l == "" ? " " : l);
                 }
                 else {
-                    print_line(line == "" ? " " : line);
+                    _print_line(line == "" ? " " : line);
                 }
             }
-            res = stop();
+            res = _stop();
         }
     }
     catch (const char* ex) {
@@ -7292,25 +8391,25 @@ std::string PrintText::print(const StringVector& lines, unsigned replace_tab_wit
     }
     return res;
 }
-void PrintText::print_line(const std::string& line) {
+void PrintText::_print_line(const std::string& line) {
     _line_count++;
-    check_for_new_page();
+    _check_for_new_page();
     if (_line_num > 0) {
         auto num = util::format("%*d: ", _line_num, _line_count);
-        measure_lw_lh(num);
+        _measure_lw_lh(num);
         fl_draw(num.c_str(), _px, _py, _pw, _lh, _align, nullptr, 0);
         _nw = _lw;
     }
-    measure_lw_lh(line);
+    _measure_lw_lh(line);
     if (_wrap == true && _lw > _pw - _nw) {
-        print_wrapped_line(line);
+        _print_wrapped_line(line);
     }
     else {
         fl_draw(line.c_str(), _px + _nw, _py, _pw - _nw, _lh, _align, nullptr, 0);
         _py += _lh;
     }
 }
-void PrintText::print_wrapped_line(const std::string& line) {
+void PrintText::_print_wrapped_line(const std::string& line) {
     auto p1 = line.c_str();
     auto s1 = std::string();
     auto s2 = std::string();
@@ -7330,9 +8429,9 @@ void PrintText::print_wrapped_line(const std::string& line) {
         if (c == ' ' || c == '\t' || c == ',' || c == ';' || c == '.') {
             s2 = s1;
         }
-        measure_lw_lh(s1);
+        _measure_lw_lh(s1);
         if (_lw >= _pw - _nw) {
-            check_for_new_page();
+            _check_for_new_page();
             if (s2 != "") {
                 fl_draw(s2.c_str(), _px + _nw, _py, _pw - _nw, _lh, _align, nullptr, 0);
                 s1 = (s2.length() < s1.length()) ? s1.substr(s2.length()) : "";
@@ -7351,12 +8450,12 @@ void PrintText::print_wrapped_line(const std::string& line) {
         }
     }
     if (s1 != "") {
-        check_for_new_page();
+        _check_for_new_page();
         fl_draw(s1.c_str(), _px + _nw, _py, _pw - _nw, _lh, _align, nullptr, 0);
         _py += _lh;
     }
 }
-std::string PrintText::start() {
+std::string PrintText::_start() {
     if ((_file = fl_fopen(_filename.c_str(), "wb")) == nullptr) {
         return "error: could not open file!";
     }
@@ -7373,7 +8472,7 @@ std::string PrintText::start() {
     _printer->begin_job(_file, 0, _page_format, _page_layout);
     return "";
 }
-std::string PrintText::stop() {
+std::string PrintText::_stop() {
     std::string res = "";
     if (_printer != nullptr) {
         if (_page_count > 0) {
@@ -7464,194 +8563,90 @@ void center_message_dialog() {
     Fl::screen_xywh(X, Y, W, H);
     fl_message_position(W / 2, H / 2, 1);
 }
-bool font(Fl_Font& font, Fl_Fontsize& fontsize, std::string& fontname, bool limit_to_default) {
-    auto dlg = dlg::FontDialog(font, fontsize, "Select Font", limit_to_default);
-    if (dlg.run() == false) {
-        return false;
-    }
-    font     = dlg.font();
-    fontsize = dlg.fontsize();
-    fontname = dlg.fontname();
-    return true;
-}
-void panic(std::string message) {
+void panic(const std::string& message) {
     fl_alert("panic! I have to quit\n%s", message.c_str());
     exit(1);
 }
-class _DlgCheck : public Fl_Double_Window {
-    Fl_Button*                  _all;
+class _DateChooserDlg : public Fl_Double_Window {
+    gnu::Date&                  _value;
+    DateChooser*                _date_chooser;
     Fl_Button*                  _cancel;
-    Fl_Button*                  _close;
-    Fl_Button*                  _invert;
-    Fl_Button*                  _none;
-    Fl_Scroll*                  _scroll;
+    Fl_Button*                  _ok;
     GridGroup*                  _grid;
-    const StringVector&         _labels;
-    WidgetVector                _checkbuttons;
-    bool                        _ret;
+    bool                        _res;
+    bool                        _run;
 public:
-    _DlgCheck(const char* title, Fl_Window* parent, const StringVector& strings) :
-    Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 20),
-    _labels(strings) {
+    _DateChooserDlg(const std::string& title, gnu::Date& date, int W, int H) :
+    Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * W, flw::PREF_FONTSIZE * H),
+    _value(date) {
         end();
-        _ret    = false;
-        _all    = new Fl_Button(0, 0, 0, 0, "All on");
-        _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
-        _close  = new Fl_Return_Button(0, 0, 0, 0, "&Ok");
-        _grid   = new GridGroup(0, 0, w(), h());
-        _invert = new Fl_Button(0, 0, 0, 0, "Invert");
-        _none   = new Fl_Button(0, 0, 0, 0, "All off");
-        _scroll = new Fl_Scroll(0, 0, 0, 0);
-        _grid->add(_scroll,   1,  1, -1, -7);
-        _grid->add(_invert, -67, -5, 10,  4);
-        _grid->add(_none,   -56, -5, 10,  4);
-        _grid->add(_all,    -45, -5, 10,  4);
-        _grid->add(_cancel, -34, -5, 16,  4);
-        _grid->add(_close,  -17, -5, 16,  4);
+        _cancel       = new Fl_Button(0, 0, 0, 0, "&Cancel");
+        _date_chooser = new DateChooser(0, 0, 0, 0, "DateCHooser");
+        _grid         = new GridGroup(0, 0, w(), h());
+        _ok           = new Fl_Return_Button(0, 0, 0, 0, "&Ok");
+        _res          = false;
+        _run          = false;
+        _grid->add(_date_chooser,   0,   0,   0,  -6);
+        _grid->add(_cancel,       -34,  -5,  16,   4);
+        _grid->add(_ok,           -17,  -5,  16,   4);
         add(_grid);
-        for (auto& l : _labels) {
-            auto b = new Fl_Check_Button(0, 0, 0, 0, l.c_str() + 1);
-            b->value(*l.c_str() == '1');
-            _checkbuttons.push_back(b);
-            _scroll->add(b);
-        }
-        _all->callback(_DlgCheck::Callback, this);
-        _cancel->callback(_DlgCheck::Callback, this);
-        _close->callback(_DlgCheck::Callback, this);
-        _invert->callback(_DlgCheck::Callback, this);
-        _none->callback(_DlgCheck::Callback, this);
-        _scroll->box(FL_BORDER_BOX);
-        util::labelfont(this);
-        callback(_DlgCheck::Callback, this);
-        copy_label(title);
-        set_modal();
-        resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 12);
-        util::center_window(this, parent);
-    }
-    static void Callback(Fl_Widget* w, void* o) {
-        auto self = static_cast<_DlgCheck*>(o);
-        if (w == self || w == self->_cancel) {
-            self->hide();
-        }
-        else if (w == self->_close) {
-            self->_ret = true;
-            self->hide();
-        }
-        else if (w == self->_all) {
-            for (auto b : self->_checkbuttons) {
-                static_cast<Fl_Check_Button*>(b)->value(1);
-            }
-        }
-        else if (w == self->_none) {
-            for (auto b : self->_checkbuttons) {
-                static_cast<Fl_Check_Button*>(b)->value(0);
-            }
-        }
-        else if (w == self->_invert) {
-            for (auto b : self->_checkbuttons) {
-                static_cast<Fl_Check_Button*>(b)->value(static_cast<Fl_Check_Button*>(b)->value() ? 0 : 1);
-            }
-        }
-    }
-    void resize(int X, int Y, int W, int H) override {
-        Fl_Double_Window::resize(X, Y, W, H);
-        _grid->resize(0, 0, W, H);
-        auto y = _scroll->y() + 4;
-        for (auto b : _checkbuttons) {
-            b->resize(_scroll->x() + 4, y, _scroll->w() - Fl::scrollbar_size() - 8, flw::PREF_FONTSIZE * 2);
-            y += flw::PREF_FONTSIZE * 2;
-        }
-    }
-    StringVector run() {
-        StringVector res;
-        show();
-        while (visible() != 0) {
-            Fl::wait();
-            Fl::flush();
-        }
-        if (_ret == true) {
-            for (auto b : _checkbuttons) {
-                res.push_back(std::string((static_cast<Fl_Check_Button*>(b)->value() == 0) ? "0" : "1") + b->label());
-            }
-        }
-        return res;
-    }
-};
-StringVector check(std::string title, const StringVector& list, Fl_Window* parent) {
-    _DlgCheck dlg(title.c_str(), parent, list);
-    return dlg.run();
-}
-class _DlgChoice : public Fl_Double_Window {
-    Fl_Button*                  _cancel;
-    Fl_Button*                  _close;
-    Fl_Choice*                  _choice;
-    GridGroup*                  _grid;
-    int                         _ret;
-public:
-    _DlgChoice(const char* title, Fl_Window* parent, const StringVector& strings, int selected) :
-    Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 6) {
-        end();
-        _ret    = -1;
-        _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
-        _choice = new Fl_Choice(0, 0, 0, 0);
-        _close  = new Fl_Return_Button(0, 0, 0, 0, "&Ok");
-        _grid   = new GridGroup(0, 0, w(), h());
-        _grid->add(_choice,   1,  1, -1,  4);
-        _grid->add(_cancel, -34, -5, 16,  4);
-        _grid->add(_close,  -17, -5, 16,  4);
-        add(_grid);
-        for (const auto& string : strings) {
-            _choice->add(string.c_str());
-        }
-        _cancel->callback(_DlgChoice::Callback, this);
-        _choice->textfont(flw::PREF_FONT);
-        _choice->textsize(flw::PREF_FONTSIZE);
-        _choice->value(selected);
-        _close->callback(_DlgChoice::Callback, this);
-        util::labelfont(this);
-        callback(_DlgChoice::Callback, this);
-        copy_label(title);
-        set_modal();
-        resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 6);
-        util::center_window(this, parent);
+        _cancel->callback(Callback, this);
+        _date_chooser->focus();
+        _date_chooser->set(_value);
         _grid->do_layout();
+        _ok->callback(Callback, this);
+        util::labelfont(this);
+        callback(Callback, this);
+        copy_label(title.c_str());
+        resizable(_grid);
+        size_range(flw::PREF_FONTSIZE * 22, flw::PREF_FONTSIZE * 14);
+        set_modal();
     }
     static void Callback(Fl_Widget* w, void* o) {
-        auto self = static_cast<_DlgChoice*>(o);
-        if (w == self || w == self->_cancel) {
+        auto self = static_cast<_DateChooserDlg*>(o);
+        if (w == self) {
+        }
+        else if (w == self->_cancel) {
+            self->_run = false;
             self->hide();
         }
-        else if (w == self->_close) {
-            self->_ret = self->_choice->value();
+        else if (w == self->_ok) {
+            self->_res = true;
+            self->_run = false;
             self->hide();
         }
     }
-    int run() {
+    bool run(Fl_Window* parent) {
+        _run = true;
+        util::center_window(this, parent);
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
-        return _ret;
+        if (_res == true) {
+            _value = _date_chooser->get();
+        }
+        return _res;
     }
 };
-int choice(std::string title, const StringVector& list, int selected, Fl_Window* parent) {
-    _DlgChoice dlg(title.c_str(), parent, list, selected);
-    return dlg.run();
+bool date(const std::string& title, gnu::Date& date, Fl_Window* parent, int W, int H) {
+    _DateChooserDlg dlg(title, date, W, H);
+    return dlg.run(parent);
 }
 class _DlgHtml  : public Fl_Double_Window {
     Fl_Help_View*               _html;
     Fl_Return_Button*           _close;
     GridGroup*                  _grid;
+    bool                        _run;
 public:
-    _DlgHtml(const char* title, const char* text, Fl_Window* parent, int W, int H) :
+    _DlgHtml(const std::string& title, const std::string& text, Fl_Window* parent, int W, int H) :
     Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * W,flw::PREF_FONTSIZE * H) {
         end();
         _close = new Fl_Return_Button(0, 0, 0, 0, "&Close");
         _grid  = new GridGroup(0, 0, w(), h());
         _html  = new Fl_Help_View(0, 0, 0, 0);
+        _run   = false;
         _grid->add(_html,    1,  1, -1, -6);
         _grid->add(_close, -17, -5, 16,  4);
         add(_grid);
@@ -7660,9 +8655,9 @@ public:
         _close->labelsize(flw::PREF_FONTSIZE);
         _html->textfont(flw::PREF_FONT);
         _html->textsize(flw::PREF_FONTSIZE);
-        _html->value(text);
+        _html->value(text.c_str());
         callback(_DlgHtml::Callback, this);
-        copy_label(title);
+        copy_label(title.c_str());
         size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
@@ -7671,33 +8666,39 @@ public:
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgHtml*>(o);
-        if (w == self || w == self->_close) {
+        if (w == self) {
+        }
+        else if (w == self->_close) {
+            self->_run = false;
             self->hide();
         }
     }
     void run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
     }
 };
-void html(std::string title, const std::string& text, Fl_Window* parent, int W, int H) {
-    _DlgHtml dlg(title.c_str(), text.c_str(), parent, W, H);
+void html(const std::string& title, const std::string& text, Fl_Window* parent, int W, int H) {
+    _DlgHtml dlg(title, text, parent, W, H);
     dlg.run();
 }
 class _DlgList : public Fl_Double_Window {
     Fl_Return_Button*           _close;
     GridGroup*                  _grid;
     ScrollBrowser*              _list;
+    bool                        _run;
 public:
-    _DlgList(const char* title, const StringVector& list, std::string file, Fl_Window* parent = nullptr, bool fixed_font = false, int W = 50, int H = 20) :
+    _DlgList(const std::string& title, const StringVector& list, const std::string& file, bool fixed_font = false, Fl_Window* parent = nullptr, int W = 50, int H = 20) :
     Fl_Double_Window(0, 0, (fixed_font ? flw::PREF_FIXED_FONTSIZE : flw::PREF_FONTSIZE) * W, (fixed_font ? flw::PREF_FIXED_FONTSIZE : flw::PREF_FONTSIZE) * H) {
         end();
         _close = new Fl_Return_Button(0, 0, 0, 0, "&Close");
         _grid  = new GridGroup(0, 0, w(), h());
         _list  = new ScrollBrowser();
+        _run   = false;
         _grid->add(_list,     1,   1,  -1,  -6);
         _grid->add(_close,  -17,  -5,  16,   4);
         add(_grid);
@@ -7714,7 +8715,7 @@ public:
             _list->textsize(flw::PREF_FONTSIZE);
         }
         callback(_DlgList::Callback, this);
-        copy_label(title);
+        copy_label(title.c_str());
         size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
@@ -7731,29 +8732,33 @@ public:
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgList*>(o);
-        if (w == self || w == self->_close) {
+        if (w == self) {
+        }
+        else if (w == self->_close) {
+            self->_run = false;
             self->hide();
         }
     }
     void run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
     }
 };
-void list(std::string title, const StringVector& list, Fl_Window* parent, bool fixed_font, int W, int H) {
-    _DlgList dlg(title.c_str(), list, "", parent, fixed_font, W, H);
+void list(const std::string& title, const StringVector& list, bool fixed_font, Fl_Window* parent, int W, int H) {
+    _DlgList dlg(title, list, "", fixed_font, parent, W, H);
     dlg.run();
 }
-void list(std::string title, const std::string& list, Fl_Window* parent, bool fixed_font, int W, int H) {
+void list(const std::string& title, const std::string& list, bool fixed_font, Fl_Window* parent, int W, int H) {
     auto list2 = util::split_string( list, "\n");
-    _DlgList dlg(title.c_str(), list2, "", parent, fixed_font, W, H);
+    _DlgList dlg(title, list2, "", fixed_font, parent, W, H);
     dlg.run();
 }
-void list_file(std::string title, std::string file, Fl_Window* parent, bool fixed_font, int W, int H) {
-    _DlgList dlg(title.c_str(), flw::StringVector(), file, parent, fixed_font, W, H);
+void list_file(const std::string& title, const std::string& file, bool fixed_font, Fl_Window* parent, int W, int H) {
+    _DlgList dlg(title, flw::StringVector(), file, fixed_font, parent, W, H);
     dlg.run();
 }
 const char* PASSWORD_CANCEL = "&Cancel";
@@ -7762,8 +8767,8 @@ class _DlgPassword : public Fl_Double_Window {
 public:
     enum class TYPE {
                                 PASSWORD,
-                                PASSWORD_CHECK,
-                                PASSWORD_CHECK_WITH_FILE,
+                                PASSWORD_CONFIRM,
+                                PASSWORD_CONFIRM_WITH_FILE,
                                 PASSWORD_WITH_FILE,
     };
 private:
@@ -7776,8 +8781,9 @@ private:
     GridGroup*                  _grid;
     _DlgPassword::TYPE          _mode;
     bool                        _ret;
+    bool                        _run;
 public:
-    _DlgPassword(const char* title, Fl_Window* parent, _DlgPassword::TYPE mode) :
+    _DlgPassword(const std::string& title, _DlgPassword::TYPE mode, Fl_Window* parent) :
     Fl_Double_Window(0, 0, 10, 10) {
         end();
         _browse    = new Fl_Button(0, 0, 0, 0, "&Browse");
@@ -7789,6 +8795,7 @@ public:
         _password2 = new Fl_Secret_Input(0, 0, 0, 0, "Enter password again");
         _mode      = mode;
         _ret       = false;
+        _run       = false;
         _grid->add(_password1,  1,   3,  -1,  4);
         _grid->add(_password2,  1,  10,  -1,  4);
         _grid->add(_file,       1,  17,  -1,  4);
@@ -7814,7 +8821,7 @@ public:
         _password2->textfont(flw::PREF_FIXED_FONT);
         _password2->textsize(flw::PREF_FONTSIZE);
         _password2->when(FL_WHEN_CHANGED);
-        auto W = flw::PREF_FONTSIZE * 35;
+        auto W = flw::PREF_FONTSIZE * 40;
         auto H = flw::PREF_FONTSIZE * 13.5;
         if (_mode == _DlgPassword::TYPE::PASSWORD) {
             _password2->hide();
@@ -7822,7 +8829,7 @@ public:
             _file->hide();
             H = flw::PREF_FONTSIZE * 6.5;
         }
-        else if (_mode == _DlgPassword::TYPE::PASSWORD_CHECK) {
+        else if (_mode == _DlgPassword::TYPE::PASSWORD_CONFIRM) {
             _browse->hide();
             _file->hide();
             H = flw::PREF_FONTSIZE * 10;
@@ -7835,7 +8842,7 @@ public:
         resizable(_grid);
         util::labelfont(this);
         callback(_DlgPassword::Callback, this);
-        label(title);
+        copy_label(title.c_str());
         size(W, H);
         size_range(W, H);
         set_modal();
@@ -7845,7 +8852,6 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgPassword*>(o);
         if (w == self) {
-            ;
         }
         else if (w == self->_password1) {
             self->check();
@@ -7865,10 +8871,12 @@ public:
         }
         else if (w == self->_cancel) {
             self->_ret = false;
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_close) {
             self->_ret = true;
+            self->_run = false;
             self->hide();
         }
     }
@@ -7884,7 +8892,7 @@ public:
                 _close->deactivate();
             }
         }
-        else if (_mode == _DlgPassword::TYPE::PASSWORD_CHECK) {
+        else if (_mode == _DlgPassword::TYPE::PASSWORD_CONFIRM) {
             if (strlen(p1) > 0 && strcmp(p1, p2) == 0) {
                 _close->activate();
             }
@@ -7892,7 +8900,7 @@ public:
                 _close->deactivate();
             }
         }
-        else if (_mode == _DlgPassword::TYPE::PASSWORD_CHECK_WITH_FILE) {
+        else if (_mode == _DlgPassword::TYPE::PASSWORD_CONFIRM_WITH_FILE) {
             if (strlen(p1) > 0 && strcmp(p1, p2) == 0) {
                 _close->activate();
             }
@@ -7916,12 +8924,13 @@ public:
         }
     }
     bool run(std::string& password, std::string& file) {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
-        if (_ret) {
+        if (_ret == true) {
             file = _file->value();
             password = _password1->value();
         }
@@ -7931,22 +8940,22 @@ public:
         return _ret;
     }
 };
-bool password(std::string title, std::string& password, Fl_Window* parent) {
+bool password(const std::string& title, std::string& password, Fl_Window* parent) {
     std::string file;
-    _DlgPassword dlg(title.c_str(), parent, _DlgPassword::TYPE::PASSWORD);
+    _DlgPassword dlg(title.c_str(), _DlgPassword::TYPE::PASSWORD, parent);
     return dlg.run(password, file);
 }
-bool password_check(std::string title, std::string& password, Fl_Window* parent) {
+bool password_confirm(const std::string& title, std::string& password, Fl_Window* parent) {
     std::string file;
-    _DlgPassword dlg(title.c_str(), parent, _DlgPassword::TYPE::PASSWORD_CHECK);
+    _DlgPassword dlg(title.c_str(), _DlgPassword::TYPE::PASSWORD_CONFIRM, parent);
     return dlg.run(password, file);
 }
-bool password_check_with_file(std::string title, std::string& password, std::string& file, Fl_Window* parent) {
-    _DlgPassword dlg(title.c_str(), parent, _DlgPassword::TYPE::PASSWORD_CHECK_WITH_FILE);
+bool password_confirm_and_file(const std::string& title, std::string& password, std::string& file, Fl_Window* parent) {
+    _DlgPassword dlg(title.c_str(), _DlgPassword::TYPE::PASSWORD_CONFIRM_WITH_FILE, parent);
     return dlg.run(password, file);
 }
-bool password_with_file(std::string title, std::string& password, std::string& file, Fl_Window* parent) {
-    _DlgPassword dlg(title.c_str(), parent, _DlgPassword::TYPE::PASSWORD_WITH_FILE);
+bool password_and_file(const std::string& title, std::string& password, std::string& file, Fl_Window* parent) {
+    _DlgPassword dlg(title.c_str(), _DlgPassword::TYPE::PASSWORD_WITH_FILE, parent);
     return dlg.run(password, file);
 }
 class _DlgPrint : public Fl_Double_Window {
@@ -7959,9 +8968,10 @@ class _DlgPrint : public Fl_Double_Window {
     Fl_Hor_Slider*              _to;
     GridGroup*                  _grid;
     PrintCallback               _cb;
+    bool                        _run;
     void*                       _data;
 public:
-    _DlgPrint(std::string title, Fl_Window* parent, PrintCallback cb, void* data, int from, int to) :
+    _DlgPrint(const std::string& title, PrintCallback cb, void* data, int from, int to, Fl_Window* parent) :
     Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 34, flw::PREF_FONTSIZE * 18) {
         end();
         _close  = new Fl_Button(0, 0, 0, 0, "&Close");
@@ -7974,6 +8984,7 @@ public:
         _to     = new Fl_Hor_Slider(0, 0, 0, 0);
         _cb     = cb;
         _data   = data;
+        _run    = false;
         _grid->add(_from,     1,   3,  -1,   4);
         _grid->add(_to,       1,  10,  -1,   4);
         _grid->add(_format,   1,  15,  -1,   4);
@@ -7987,6 +8998,8 @@ public:
         _file->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _file->callback(_DlgPrint::Callback, this);
         _file->tooltip("Select output PostScript file.");
+        _format->textfont(flw::PREF_FONT);
+        _format->textsize(flw::PREF_FONTSIZE);
         _from->align(FL_ALIGN_TOP | FL_ALIGN_LEFT);
         _from->callback(_DlgPrint::Callback, this);
         _from->color(FL_BACKGROUND2_COLOR);
@@ -7994,6 +9007,8 @@ public:
         _from->precision(0);
         _from->value(from);
         _from->tooltip("Start page number.");
+        _layout->textfont(flw::PREF_FONT);
+        _layout->textsize(flw::PREF_FONTSIZE);
         _print->callback(_DlgPrint::Callback, this);
         _to->align(FL_ALIGN_TOP | FL_ALIGN_LEFT);
         _to->callback(_DlgPrint::Callback, this);
@@ -8028,9 +9043,9 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgPrint*>(o);
         if (w == self) {
-            self->hide();
         }
         else if (w == self->_close) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_file) {
@@ -8059,18 +9074,20 @@ public:
             fl_alert("Printing failed!\n%s", err.c_str());
             return;
         }
+        _run = false;
         hide();
     }
     void run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
     }
 };
-void print(std::string title, PrintCallback cb, void* data, int from, int to, Fl_Window* parent) {
-    _DlgPrint dlg(title, parent, cb, data, from, to);
+void print(const std::string& title, PrintCallback cb, void* data, int from, int to, Fl_Window* parent) {
+    _DlgPrint dlg(title, cb, data, from, to, parent);
     dlg.run();
 }
 class _DlgPrintText : public Fl_Double_Window {
@@ -8090,10 +9107,11 @@ class _DlgPrintText : public Fl_Double_Window {
     Fl_Hor_Slider*              _tab;
     GridGroup*                  _grid;
     bool                        _ret;
+    bool                        _run;
     const StringVector&         _text;
     std::string                 _label2;
 public:
-    _DlgPrintText(std::string title, Fl_Window* parent, const StringVector& text) :
+    _DlgPrintText(const std::string& title, const StringVector& text, Fl_Window* parent) :
     Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 34, flw::PREF_FONTSIZE * 35),
     _text(text) {
         end();
@@ -8111,6 +9129,7 @@ public:
         _tab      = new Fl_Hor_Slider(0, 0, 0, 0);
         _wrap     = new Fl_Check_Button(0, 0, 0, 0, "Wrap lines");
         _ret      = false;
+        _run      = false;
         _font     = FL_COURIER;
         _fontsize = 14;
         _grid->add(_border,   1,   1,  -1,   4);
@@ -8132,6 +9151,8 @@ public:
         _align->add("Right align");
         _align->tooltip("Line numbers are only used for left aligned text.");
         _align->value(0);
+        _align->textfont(flw::PREF_FONT);
+        _align->textsize(flw::PREF_FONTSIZE);
         _border->tooltip("Print line border around the print area.");
         _close->callback(_DlgPrintText::Callback, this);
         _file->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
@@ -8140,9 +9161,13 @@ public:
         _fonts->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _fonts->callback(_DlgPrintText::Callback, this);
         _fonts->tooltip("Select font to use.");
+        _format->textfont(flw::PREF_FONT);
+        _format->textsize(flw::PREF_FONTSIZE);
         _label->align(FL_ALIGN_TOP | FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _label->box(FL_BORDER_BOX);
         _label->box(FL_THIN_DOWN_BOX);
+        _layout->textfont(flw::PREF_FONT);
+        _layout->textsize(flw::PREF_FONTSIZE);
         _line->align(FL_ALIGN_TOP | FL_ALIGN_LEFT);
         _line->callback(_DlgPrintText::Callback, this);
         _line->color(FL_BACKGROUND2_COLOR);
@@ -8174,9 +9199,9 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgPrintText*>(o);
         if (w == self) {
-            self->hide();
         }
-        else if (w == self->_close) {
+        else if ( w == self->_close) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_file) {
@@ -8234,8 +9259,9 @@ public:
         redraw();
     }
     bool run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -8253,24 +9279,202 @@ public:
         _label->copy_label(_label2.c_str());
     }
 };
-bool print_text(std::string title, const std::string& text, Fl_Window* parent) {
+bool print_text(const std::string& title, const std::string& text, Fl_Window* parent) {
     auto lines = util::split_string(text, "\n");
-    _DlgPrintText dlg(title, parent, lines);
+    _DlgPrintText dlg(title, lines, parent);
     return dlg.run();
 }
-bool print_text(std::string title, const StringVector& text, Fl_Window* parent) {
-    _DlgPrintText dlg(title, parent, text);
+bool print_text(const std::string& title, const StringVector& text, Fl_Window* parent) {
+    _DlgPrintText dlg(title, text, parent);
     return dlg.run();
 }
-class _DlgSelect : public Fl_Double_Window {
+class _DlgSelectCheckBoxes : public Fl_Double_Window {
+    Fl_Button*                  _all;
+    Fl_Button*                  _cancel;
+    Fl_Button*                  _close;
+    Fl_Button*                  _invert;
+    Fl_Button*                  _none;
+    Fl_Scroll*                  _scroll;
+    GridGroup*                  _grid;
+    const StringVector&         _labels;
+    WidgetVector                _checkbuttons;
+    bool                        _ret;
+    bool                        _run;
+public:
+    _DlgSelectCheckBoxes(const std::string& title, const StringVector& strings, Fl_Window* parent) :
+    Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 20),
+    _labels(strings) {
+        end();
+        _all    = new Fl_Button(0, 0, 0, 0, "All on");
+        _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
+        _close  = new Fl_Return_Button(0, 0, 0, 0, "&Ok");
+        _grid   = new GridGroup(0, 0, w(), h());
+        _invert = new Fl_Button(0, 0, 0, 0, "Invert");
+        _none   = new Fl_Button(0, 0, 0, 0, "All off");
+        _scroll = new Fl_Scroll(0, 0, 0, 0);
+        _ret    = false;
+        _run    = false;
+        _grid->add(_scroll,   1,  1, -1, -7);
+        _grid->add(_invert, -67, -5, 10,  4);
+        _grid->add(_none,   -56, -5, 10,  4);
+        _grid->add(_all,    -45, -5, 10,  4);
+        _grid->add(_cancel, -34, -5, 16,  4);
+        _grid->add(_close,  -17, -5, 16,  4);
+        add(_grid);
+        for (auto& l : _labels) {
+            auto b = new Fl_Check_Button(0, 0, 0, 0, l.c_str() + 1);
+            b->value(*l.c_str() == '1');
+            _checkbuttons.push_back(b);
+            _scroll->add(b);
+        }
+        _all->callback(_DlgSelectCheckBoxes::Callback, this);
+        _cancel->callback(_DlgSelectCheckBoxes::Callback, this);
+        _close->callback(_DlgSelectCheckBoxes::Callback, this);
+        _invert->callback(_DlgSelectCheckBoxes::Callback, this);
+        _none->callback(_DlgSelectCheckBoxes::Callback, this);
+        _scroll->box(FL_BORDER_BOX);
+        util::labelfont(this);
+        callback(_DlgSelectCheckBoxes::Callback, this);
+        copy_label(title.c_str());
+        set_modal();
+        resizable(_grid);
+        size_range(flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 12);
+        util::center_window(this, parent);
+    }
+    static void Callback(Fl_Widget* w, void* o) {
+        auto self = static_cast<_DlgSelectCheckBoxes*>(o);
+        if (w == self) {
+        }
+        else if (w == self->_cancel) {
+            self->_run = false;
+            self->hide();
+        }
+        else if (w == self->_close) {
+            self->_ret = true;
+            self->_run = false;
+            self->hide();
+        }
+        else if (w == self->_all) {
+            for (auto b : self->_checkbuttons) {
+                static_cast<Fl_Check_Button*>(b)->value(1);
+            }
+        }
+        else if (w == self->_none) {
+            for (auto b : self->_checkbuttons) {
+                static_cast<Fl_Check_Button*>(b)->value(0);
+            }
+        }
+        else if (w == self->_invert) {
+            for (auto b : self->_checkbuttons) {
+                static_cast<Fl_Check_Button*>(b)->value(static_cast<Fl_Check_Button*>(b)->value() ? 0 : 1);
+            }
+        }
+    }
+    void resize(int X, int Y, int W, int H) override {
+        Fl_Double_Window::resize(X, Y, W, H);
+        _grid->resize(0, 0, W, H);
+        auto y = _scroll->y() + 4;
+        for (auto b : _checkbuttons) {
+            b->resize(_scroll->x() + 4, y, _scroll->w() - Fl::scrollbar_size() - 8, flw::PREF_FONTSIZE * 2);
+            y += flw::PREF_FONTSIZE * 2;
+        }
+    }
+    StringVector run() {
+        StringVector res;
+        _run = true;
+        show();
+        while (_run == true) {
+            Fl::wait();
+            Fl::flush();
+        }
+        if (_ret == true) {
+            for (auto b : _checkbuttons) {
+                res.push_back(std::string((static_cast<Fl_Check_Button*>(b)->value() == 0) ? "0" : "1") + b->label());
+            }
+        }
+        return res;
+    }
+};
+StringVector select_checkboxes(const std::string& title, const StringVector& list, Fl_Window* parent) {
+    _DlgSelectCheckBoxes dlg(title, list, parent);
+    return dlg.run();
+}
+class _DlgSelectChoice : public Fl_Double_Window {
+    Fl_Button*                  _cancel;
+    Fl_Button*                  _close;
+    Fl_Choice*                  _choice;
+    GridGroup*                  _grid;
+    bool                        _run;
+    int                         _ret;
+public:
+    _DlgSelectChoice(const std::string& title, const StringVector& strings, int selected, Fl_Window* parent) :
+    Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 6) {
+        end();
+        _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
+        _choice = new Fl_Choice(0, 0, 0, 0);
+        _close  = new Fl_Return_Button(0, 0, 0, 0, "&Ok");
+        _grid   = new GridGroup(0, 0, w(), h());
+        _ret    = -1;
+        _run    = false;
+        _grid->add(_choice,   1,  1, -1,  4);
+        _grid->add(_cancel, -34, -5, 16,  4);
+        _grid->add(_close,  -17, -5, 16,  4);
+        add(_grid);
+        for (const auto& string : strings) {
+            _choice->add(string.c_str());
+        }
+        _cancel->callback(_DlgSelectChoice::Callback, this);
+        _choice->textfont(flw::PREF_FONT);
+        _choice->textsize(flw::PREF_FONTSIZE);
+        _choice->value(selected);
+        _close->callback(_DlgSelectChoice::Callback, this);
+        util::labelfont(this);
+        callback(_DlgSelectChoice::Callback, this);
+        copy_label(title.c_str());
+        set_modal();
+        resizable(_grid);
+        size_range(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 6);
+        util::center_window(this, parent);
+        _grid->do_layout();
+    }
+    static void Callback(Fl_Widget* w, void* o) {
+        auto self = static_cast<_DlgSelectChoice*>(o);
+        if (w == self) {
+        }
+        else if (w == self->_cancel) {
+            self->_run = false;
+            self->hide();
+        }
+        else if (w == self->_close) {
+            self->_ret = self->_choice->value();
+            self->_run = false;
+            self->hide();
+        }
+    }
+    int run() {
+        _run = true;
+        show();
+        while (_run == true) {
+            Fl::wait();
+            Fl::flush();
+        }
+        return _ret;
+    }
+};
+int select_choice(const std::string& title, const StringVector& list, int selected, Fl_Window* parent) {
+    _DlgSelectChoice dlg(title, list, selected, parent);
+    return dlg.run();
+}
+class _DlgSelectString : public Fl_Double_Window {
     Fl_Button*                  _cancel;
     Fl_Button*                  _close;
     Fl_Input*                   _filter;
     GridGroup*                  _grid;
     ScrollBrowser*              _list;
     const StringVector&         _strings;
+    bool                        _run;
 public:
-    _DlgSelect(const char* title, Fl_Window* parent, const StringVector& strings, int selected_string_index, std::string selected_string, bool fixed_font, int W, int H) :
+    _DlgSelectString(const std::string& title, const StringVector& strings, int selected_string_index, const std::string& selected_string, bool fixed_font, Fl_Window* parent, int W, int H) :
     Fl_Double_Window(0, 0, ((fixed_font == true) ? flw::PREF_FIXED_FONTSIZE : flw::PREF_FONTSIZE) * W, ((fixed_font == true) ? flw::PREF_FIXED_FONTSIZE : flw::PREF_FONTSIZE) * H),
     _strings(strings) {
         end();
@@ -8279,17 +9483,18 @@ public:
         _filter = new Fl_Input(0, 0, 0, 0);
         _grid   = new GridGroup(0, 0, w(), h());
         _list   = new ScrollBrowser(0, 0, 0, 0);
+        _run    = false;
         _grid->add(_filter,   1,  1, -1,  4);
         _grid->add(_list,     1,  6, -1, -6);
         _grid->add(_cancel, -34, -5, 16,  4);
         _grid->add(_close,  -17, -5, 16,  4);
         add(_grid);
-        _cancel->callback(_DlgSelect::Callback, this);
-        _close->callback(_DlgSelect::Callback, this);
-        _filter->callback(_DlgSelect::Callback, this);
+        _cancel->callback(_DlgSelectString::Callback, this);
+        _close->callback(_DlgSelectString::Callback, this);
+        _filter->callback(_DlgSelectString::Callback, this);
         _filter->tooltip("Enter text to filter rows that macthes the text.\nPress tab to switch focus between input and list widget.");
         _filter->when(FL_WHEN_CHANGED);
-        _list->callback(_DlgSelect::Callback, this);
+        _list->callback(_DlgSelectString::Callback, this);
         _list->tooltip("Use Page Up or Page Down in list to scroll faster,");
         if (fixed_font == true) {
             _filter->textfont(flw::PREF_FIXED_FONT);
@@ -8327,8 +9532,8 @@ public:
         }
         _filter->take_focus();
         util::labelfont(this);
-        callback(_DlgSelect::Callback, this);
-        copy_label(title);
+        callback(_DlgSelectString::Callback, this);
+        copy_label(title.c_str());
         activate_button();
         size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
@@ -8345,9 +9550,16 @@ public:
         }
     }
     static void Callback(Fl_Widget* w, void* o) {
-        auto self = static_cast<_DlgSelect*>(o);
-        if (w == self || w == self->_cancel) {
+        auto self = static_cast<_DlgSelectString*>(o);
+        if (w == self) {
+        }
+        else if (w == self->_cancel) {
             self->_list->deselect();
+            self->_run = false;
+            self->hide();
+        }
+        else if (w == self->_close) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_filter) {
@@ -8358,20 +9570,18 @@ public:
             self->activate_button();
             if (Fl::event_clicks() > 0 && self->_close->active()) {
                 Fl::event_clicks(0);
+                self->_run = false;
                 self->hide();
             }
         }
-        else if (w == self->_close) {
-            self->hide();
-        }
     }
-    void filter(const char* filter) {
+    void filter(const std::string& filter) {
         _list->clear();
         for (const auto& string : _strings) {
-            if (*filter == 0) {
+            if (filter == "") {
                 _list->add(string.c_str());
             }
-            else if (strstr(string.c_str(), filter) != nullptr) {
+            else if (string.find(filter) != std::string::npos) {
                 _list->add(string.c_str());
             }
         }
@@ -8381,6 +9591,7 @@ public:
         if (event == FL_KEYDOWN) {
             if (Fl::event_key() == FL_Enter) {
                 if (_list->value() > 0) {
+                    _run = false;
                     hide();
                 }
                 return 1;
@@ -8398,30 +9609,31 @@ public:
         return Fl_Double_Window::handle(event);
     }
     int run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
         auto row = _list->value();
         if (row > 0) {
             auto selected = _list->text(row);
-            for (int f = 0; f < (int) _strings.size(); f++) {
+            for (int f = 0; f < static_cast<int>(_strings.size()); f++) {
                 const auto& string = _strings[f];
                 if (string == selected) {
-                    return f + 1;
+                    return f;
                 }
             }
         }
-        return 0;
+        return -1;
     }
 };
-int select(std::string title, const StringVector& list, int selected_row, Fl_Window* parent, bool fixed_font, int W, int H) {
-    _DlgSelect dlg(title.c_str(), parent, list, selected_row, "", fixed_font, W, H);
+int select_string(const std::string& title, const StringVector& list, int selected_row, bool fixed_font, Fl_Window* parent, int W, int H) {
+    _DlgSelectString dlg(title.c_str(), list, selected_row, "", fixed_font, parent, W, H);
     return dlg.run();
 }
-int select(std::string title, const StringVector& list, const std::string& selected_row, Fl_Window* parent, bool fixed_font, int W, int H) {
-    _DlgSelect dlg(title.c_str(), parent, list, 0, selected_row, fixed_font, W, H);
+int select_string(const std::string& title, const StringVector& list, const std::string& selected_row, bool fixed_font, Fl_Window* parent, int W, int H) {
+    _DlgSelectString dlg(title.c_str(), list, 0, selected_row, fixed_font, parent, W, H);
     return dlg.run();
 }
 class _DlgSlider : public Fl_Double_Window {
@@ -8430,17 +9642,19 @@ class _DlgSlider : public Fl_Double_Window {
     Fl_Hor_Value_Slider*        _slider;
     GridGroup*                  _grid;
     bool                        _ret;
+    bool                        _run;
     double&                     _value;
 public:
-    _DlgSlider(const char* title, Fl_Window* parent, double min, double max, double& value, double step) :
+    _DlgSlider(const std::string& title, double min, double max, double& value, double step, Fl_Window* parent) :
     Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 6),
     _value(value) {
         end();
-        _ret    = false;
         _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
         _slider = new Fl_Hor_Value_Slider(0, 0, 0, 0);
         _close  = new Fl_Return_Button(0, 0, 0, 0, "&Ok");
         _grid   = new GridGroup(0, 0, w(), h());
+        _ret    = false;
+        _run    = false;
         _grid->add(_slider,   1,  1, -1,  4);
         _grid->add(_cancel, -34, -5, 16,  4);
         _grid->add(_close,  -17, -5, 16,  4);
@@ -8456,7 +9670,7 @@ public:
         _close->callback(_DlgSlider::Callback, this);
         util::labelfont(this);
         callback(_DlgSlider::Callback, this);
-        copy_label(title);
+        copy_label(title.c_str());
         set_modal();
         resizable(_grid);
         size_range(flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 6);
@@ -8466,26 +9680,31 @@ public:
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgSlider*>(o);
-        if (w == self || w == self->_cancel) {
+        if (w == self) {
+        }
+        else if (w == self->_cancel) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_close) {
             self->_ret = true;
+            self->_run = false;
             self->_value = self->_slider->value();
             self->hide();
         }
     }
     int run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
         return _ret;
     }
 };
-bool slider(std::string title, double min, double max, double& value, double step, Fl_Window* parent) {
-    _DlgSlider dlg(title.c_str(), parent, min, max, value, step);
+bool slider(const std::string& title, double min, double max, double& value, double step, Fl_Window* parent) {
+    _DlgSlider dlg(title.c_str(), min, max, value, step, parent);
     return dlg.run();
 }
 class _DlgText : public Fl_Double_Window {
@@ -8496,23 +9715,33 @@ class _DlgText : public Fl_Double_Window {
     Fl_Text_Display*            _text;
     GridGroup*                  _grid;
     bool                        _edit;
+    bool                        _run;
     char*                       _res;
 public:
-    _DlgText(const char* title, const char* text, bool edit, Fl_Window* parent, int W, int H) :
+    _DlgText(const std::string& title, const char* text, bool edit, Fl_Window* parent, int W, int H) :
     Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * W, flw::PREF_FONTSIZE * H) {
         end();
         _buffer = new Fl_Text_Buffer();
-        _cancel = new Fl_Button(0, 0, 0, 0, "C&ancel");
-        _close  = (edit == false) ? new Fl_Return_Button(0, 0, 0, 0, "&Close") : new Fl_Button(0, 0, 0, 0, "&Update");
+        _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
+        _close  = new Fl_Return_Button(0, 0, 0, 0, "&Close");
         _grid   = new GridGroup(0, 0, w(), h());
         _save   = new Fl_Button(0, 0, 0, 0, "&Save");
         _text   = (edit == false) ? new Fl_Text_Display(0, 0, 0, 0) : new Fl_Text_Editor(0, 0, 0, 0);
         _edit   = edit;
         _res    = nullptr;
-        _grid->add(_text,     1,   1,  -1,  -6);
-        _grid->add(_cancel, -51,  -5,  16,   4);
-        _grid->add(_save,   -34,  -5,  16,   4);
-        _grid->add(_close,  -17,  -5,  16,   4);
+        _run    = false;
+        if (edit == false) {
+            _cancel->hide();
+            _grid->add(_text,     1,   1,  -1,  -6);
+            _grid->add(_save,   -34,  -5,  16,   4);
+            _grid->add(_close,  -17,  -5,  16,   4);
+        }
+        else {
+            _grid->add(_text,     1,   1,  -1,  -6);
+            _grid->add(_save,   -51,  -5,  16,   4);
+            _grid->add(_cancel, -34,  -5,  16,   4);
+            _grid->add(_close,  -17,  -5,  16,   4);
+        }
         add(_grid);
         _buffer->text(text);
         _cancel->callback(_DlgText::Callback, this);
@@ -8532,11 +9761,8 @@ public:
         _text->textfont(flw::PREF_FIXED_FONT);
         _text->textsize(flw::PREF_FIXED_FONTSIZE);
         util::labelfont(this);
-        if (edit == false) {
-            _cancel->hide();
-        }
         callback(_DlgText::Callback, this);
-        copy_label(title);
+        copy_label(title.c_str());
         size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
@@ -8549,7 +9775,10 @@ public:
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgText*>(o);
-        if (w == self || w == self->_cancel) {
+        if (w == self) {
+        }
+        else if (w == self->_cancel) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_save) {
@@ -8562,23 +9791,25 @@ public:
             if (self->_edit == true) {
                 self->_res = self->_buffer->text();
             }
+            self->_run = false;
             self->hide();
         }
     }
     char* run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
         return _res;
     }
 };
-void text(std::string title, const std::string& text, Fl_Window* parent, int W, int H) {
+void text(const std::string& title, const std::string& text, Fl_Window* parent, int W, int H) {
     _DlgText dlg(title.c_str(), text.c_str(), false, parent, W, H);
     dlg.run();
 }
-bool text_edit(std::string title, std::string& text, Fl_Window* parent, int W, int H) {
+bool text_edit(const std::string& title, std::string& text, Fl_Window* parent, int W, int H) {
     auto dlg = _DlgText(title.c_str(), text.c_str(), true, parent, W, H);
     auto res = dlg.run();
     if (res == nullptr) {
@@ -8597,6 +9828,7 @@ class _DlgTheme : public Fl_Double_Window {
     Fl_Button*                  _font;
     Fl_Check_Button*            _scale;
     GridGroup*                  _grid;
+    bool                        _run;
     int                         _theme_row;
 public:
     _DlgTheme(bool enable_font, bool enable_fixedfont, Fl_Window* parent) :
@@ -8611,10 +9843,11 @@ public:
         _scale       = new Fl_Check_Button(0, 0, 0, 0, "Use Scaling");
         _theme       = new Fl_Hold_Browser(0, 0, 0, 0);
         _theme_row   = 0;
+        _run         = false;
         _grid->add(_theme,         1,   1,  -1, -21);
         _grid->add(_font_label,    1, -20,  -1,   4);
         _grid->add(_fixed_label,   1, -15,  -1,   4);
-        _grid->add(_scale,         1, -11,  16,   4);
+        _grid->add(_scale,         1, -10,  -1,   4);
         _grid->add(_font,        -51,  -5,  16,   4);
         _grid->add(_fixedfont,   -34,  -5,  16,   4);
         _grid->add(_close,       -17,  -5,  16,   4);
@@ -8625,19 +9858,22 @@ public:
         if (enable_fixedfont == false) {
           _fixedfont->deactivate();
         }
-        if (flw::PREF_SCALE_ON == true) {
-            _scale->value(1);
-        }
         _close->callback(Callback, this);
         _fixed_label->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _fixed_label->box(FL_BORDER_BOX);
         _fixed_label->color(FL_BACKGROUND2_COLOR);
+        _fixed_label->tooltip("Default fixed font");
         _fixedfont->callback(Callback, this);
+        _fixedfont->tooltip("Set default fixed font.");
         _font->callback(Callback, this);
+        _font->tooltip("Set default font.");
         _font_label->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _font_label->box(FL_BORDER_BOX);
         _font_label->color(FL_BACKGROUND2_COLOR);
+        _font_label->tooltip("Default font.");
         _scale->callback(Callback, this);
+        _scale->tooltip("Turn on/off FLTK scaling for HiDPI screens.");
+        _scale->value(flw::PREF_SCALE_ON);
         _theme->box(FL_BORDER_BOX);
         _theme->callback(Callback, this);
         _theme->textfont(flw::PREF_FONT);
@@ -8650,6 +9886,17 @@ public:
                 break;
             }
         }
+        if (flw::PREF_SCALE_VAL < 0.1) {
+            if (parent != nullptr) {
+                flw::PREF_SCALE_VAL = Fl::screen_scale(parent->screen_num());
+            }
+            else if (Fl::first_window() != nullptr) {
+                flw::PREF_SCALE_VAL = Fl::screen_scale(Fl::first_window()->screen_num());
+            }
+            else {
+                flw::PREF_SCALE_VAL = Fl::screen_scale(0);
+            }
+        }
         resizable(_grid);
         callback(Callback, this);
         set_modal();
@@ -8659,6 +9906,9 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_DlgTheme*>(o);
         if (w == self) {
+        }
+        else if (w == self->_close) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_fixedfont) {
@@ -8733,8 +9983,8 @@ public:
         else if (w == self->_scale) {
             flw::PREF_SCALE_ON = self->_scale->value();
             if (flw::PREF_SCALE_ON == true) {
-                if (flw::PREF_SCALE > 0.5 && flw::PREF_SCALE_ON < 4.0) {
-                    Fl::screen_scale(self->top_window()->screen_num(), flw::PREF_SCALE);
+                if (flw::PREF_SCALE_VAL > 0.5 && flw::PREF_SCALE_ON < 4.0) {
+                    Fl::screen_scale(self->top_window()->screen_num(), flw::PREF_SCALE_VAL);
                 }
                 else {
                     Fl::screen_scale(self->top_window()->screen_num(), 1.0);
@@ -8745,13 +9995,11 @@ public:
             }
             self->update_pref();
         }
-        else if (w == self->_close) {
-            self->hide();
-        }
     }
     void run() {
+        _run = true;
         show();
-        while (visible()) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -8764,6 +10012,7 @@ public:
         _fixed_label->copy_label(util::format("%s - %d", flw::PREF_FIXED_FONTNAME.c_str(), flw::PREF_FIXED_FONTSIZE).c_str());
         _fixed_label->labelfont(flw::PREF_FIXED_FONT);
         _fixed_label->labelsize(flw::PREF_FIXED_FONTSIZE);
+        _theme->textfont(flw::PREF_FONT);
         _theme->textsize(flw::PREF_FONTSIZE);
         size(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 32);
         size_range(flw::PREF_FONTSIZE * 20, flw::PREF_FONTSIZE * 14);
@@ -8781,77 +10030,6 @@ public:
 void theme(bool enable_font, bool enable_fixedfont, Fl_Window* parent) {
     auto dlg = _DlgTheme(enable_font, enable_fixedfont, parent);
     dlg.run();
-}
-AbortDialog::AbortDialog(std::string label, double min, double max) :
-Fl_Double_Window(0, 0, 0, 0, "Working...") {
-    _button   = new Fl_Button(0, 0, 0, 0, "Press to abort");
-    _grid     = new GridGroup();
-    _progress = new Fl_Hor_Fill_Slider(0, 0, 0, 0);
-    _abort    = false;
-    _last     = 0;
-    _grid->add(_button,     1,   1,   -1,  -6);
-    _grid->add(_progress,   1,  -5,   -1,   4);
-    add(_grid);
-    auto W = flw::PREF_FONTSIZE * 32;
-    auto H = flw::PREF_FONTSIZE * 12;
-    if (min < max && fabs(max - min) > 0.001) {
-        _progress->range(min, max);
-        _progress->value(min);
-    }
-    else {
-        _progress->hide();
-        _grid->resize(_button, 1, 1, -1, -1);
-    }
-    _button->callback(AbortDialog::Callback, this);
-    _button->labelfont(flw::PREF_FONT);
-    _button->labelsize(flw::PREF_FONTSIZE);
-    _progress->color(FL_SELECTION_COLOR);
-    if (label != "") {
-        copy_label(label.c_str());
-    }
-    resizable(this);
-    size(W, H);
-    size_range(W, H);
-    callback(AbortDialog::Callback, this);
-    set_modal();
-}
-void AbortDialog::Callback(Fl_Widget* w, void* o) {
-    auto self = static_cast<AbortDialog*>(o);
-    if (w == self->_button) {
-        self->_abort = true;
-    }
-}
-bool AbortDialog::check(int milliseconds) {
-    auto now = util::milliseconds();
-    if (now - _last > milliseconds) {
-        _last = now;
-        Fl::check();
-    }
-    return _abort;
-}
-bool AbortDialog::check(double value, double min, double max, int milliseconds) {
-    auto now = util::milliseconds();
-    if (now - _last > milliseconds) {
-        _progress->value(value);
-        _progress->range(min, max);
-        _last = now;
-        Fl::check();
-    }
-    return _abort;
-}
-void AbortDialog::range(double min, double max) {
-    _progress->range(min, max);
-}
-void AbortDialog::show(const std::string& label, Fl_Window* parent) {
-    _abort = false;
-    _last  = 0;
-    _button->copy_label(label.c_str());
-    util::center_window(this, parent);
-    Fl_Double_Window::show();
-    Fl::flush();
-}
-void AbortDialog::value(double value) {
-    _progress->value(value);
 }
 static const std::string _FONTDIALOG_LABEL = R"(
 ABCDEFGHIJKLMNOPQRSTUVWXYZ /0123456789
@@ -8898,13 +10076,13 @@ public:
         fl_draw(label(), x() + 3, y() + 3, w() - 6, h() - 6, align());
     }
 };
-FontDialog::FontDialog(Fl_Font font, Fl_Fontsize fontsize, const std::string& label, bool limit_to_default) :
+FontDialog::FontDialog(Fl_Font font, Fl_Fontsize fontsize, const std::string& title, bool limit_to_default) :
 Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 64, flw::PREF_FONTSIZE * 36) {
-    _create(font, "", fontsize, label, limit_to_default);
+    _create(font, "", fontsize, title, limit_to_default);
 }
-FontDialog::FontDialog(std::string font, Fl_Fontsize fontsize, std::string label, bool limit_to_default) :
+FontDialog::FontDialog(const std::string& font, Fl_Fontsize fontsize, const std::string& title, bool limit_to_default) :
 Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 64, flw::PREF_FONTSIZE * 36) {
-    _create(0, font, fontsize, label, limit_to_default);
+    _create(0, font, fontsize, title, limit_to_default);
 }
 void FontDialog::_activate() {
     if (_fonts->value() == 0 || _sizes->value() == 0 || (_fonts->active() == 0 && _sizes->active() == 0)) {
@@ -8917,9 +10095,9 @@ void FontDialog::_activate() {
 void FontDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<FontDialog*>(o);
     if (w == self) {
-        self->hide();
     }
     else if (w == self->_cancel) {
+        self->_run = false;
         self->hide();
     }
     else if (w == self->_fonts) {
@@ -8939,6 +10117,7 @@ void FontDialog::Callback(Fl_Widget* w, void* o) {
             self->_font     = row1;
             self->_fontsize = row2 + 5;
             self->_ret      = true;
+            self->_run      = false;
             self->hide();
         }
     }
@@ -8951,7 +10130,7 @@ void FontDialog::Callback(Fl_Widget* w, void* o) {
         Fl::redraw();
     }
 }
-void FontDialog::_create(Fl_Font font, std::string fontname, Fl_Fontsize fontsize, std::string label, bool limit_to_default) {
+void FontDialog::_create(Fl_Font font, const std::string& fontname, Fl_Fontsize fontsize, const std::string& title, bool limit_to_default) {
     end();
     _cancel   = new Fl_Button(0, 0, 0, 0, "&Cancel");
     _fonts    = new ScrollBrowser(12);
@@ -8962,6 +10141,7 @@ void FontDialog::_create(Fl_Font font, std::string fontname, Fl_Fontsize fontsiz
     _font     = -1;
     _fontsize = -1;
     _ret      = false;
+    _run      = false;
     _grid->add(_fonts,    1,   1,  50,  -6);
     _grid->add(_sizes,   52,   1,  12,  -6);
     _grid->add(_label,   65,   1,  -1,  -6);
@@ -9020,26 +10200,27 @@ void FontDialog::_create(Fl_Font font, std::string fontname, Fl_Fontsize fontsiz
         _fonts->value(1);
         _fonts->middleline(1);
     }
-    resizable(this);
-    copy_label(label.c_str());
+    resizable(_grid);
+    copy_label(title.c_str());
     callback(FontDialog::Callback, this);
     size_range(flw::PREF_FONTSIZE * 38, flw::PREF_FONTSIZE * 12);
     set_modal();
     _fonts->take_focus();
-    _grid->do_layout();
+    _grid->resize(0, 0, w(), h());
 }
 bool FontDialog::run(Fl_Window* parent) {
     _ret = false;
+    _run = true;
     _activate();
     util::center_window(this, parent);
     show();
-    while (visible() != 0) {
+    while (_run == true) {
         Fl::wait();
         Fl::flush();
     }
     return _ret;
 }
-void FontDialog::_select_name(std::string fontname) {
+void FontDialog::_select_name(const std::string& fontname) {
     auto count = 1;
     for (auto f : flw::PREF_FONTNAMES) {
         auto font_without_style = util::remove_browser_format(f);
@@ -9054,19 +10235,32 @@ void FontDialog::_select_name(std::string fontname) {
     _fonts->value(1);
     static_cast<_FontDialogLabel*>(_label)->font = 0;
 }
-WorkDialog::WorkDialog(const char* title, Fl_Window* parent, bool cancel, bool pause, int W, int H) :
-Fl_Double_Window(0, 0, W * flw::PREF_FONTSIZE, H * flw::PREF_FONTSIZE) {
+bool font(Fl_Font& font, Fl_Fontsize& fontsize, std::string& fontname, bool limit_to_default) {
+    auto dlg = dlg::FontDialog(font, fontsize, "Select Font", limit_to_default);
+    if (dlg.run() == false) {
+        return false;
+    }
+    font     = dlg.font();
+    fontsize = dlg.fontsize();
+    fontname = dlg.fontname();
+    return true;
+}
+WorkDialog::WorkDialog(const std::string& title, bool cancel, bool pause, double min, double max) :
+Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 12) {
     end();
-    _cancel = new Fl_Button(0, 0, 0, 0, "Cancel");
-    _grid   = new GridGroup();
-    _label  = new Fl_Hold_Browser(0, 0, 0, 0);
-    _pause  = new Fl_Toggle_Button(0, 0, 0, 0, "Pause");
-    _ret    = true;
-    _last   = 0.0;
-    _grid->add(_label,    1,   1,  -1,  -6);
-    _grid->add(_pause,  -34,  -5,  16,   4);
-    _grid->add(_cancel, -17,  -5,  16,   4);
+    _cancel   = new Fl_Button(0, 0, 0, 0, "&Cancel");
+    _grid     = new GridGroup(0, 0, w(), h());
+    _label    = new Fl_Hold_Browser(0, 0, 0, 0);
+    _pause    = new Fl_Toggle_Button(0, 0, 0, 0, "&Pause");
+    _progress = new Fl_Hor_Fill_Slider(0, 0, 0, 0);
+    _ret      = true;
+    _last     = 0;
+    _grid->add(_label,     1,   1,  -1, -11);
+    _grid->add(_progress,  1, -10,  -1,   4);
+    _grid->add(_pause,   -34,  -5,  16,   4);
+    _grid->add(_cancel,  -17,  -5,  16,   4);
     add(_grid);
+    range(min, max);
     _cancel->callback(WorkDialog::Callback, this);
     _label->box(FL_BORDER_BOX);
     _label->textfont(flw::PREF_FONT);
@@ -9080,12 +10274,11 @@ Fl_Double_Window(0, 0, W * flw::PREF_FONTSIZE, H * flw::PREF_FONTSIZE) {
     }
     util::labelfont(this);
     callback(WorkDialog::Callback, this);
-    copy_label(title);
+    copy_label(title.c_str());
     size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
     set_modal();
-    resizable(this);
-    util::center_window(this, parent);
-    show();
+    resizable(_grid);
+    _grid->resize(0, 0, w(), h());
 }
 void WorkDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<WorkDialog*>(o);
@@ -9097,20 +10290,35 @@ void WorkDialog::Callback(Fl_Widget* w, void* o) {
     else if (w == self->_pause) {
         bool cancel = self->_cancel->active();
         self->_cancel->deactivate();
-        self->_pause->label("C&ontinue");
         while (self->_pause->value() != 0) {
-            util::sleep(10);
+            util::sleep(20);
             Fl::check();
         }
-        self->_pause->label("&Pause");
-        if (cancel) {
+        if (cancel == true) {
             self->_cancel->activate();
         }
     }
 }
-bool WorkDialog::run(double update_time, const StringVector& messages) {
-    auto now = util::clock();
-    if ((now - _last) > update_time) {
+void WorkDialog::range(double min, double max) {
+    if (min < max && fabs(max - min) > 0.001) {
+        _progress->show();
+        _progress->range(min, max);
+        _progress->value(min);
+        _grid->resize(_label, 1, 1, -1, -11);
+    }
+    else {
+        _progress->hide();
+        _grid->resize(_label, 1, 1, -1, -6);
+    }
+}
+void WorkDialog::start(Fl_Window* parent) {
+    util::center_window(this, parent);
+    Fl_Double_Window::show();
+}
+bool WorkDialog::update(double value, const StringVector& messages, unsigned milli) {
+    auto now = static_cast<unsigned>(util::milliseconds());
+    if (now - _last > milli) {
+        _progress->value(value);
         _label->clear();
         for (const auto& s : messages) {
             _label->add(s.c_str());
@@ -9121,17 +10329,327 @@ bool WorkDialog::run(double update_time, const StringVector& messages) {
     }
     return _ret;
 }
-bool WorkDialog::run(double update_time, const std::string& message) {
-    auto now = util::clock();
-    if ((now - _last) > update_time) {
-        _label->clear();
-        _label->add(message.c_str());
-        _last = now;
-        Fl::check();
-        Fl::flush();
-    }
-    return _ret;
+bool WorkDialog::update(const StringVector& messages, unsigned milli) {
+    return update(0.0, messages, milli);
 }
+bool WorkDialog::update(double value, const std::string& message, unsigned milli) {
+    auto messages = std::vector<std::string>();
+    messages.push_back(message);
+    return update(value, messages, milli);
+}
+bool WorkDialog::update(const std::string& message, unsigned milli) {
+    return update(0.0, message, milli);
+}
+void WorkDialog::value(double value) {
+    if (value < _progress->minimum()) {
+        _progress->value(_progress->minimum());
+    }
+    else if (value > _progress->maximum()) {
+        _progress->value(_progress->maximum());
+    }
+    else {
+        _progress->value(value);
+    }
+}
+}
+}
+#include <FL/Fl_Double_Window.H>
+#include <FL/Fl_Repeat_Button.H>
+#include <FL/Fl_Return_Button.H>
+#include <FL/fl_draw.H>
+#include <time.h>
+namespace flw {
+class _DateChooserCanvas : public Fl_Widget {
+    gnu::Date                   _date[7][8];
+    std::string                 _text[7][8];
+    int                         _col;
+    int                         _row;
+public:
+    _DateChooserCanvas() :
+    Fl_Widget(0, 0, 0, 0, 0) {
+        _row   = 1;
+        _col   = 1;
+        _text[0][0] = "Week";
+        _text[0][1] = "Mon";
+        _text[0][2] = "Tue";
+        _text[0][3] = "Wed";
+        _text[0][4] = "Thu";
+        _text[0][5] = "Fri";
+        _text[0][6] = "Sat";
+        _text[0][7] = "Sun";
+    }
+    void draw() override {
+        int cw  = w() / 8;
+        int ch  = h() / 7;
+        int d   = 99;
+        int col = 0;
+        fl_rectf(x(), y(), w(), h(), FL_BACKGROUND_COLOR);
+        for (int r = 0; r < 7; r++) {
+            for (int c  = 0; c < 8; c++) {
+                auto t  = _text[r][c];
+                auto x1 = x() + (c * cw) + 1;
+                auto y1 = y() + (r * ch) + 1;
+                auto w1 = (c == 7) ? x() + w() - x1 : cw - 2;
+                auto h1 = (r == 6) ? y() + h() - y1 : ch - 2;
+                auto bg = FL_BACKGROUND_COLOR;
+                auto fg = FL_FOREGROUND_COLOR;
+                if (r == 0 || c == 0) {
+                }
+                else {
+                    int v = atoi(t.c_str());
+                    if (v <= d && col < 3) {
+                        d = v;
+                        col++;
+                    }
+                    if (r == _row && c == _col) {
+                        bg = FL_SELECTION_COLOR;
+                        fg = fl_contrast(FL_FOREGROUND_COLOR, bg);
+                    }
+                    else if (col == 2) {
+                        bg = FL_BACKGROUND2_COLOR;
+                    }
+                    else {
+                        bg = FL_DARK2;
+                    }
+                }
+                fl_rectf(x1, y1, w1, h1, bg);
+                fl_color(fg);
+                fl_font(r == 0 || c == 0 ? FL_HELVETICA_BOLD : FL_HELVETICA, flw::PREF_FONTSIZE);
+                fl_draw(t.c_str(), x1, y1, w1, h1, FL_ALIGN_CENTER | FL_ALIGN_INSIDE);
+                fl_rect(x1, y1, w1, h1, FL_DARK3);
+            }
+        }
+    }
+    gnu::Date get() {
+        return _date[_row][_col];
+    }
+    int handle(int event) override {
+        if (event == FL_PUSH) {
+            take_focus();
+            auto cw = (int) (w() / 8);
+            auto ch = (int) (h() / 7);
+            for (auto r = 1; r < 7; r++) {
+                for (auto c = 1; c < 8; c++) {
+                    auto x1 = (int) (x() + (c * cw));
+                    auto y1 = (int) (y() + (r * ch));
+                    if (Fl::event_x() >= x1 && Fl::event_x() < x1 + cw && Fl::event_y() >= y1 && Fl::event_y() < y1 + ch) {
+                        _row = r;
+                        _col = c;
+                        do_callback();
+                        redraw();
+                        break;
+                    }
+                }
+            }
+            return 1;
+        }
+        else if (event == FL_FOCUS) {
+            return 1;
+        }
+        else if (event == FL_KEYDOWN) {
+            if (Fl::event_command() == 0) {
+                int num = Fl::event_key();
+                if (num == FL_Up) {
+                    if (_row > 1) {
+                        _row--;
+                        redraw();
+                        do_callback();
+                    }
+                    return 1;
+                }
+                else if (num == FL_Down) {
+                    if (_row < 6) {
+                        _row++;
+                        redraw();
+                        do_callback();
+                    }
+                    return 1;
+                }
+                else if (num == FL_Left) {
+                    if (_col > 1) {
+                        _col--;
+                        redraw();
+                        do_callback();
+                    }
+                    return 1;
+                }
+                else if (num == FL_Right) {
+                    if (_col < 7) {
+                        _col++;
+                        redraw();
+                        do_callback();
+                    }
+                    return 1;
+                }
+            }
+        }
+        return Fl_Widget::handle(event);
+    }
+    void set_current(int row, int col) {
+        if (row != _row || col != _col) {
+            _row = row;
+            _col = col;
+            do_callback();
+        }
+    }
+    void set_date(int row, int col, const gnu::Date& date) {
+        _date[row][col] = date;
+    }
+    void set_text(int row, int col, const std::string& text) {
+        _text[row][col] = text;
+    }
+};
+flw::DateChooser::DateChooser(int X, int Y, int W, int H, const char* l) :
+GridGroup(X, Y, W, H, l) {
+    end();
+    _b1          = new Fl_Repeat_Button(0, 0, 0, 0, "@<<");
+    _b2          = new Fl_Repeat_Button(0, 0, 0, 0, "@<");
+    _b3          = new Fl_Repeat_Button(0, 0, 0, 0, "@>");
+    _b4          = new Fl_Repeat_Button(0, 0, 0, 0, "@>>");
+    _b5          = new Fl_Button(0, 0, 0, 0, "@refresh");
+    _b6          = new Fl_Repeat_Button(0, 0, 0, 0, "@|<");
+    _b7          = new Fl_Repeat_Button(0, 0, 0, 0, "@>|");
+    _buttons     = new ToolGroup();
+    _canvas      = new _DateChooserCanvas();
+    _month_label = new Fl_Box(0, 0, 0, 0, "");
+    gnu::Date date;
+    set(date);
+    _set_label();
+    _buttons->add(_b6);
+    _buttons->add(_b1);
+    _buttons->add(_b2);
+    _buttons->add(_b5, 8);
+    _buttons->add(_b3);
+    _buttons->add(_b4);
+    _buttons->add(_b7);
+    _buttons->expand_last(true);
+    add(_buttons,     0, 0, 0, 4);
+    add(_month_label, 0, 4, 0, 4);
+    add(_canvas,      0, 8, 0, 0);
+    _b1->callback(flw::DateChooser::_Callback, this);
+    _b1->tooltip("Previous year");
+    _b2->callback(flw::DateChooser::_Callback, this);
+    _b2->tooltip("Previous month");
+    _b3->callback(flw::DateChooser::_Callback, this);
+    _b3->tooltip("Next month");
+    _b4->callback(flw::DateChooser::_Callback, this);
+    _b4->tooltip("Next year");
+    _b5->callback(flw::DateChooser::_Callback, this);
+    _b5->tooltip("Today");
+    _b6->callback(flw::DateChooser::_Callback, this);
+    _b6->tooltip("10 years in the past");
+    _b7->callback(flw::DateChooser::_Callback, this);
+    _b7->tooltip("10 years in the future");
+    _canvas->callback(flw::DateChooser::_Callback, this);
+    _month_label->box(FL_UP_BOX);
+    util::labelfont(this);
+    tooltip("Use arrow keys to navigate\nUse ctrl+left/right to change month");
+    resizable(this);
+    do_layout();
+}
+void flw::DateChooser::_Callback(Fl_Widget* w, void* o) {
+    auto dc = static_cast<DateChooser*>(o);
+    auto dt = dc->get();
+    if (w == dc->_b6) {
+        dt.add_months(-120);
+        dc->set(dt);
+    }
+    else if (w == dc->_b1) {
+        dt.add_months(-12);
+        dc->set(dt);
+    }
+    else if (w == dc->_b2) {
+        dt.add_months(-1);
+        dc->set(dt);
+    }
+    else if (w == dc->_b5) {
+        dt = gnu::Date(::time(0));
+        dc->set(dt);
+    }
+    else if (w == dc->_b3) {
+        dt.add_months(1);
+        dc->set(dt);
+    }
+    else if (w == dc->_b4) {
+        dt.add_months(12);
+        dc->set(dt);
+    }
+    else if (w == dc->_b7) {
+        dt.add_months(120);
+        dc->set(dt);
+    }
+    else if (w == dc->_canvas) {
+        dc->_set_label();
+        dc->do_callback();
+    }
+    dc->_canvas->take_focus();
+}
+void flw::DateChooser::draw() {
+    _month_label->labelfont(FL_HELVETICA_BOLD);
+    Fl_Group::draw();
+}
+void flw::DateChooser::focus() {
+    _canvas->take_focus();
+}
+gnu::Date flw::DateChooser::get() const {
+    return static_cast<flw::_DateChooserCanvas*>(_canvas)->get();
+}
+int flw::DateChooser::handle(int event) {
+    if (event == FL_KEYDOWN) {
+        if (Fl::event_command()) {
+            gnu::Date dt = get();
+            if (Fl::event_key() == FL_Left) {
+                dt.add_months(-1);
+                set(dt);
+                return 1;
+            }
+            else if (Fl::event_key() == FL_Right) {
+                dt.add_months(+1);
+                set(dt);
+                return 1;
+            }
+        }
+    }
+    return Fl_Group::handle(event);
+}
+void flw::DateChooser::set(const gnu::Date& date) {
+    auto arg    = date;
+    auto canvas = static_cast<flw::_DateChooserCanvas*>(_canvas);
+    if (arg.is_invalid() == true) {
+        arg = gnu::Date();
+    }
+    else if (arg.year() < 2 && arg.month() < 2) {
+        arg.set_month(2);
+    }
+    auto start_cell   = 0;
+    auto first_date   = gnu::Date(arg.year(), arg.month(), 1);
+    auto current_date = gnu::Date();
+    char tmp[30];
+    start_cell    = static_cast<int>(first_date.weekday()) - 1;
+    start_cell    = start_cell + first_date.days_in_month() < 32 ? start_cell + 7 : start_cell;
+    current_date  = first_date;
+    current_date.add_days(-start_cell);
+    for (auto r = 1; r <= 6; r++) {
+        snprintf(tmp, 30, "%02d", current_date.week());
+        canvas->set_text(r, 0, tmp);
+        for (auto c = 1; c <= 7; c++) {
+            snprintf(tmp, 30, "%02d", current_date.day());
+            canvas->set_text(r, c, tmp);
+            canvas->set_date(r, c, current_date);
+            if (current_date.month() == arg.month() && current_date.day() == arg.day()) {
+                canvas->set_current(r, c);
+            }
+            current_date.add_days(1);
+        }
+    }
+    _set_label();
+    redraw();
+}
+void flw::DateChooser::_set_label() {
+    auto canvas = static_cast<flw::_DateChooserCanvas*>(_canvas);
+    auto date   = canvas->get();
+    auto string = date.format(gnu::Date::FORMAT::WEEKDAY_MONTH_YEAR);
+    _month_label->copy_label(string.c_str());
 }
 }
 namespace flw {
@@ -9319,7 +10837,9 @@ void GridGroup::resize(Fl_Widget* widget, int X, int Y, int W, int H) {
 }
 #include <algorithm>
 namespace flw {
-static const std::string _INPUTMENU_TOOLTIP = "Use up/down arrows to switch between previous values\nPress ctrl + space to open menu button (if visible)";
+namespace inputmenu {
+    static constexpr const char* TOOLTIP = "Use up/down arrows to switch between previous values.\nPress ctrl + space to open menu button (if visible).";
+}
 class _InputMenu : public Fl_Input {
 public:
     bool            show_menu;
@@ -9370,32 +10890,33 @@ InputMenu::InputMenu(int X, int Y, int W, int H, const char* l) : Fl_Group(X, Y,
     _menu  = new Fl_Menu_Button(0, 0, 0, 0);
     Fl_Group::add(_input);
     Fl_Group::add(_menu);
-    _input->callback(InputMenu::Callback, this);
+    _input->callback(InputMenu::_CallbackInput, this);
     _input->when(FL_WHEN_ENTER_KEY_ALWAYS);
-    _menu->callback(InputMenu::Callback, this);
-    _menu->tooltip(_INPUTMENU_TOOLTIP.c_str());
+    _menu->callback(InputMenu::_CallbackMenu, this);
+    _menu->tooltip(inputmenu::TOOLTIP);
+    tooltip(inputmenu::TOOLTIP);
     update_pref();
+    resize(X, Y, W, H);
 }
-void InputMenu::Callback(Fl_Widget* w, void* o) {
+void InputMenu::_CallbackInput(Fl_Widget*, void* o) {
     auto self = static_cast<InputMenu*>(o);
-    if (w == self->_input) {
-        if (self->_input->show_menu) {
-            if (self->_menu->visible()) {
-                self->_menu->popup();
-            }
-        }
-        else {
-            self->do_callback();
+    if (self->_input->show_menu == true) {
+        if (self->_menu->visible() != 0) {
+            self->_menu->popup();
         }
     }
-    else if (w == self->_menu) {
-        auto index = self->_menu->find_index(self->_menu->text());
-        if (index >= 0 && index < (int) self->_input->history.size()) {
-            self->_input->value(self->_input->history[index].c_str());
-            self->_input->index = index;
-        }
-        self->_input->take_focus();
+    else {
+        self->do_callback();
     }
+}
+void InputMenu::_CallbackMenu(Fl_Widget*, void* o) {
+    auto self  = static_cast<InputMenu*>(o);
+    auto index = self->_menu->find_index(self->_menu->text());
+    if (index >= 0 && index < (int) self->_input->history.size()) {
+        self->_input->value(self->_input->history[index].c_str());
+        self->_input->index = index;
+    }
+    self->_input->take_focus();
 }
 void InputMenu::clear() {
     _menu->clear();
@@ -9405,7 +10926,7 @@ void InputMenu::clear() {
 flw::StringVector InputMenu::get_history() const {
     return _input->history;
 }
-void InputMenu::insert(std::string string, int max_list_len) {
+void InputMenu::insert(const std::string& string, unsigned max_list_len) {
     for (auto it = _input->history.begin(); it != _input->history.end(); ++it) {
         if (*it == string) {
             _input->history.erase(it);
@@ -9413,7 +10934,7 @@ void InputMenu::insert(std::string string, int max_list_len) {
         }
     }
     _input->history.insert(_input->history.begin(), string);
-    while ((int) _input->history.size() > max_list_len) {
+    while (static_cast<unsigned>(_input->history.size()) > max_list_len) {
         _input->history.pop_back();
     }
     _menu->clear();
@@ -9438,108 +10959,105 @@ void InputMenu::resize(int X, int Y, int W, int H) {
 void InputMenu::update_pref(Fl_Font text_font, Fl_Fontsize text_size) {
     labelfont(flw::PREF_FONT);
     labelsize(flw::PREF_FONTSIZE);
-    _input->labelfont(text_font);
-    _input->labelsize(text_font);
     _input->textfont(text_font);
     _input->textsize(text_size);
-    _menu->labelfont(text_font);
-    _menu->labelsize(text_size);
     _menu->textfont(text_font);
     _menu->textsize(text_size);
 }
-const char* InputMenu::value() const {
-    return _input->value();
+std::string InputMenu::value() const {
+    return flw::util::to_string(_input->value());
 }
-void InputMenu::value(const char* string) {
-    _input->value(string ? string : "");
+void InputMenu::value(const std::string& string) {
+    _input->value(string.c_str());
 }
-void InputMenu::values(const StringVector& list, bool copy_first_to_input) {
+void InputMenu::_values(const StringVector& menu_list, const std::string& input_value) {
     clear();
-    _input->history = list;
+    _input->history = menu_list;
     for (const auto& s : _input->history) {
         _menu->add(flw::util::fix_menu_string(s.c_str()).c_str());
     }
-    if (list.size() > 0 && copy_first_to_input == true) {
-        auto s = list.front();
-        _input->value(s.c_str());
-        _input->insert_position(s.length(), 0);
-    }
+    _input->value(input_value.c_str());
+    _input->insert_position(input_value.length(), 0);
 }
 }
 namespace flw {
-    RecentMenu::RecentMenu(Fl_Menu_* menu, Fl_Callback* file_callback, void* userdata, std::string base_label, std::string clear_label) {
-        _menu     = menu;
-        _callback = file_callback;
-        _base     = base_label;
-        _clear    = clear_label;
-        _user     = userdata;
-        _max      = 10;
+RecentMenu::RecentMenu(Fl_Menu_* menu, Fl_Callback* callback, void* userdata, const std::string& base_label, const std::string& clear_label) {
+    _menu     = menu;
+    _callback = callback;
+    _base     = base_label;
+    _clear    = clear_label;
+    _user     = userdata;
+    _max      = 10;
+    _menu->add((_base + _clear).c_str(), 0, RecentMenu::CallbackClear, this, FL_MENU_DIVIDER);
+}
+void RecentMenu::_add(const std::string& item, bool append) {
+    if (item == "") {
+        _items.clear();
+    }
+    else if (append == true) {
+        _add_string(_items, _max, item);
+    }
+    else {
+        _insert_string(_items, _max, item);
+    }
+    auto index = _menu->find_index(_base.c_str());
+    if (index >= 0) {
+        _menu->clear_submenu(index);
         _menu->add((_base + _clear).c_str(), 0, RecentMenu::CallbackClear, this, FL_MENU_DIVIDER);
     }
-    void RecentMenu::_add(std::string file, bool append) {
-        if (file == "") {
-            _files.clear();
-        }
-        else if (append == true) {
-            _add_string(_files, _max, file);
-        }
-        else {
-            _insert_string(_files, _max, file);
-        }
-        auto index = _menu->find_index(_base.c_str());
-        if (index >= 0) {
-            _menu->clear_submenu(index);
-            _menu->add((_base + _clear).c_str(), 0, RecentMenu::CallbackClear, this, FL_MENU_DIVIDER);
-        }
-        for (const auto& f : _files) {
-            _menu->add((_base + "/" + flw::util::fix_menu_string(f)).c_str(), 0, _callback, _user);
+    for (const auto& f : _items) {
+        _menu->add((_base + "/" + flw::util::fix_menu_string(f)).c_str(), 0, _callback, _user);
+    }
+}
+size_t RecentMenu::_add_string(StringVector& items, size_t max_size, const std::string& string) {
+    for (auto it = items.begin(); it != items.end(); ++it) {
+        if (*it == string) {
+            items.erase(it);
+            break;
         }
     }
-    size_t RecentMenu::_add_string(StringVector& in, size_t max_size, std::string string) {
-        for (auto it = in.begin(); it != in.end(); ++it) {
-            if (*it == string) {
-                in.erase(it);
-                break;
-            }
-        }
-        in.push_back(string);
-        while (in.size() > max_size) in.erase(in.begin());
-        return in.size();
+    items.push_back(string);
+    while (items.size() > max_size) {
+        items.erase(items.begin());
     }
-    void RecentMenu::CallbackClear(Fl_Widget*, void* o) {
-        auto self = static_cast<RecentMenu*>(o);
-        self->_add("", false);
-    }
-    size_t RecentMenu::_insert_string(StringVector& in, size_t max_size, std::string string) {
-        for (auto it = in.begin(); it != in.end(); ++it) {
-            if (*it == string) {
-                in.erase(it);
-                break;
-            }
-        }
-        in.insert(in.begin(), string);
-        while (in.size() > max_size) in.pop_back();
-        return (int) in.size();
-    }
-    void RecentMenu::load_pref(Fl_Preferences& pref, std::string base_name) {
-        auto index = 1;
-        char buffer[1000];
-        while (index <= 100) {
-            auto key = flw::util::format("%s%d", base_name.c_str(), index++);
-            pref.get(key.c_str(), buffer, "", 1000);
-            if (*buffer == 0) {
-                break;
-            }
-            _add(buffer, true);
+    return items.size();
+}
+void RecentMenu::CallbackClear(Fl_Widget*, void* o) {
+    auto self = static_cast<RecentMenu*>(o);
+    self->_add("", false);
+}
+size_t RecentMenu::_insert_string(StringVector& items, size_t max_size, const std::string& string) {
+    for (auto it = items.begin(); it != items.end(); ++it) {
+        if (*it == string) {
+            items.erase(it);
+            break;
         }
     }
-    void RecentMenu::save_pref(Fl_Preferences& pref, std::string base_name) {
-        auto index = 1;
-        for (const auto& s : _files) {
-            pref.set(flw::util::format("%s%d", base_name.c_str(), index++).c_str(), s.c_str());
-        }
-        pref.set(flw::util::format("%s%d", base_name.c_str(), index++).c_str(), "");
+    items.insert(items.begin(), string);
+    while (items.size() > max_size) {
+        items.pop_back();
     }
+    return items.size();
+}
+void RecentMenu::load_pref(Fl_Preferences& pref, const std::string& base_name) {
+    auto index = 1;
+    char buffer[1000];
+    while (index <= 100) {
+        auto key = flw::util::format("%s%d", base_name.c_str(), index++);
+        pref.get(key.c_str(), buffer, "", 1000);
+        if (*buffer == 0) {
+            break;
+        }
+        _add(buffer, true);
+    }
+}
+void RecentMenu::save_pref(Fl_Preferences& pref, const std::string& base_name) {
+    auto index = 1;
+    for (const auto& s : _items) {
+        pref.set(flw::util::format("%s%d", base_name.c_str(), index++).c_str(), s.c_str());
+    }
+    pref.set(flw::util::format("%s%d", base_name.c_str(), index++).c_str(), "");
+}
 }
 #include <FL/fl_draw.H>
 flw::SplitGroup::SplitGroup(int X, int Y, int W, int H, const char* l) : Fl_Group(X, Y, W, H, l) {
@@ -9759,32 +11277,90 @@ public:
     }
 };
 int TabsGroup::MIN_WIDTH_NORTH_SOUTH = 4;
-int TabsGroup::MIN_WIDTH_EAST_WEST = 4;
+int TabsGroup::MIN_WIDTH_EAST_WEST   = 4;
 TabsGroup::TabsGroup(int X, int Y, int W, int H, const char* l) : Fl_Group(X, Y, W, H, l) {
     end();
     clip_children(1);
     resizable(nullptr);
-    tooltip(TabsGroup::Help());
-    _scroll = new Fl_Scroll(X, Y, W, H);
-    _pack   = new Fl_Pack(X, Y, W, H);
-    _active = -1;
-    _n      = 0;
-    _s      = 0;
-    _w      = 0;
-    _e      = 0;
-    _align  = 0;
+    _scroll    = new Fl_Scroll(X, Y, W, H);
+    _pack      = new Fl_Pack(X, Y, W, H);
+    _active1   = -1;
+    _active2   = -1;
+    _n         = 0;
+    _s         = 0;
+    _w         = 0;
+    _e         = 0;
+    _align     = 0;
+    _disable_k = false;
     _pack->end();
+    _scroll->tooltip(TabsGroup::Help());
     _scroll->box(FL_NO_BOX);
     _scroll->add(_pack);
     Fl_Group::add(_scroll);
     tabs(TABS::NORTH);
     update_pref();
 }
+void TabsGroup::_activate(Fl_Widget* widget, bool kludge) {
+    if (kludge == false) {
+        auto count   = 0;
+        auto current = _active1;
+        _active1 = -1;
+        for (auto button : _widgets) {
+            auto b = static_cast<_TabsGroupButton*>(button);
+            if (b == widget || b->widget == widget) {
+                _active1 = count;
+                _active2 = (current != _active1) ? current : _active2;
+                b->value(1);
+                b->widget->show();
+                b->widget->take_focus();
+            }
+            else {
+                b->value(0);
+                b->widget->hide();
+            }
+            count++;
+        }
+    }
+    auto but = _active_button();
+    if (but == nullptr) {
+        return;
+    }
+    if (_tabs == TABS::NORTH || _tabs == TABS::SOUTH) {
+        if (but->x() < _scroll->x()) {
+            _scroll->scroll_to(_scroll->xposition() + but->x() - _scroll->x(), _scroll->yposition());
+        }
+        else if (but->x() + but->w() > _scroll->x() + _scroll->w()) {
+            _scroll->scroll_to(_pack->w() - _scroll->w(), _scroll->yposition());
+            if (kludge == false) {
+                Fl::flush();
+                _activate(widget, true);
+            }
+        }
+    }
+    else {
+        if (but->y() < _scroll->y()) {
+            _scroll->scroll_to(_scroll->xposition(), _scroll->yposition() + but->y() - _scroll->y());
+        }
+        else if (but->y() + but->h() > _scroll->y() + _scroll->h() || but->h() == 0) {
+            _scroll->scroll_to(_scroll->xposition(), _pack->h() - _scroll->h());
+            if (kludge == false) {
+                Fl::flush();
+                _activate(widget, true);
+            }
+        }
+    }
+    _resize_active_widget();
+}
+Fl_Widget* TabsGroup::_active_button() {
+    return (_active1 >= 0 && _active1 < static_cast<int>(_widgets.size())) ? _widgets[_active1] : nullptr;
+}
 void TabsGroup::add(const std::string& label, Fl_Widget* widget, const Fl_Widget* after) {
-    assert(widget);
+    if (find(widget) != -1) {
+        return;
+    }
     auto button = new _TabsGroupButton(_align, label, widget, this);
-    auto idx    = (after != nullptr) ? find(after) : (int) _widgets.size();
-    if (idx < 0 || idx >= (int) _widgets.size() - 1) {
+    auto idx    = (after != nullptr) ? find(after) : static_cast<int>(_widgets.size());
+    if (idx < 0 || idx >= static_cast<int>(_widgets.size()) - 1) {
         Fl_Group::add(widget);
         _pack->add(button);
         _widgets.push_back(button);
@@ -9797,35 +11373,16 @@ void TabsGroup::add(const std::string& label, Fl_Widget* widget, const Fl_Widget
         _widgets.insert(_widgets.begin() + idx, button);
     }
     TabsGroup::Callback(button, this);
-    do_layout();
-}
-Fl_Widget* TabsGroup::_active_button() {
-    return (_active >= 0 && _active < (int) _widgets.size()) ? _widgets[_active] : nullptr;
 }
 void TabsGroup::Callback(Fl_Widget* sender, void* object) {
-    auto self   = static_cast<TabsGroup*>(object);
-    auto count  = 0;
-    self->_active = -1;
-    for (auto widget : self->_widgets) {
-        auto b = static_cast<_TabsGroupButton*>(widget);
-        if (b == sender) {
-            self->_active = count;
-            b->value(1);
-            b->widget->show();
-            b->widget->take_focus();
-        }
-        else {
-            b->value(0);
-            b->widget->hide();
-        }
-        count++;
-    }
-    self->_resize_widgets();
+    static_cast<TabsGroup*>(object)->_activate(sender, false);
 }
 Fl_Widget* TabsGroup::child(int index) const {
-    return (index >= 0 && index < (int) _widgets.size()) ? static_cast<_TabsGroupButton*>(_widgets[index])->widget : nullptr;
+    return (index >= 0 && index < static_cast<int>(_widgets.size())) ? static_cast<_TabsGroupButton*>(_widgets[index])->widget : nullptr;
 }
 void TabsGroup::clear() {
+    _active1 = -1;
+    _active2 = -1;
     _scroll->remove(_pack);
     _scroll->clear();
     _pack->clear();
@@ -9834,29 +11391,28 @@ void TabsGroup::clear() {
     Fl_Group::add(_scroll);
     _widgets.clear();
     _scroll->add(_pack);
-    _active = -1;
     update_pref();
     Fl::redraw();
 }
-void TabsGroup::debug() const {
+void TabsGroup::debug(bool all) const {
 #ifdef DEBUG
     printf("TabsGroup ==>\n");
-    printf("    _active  = %d\n", _active);
-    printf("    _drag    = %d\n", _drag);
-    printf("    _pos     = %d\n", _pos);
-    printf("    _widgets = %d\n", (int) _widgets.size());
-    printf("    tabs     = %s\n", _scroll->visible() ? "visible" : "hidden");
-    printf("    children = %d\n", children());
-    printf("    scroll   = %d\n", _scroll->children());
+    printf("    _active1   = %d\n", _active1);
+    printf("    _active2   = %d\n", _active2);
+    printf("    _drag      = %d\n", _drag);
+    printf("    _pos       = %d\n", _pos);
+    printf("    _disable_k = %d\n", _disable_k);
+    printf("    _widgets   = %d\n", static_cast<int>(_widgets.size()));
+    printf("    visible    = %s\n", _scroll->visible() ? "visible" : "hidden");
+    printf("    children   = %d\n", children());
     printf("\n");
-    auto count = 0;
-    for (auto b : _widgets) {
-        printf("    widget[%02d] = %s\n", count++, b->label());
+    if (all == true) {
+        flw::debug::print(this);
+        printf("\n");
     }
-    printf("\n");
-    flw::debug::print(this);
-    printf("TabsGroup <==\n");
     fflush(stdout);
+#else
+    (void) all;
 #endif
 }
 void TabsGroup::draw() {
@@ -9877,9 +11433,6 @@ int TabsGroup::find(const Fl_Widget* widget) const {
     return -1;
 }
 int TabsGroup::handle(int event) {
-    if (_widgets.size() == 0) {
-        return Fl_Group::handle(event);
-    }
     if (_tabs == TABS::WEST || _tabs == TABS::EAST) {
         if (event == FL_DRAG) {
             if (_drag == true) {
@@ -9934,43 +11487,60 @@ int TabsGroup::handle(int event) {
             }
         }
     }
-    if (_widgets.size() > 1) {
-        if (event == FL_KEYBOARD) {
-            auto key   = Fl::event_key();
-            auto alt   = Fl::event_alt() != 0;
-            auto alt2  = alt;
-            auto shift = Fl::event_shift() != 0;
+    if (event == FL_KEYBOARD && _disable_k == false) {
+        auto key   = Fl::event_key();
+        auto alt   = Fl::event_alt() != 0;
+        auto alt2  = alt;
+        auto shift = Fl::event_shift() != 0;
 #ifdef __APPLE__
-            alt2 = Fl::event_command() != 0;
+        alt2 = Fl::event_command() != 0;
 #endif
-            if (alt2 == true && key >= '0' && key <= '9') {
-                auto tab = key - '0';
-                tab = (tab == 0) ? 9 : tab - 1;
-                if (tab < (int) _widgets.size()) {
-                    TabsGroup::Callback(_widgets[tab], this);
-                }
-                return 1;
+        if (_widgets.size() < 2) {
+        }
+        else if (alt2 == true && key >= '0' && key <= '9') {
+            auto tab = key - '0';
+            tab = (tab == 0) ? 9 : tab - 1;
+            if (tab < static_cast<int>(_widgets.size())) {
+                TabsGroup::Callback(_widgets[tab], this);
             }
-            else if (alt == true && shift == true && key == FL_Left) {
-                swap(_active, _active - 1);
-                TabsGroup::Callback(_active_button(), this);
-                return 1;
+            return 1;
+        }
+        else if (alt == true && shift == true && (key == FL_Left || key == FL_Up)) {
+            if (_active1 - 1 == _active2) {
+                _active2 = _active1;
             }
-            else if (alt == true && shift == true && key == FL_Right) {
-                swap(_active, _active + 1);
-                TabsGroup::Callback(_active_button(), this);
-                return 1;
+            else if (_active1 == 0 && _widgets.size() > 1) {
+                _active2--;
             }
-            else if (alt == true && key == FL_Left) {
-                _active = _active == 0 ? (int) _widgets.size() - 1 : _active - 1;
-                TabsGroup::Callback(_active_button(), this);
-                return 1;
+            auto tab = swap(_active1, _active1 - 1);
+            TabsGroup::Callback(_widgets[tab], this);
+            return 1;
+        }
+        else if (alt == true && shift == true && (key == FL_Right || key == FL_Down)) {
+            if (_active1 + 1 == _active2) {
+                _active2 = _active1;
             }
-            else if (alt == true && key == FL_Right) {
-                _active = _active == (int) _widgets.size() - 1 ? 0 : _active + 1;
-                TabsGroup::Callback(_active_button(), this);
-                return 1;
+            else if (_active1 == static_cast<int>(_widgets.size()) - 1 && _widgets.size() > 1) {
+                _active2++;
             }
+            auto tab = swap(_active1, _active1 + 1);
+            TabsGroup::Callback(_widgets[tab], this);
+            return 1;
+        }
+        else if (alt == true && key == FL_Left) {
+            auto tab = (_active1 == 0) ? static_cast<int>(_widgets.size()) - 1 : _active1 - 1;
+            TabsGroup::Callback(_widgets[tab], this);
+            return 1;
+        }
+        else if (alt == true && key == FL_Right) {
+            auto tab = (_active1 == static_cast<int>(_widgets.size()) - 1) ? 0 : _active1 + 1;
+            TabsGroup::Callback(_widgets[tab], this);
+            return 1;
+        }
+        else if (alt == true && (key == FL_Up || key == FL_Down)) {
+            auto tab = (_active2 == -1) ? _active1 : _active2;
+            TabsGroup::Callback(_widgets[tab], this);
+            return 1;
         }
     }
     if (event == FL_FOCUS) {
@@ -9985,7 +11555,8 @@ int TabsGroup::handle(int event) {
 const char* TabsGroup::Help() {
     static const char* const HELP =
     "Use alt + left/right to move between tabs.\n"
-    "Or alt (command key) + [1 - 9] to select tab.\n"
+    "Use alt + up/down to jump between two last widgets.\n"
+    "Or alt + [1 - 9, 0] to select tab from 1 - 10.\n"
     "And alt + shift + left/right to move tabs.\n"
     "Tabs on the left/right side can have its width changed by dragging the mouse.";
     return HELP;
@@ -9995,9 +11566,12 @@ void TabsGroup::hide_tabs() {
     do_layout();
 }
 void TabsGroup::insert(const std::string& label, Fl_Widget* widget, const Fl_Widget* before) {
+    if (find(widget) != -1) {
+        return;
+    }
     auto button = new _TabsGroupButton(_align, label, widget, this);
     auto idx    = (before != nullptr) ? find(before) : 0;
-    if (idx >= (int) _widgets.size()) {
+    if (idx >= static_cast<int>(_widgets.size())) {
         Fl_Group::add(widget);
         _pack->add(button);
         _widgets.push_back(button);
@@ -10026,7 +11600,7 @@ void TabsGroup::label(const std::string& label, Fl_Widget* widget) {
     _widgets[num]->copy_label(label.c_str());
 }
 Fl_Widget* TabsGroup::remove(int index) {
-    if (index < 0 || index >= (int) _widgets.size()) {
+    if (index < 0 || index >= static_cast<int>(_widgets.size())) {
         return nullptr;
     }
     auto button = static_cast<_TabsGroupButton*>(_widgets[index]);
@@ -10035,11 +11609,11 @@ Fl_Widget* TabsGroup::remove(int index) {
     remove(res);
     _scroll->remove(button);
     delete button;
-    if (index < _active) {
-        _active--;
+    if (index < _active1) {
+        _active1--;
     }
-    else if (_active == (int) _widgets.size()) {
-        _active = (int) _widgets.size() - 1;
+    else if (_active1 == static_cast<int>(_widgets.size())) {
+        _active1 = static_cast<int>(_widgets.size()) - 1;
     }
     do_layout();
     TabsGroup::Callback(_active_button(), this);
@@ -10062,11 +11636,20 @@ void TabsGroup::resize(int X, int Y, int W, int H) {
             _resize_east_west(X, Y, W, H);
         }
     }
-    _resize_widgets();
+    _resize_active_widget();
+}
+void TabsGroup::_resize_active_widget() {
+    for (auto w : _widgets) {
+        auto b = static_cast<_TabsGroupButton*>(w);
+        if (b->widget->visible() != 0) {
+            b->widget->resize(_area.x(), _area.y(), _area.w(), _area.h());
+        }
+    }
+    Fl::redraw();
 }
 void TabsGroup::_resize_east_west(int X, int Y, int W, int H) {
     auto height = flw::PREF_FONTSIZE + 8;
-    auto pack_h = (height + _space) * (int) _widgets.size() - _space;
+    auto pack_h = (height + _space) * static_cast<int>(_widgets.size()) - _space;
     auto scroll = 0;
     if (_pos < flw::PREF_FONTSIZE * TabsGroup::MIN_WIDTH_EAST_WEST) {
         _pos = flw::PREF_FONTSIZE * TabsGroup::MIN_WIDTH_EAST_WEST;
@@ -10124,15 +11707,6 @@ void TabsGroup::_resize_north_south(int X, int Y, int W, int H) {
         _area = Fl_Rect(X + _w, Y + _n, W - _w - _e, H - height - scroll - _n - _s);
     }
 }
-void TabsGroup::_resize_widgets() {
-    for (auto w : _widgets) {
-        auto b = static_cast<_TabsGroupButton*>(w);
-        if (b->widget->visible() != 0) {
-            b->widget->resize(_area.x(), _area.y(), _area.w(), _area.h());
-        }
-    }
-    Fl::redraw();
-}
 void TabsGroup::show_tabs() {
     _scroll->show();
     do_layout();
@@ -10155,17 +11729,17 @@ void TabsGroup::sort(bool ascending, bool casecompare) {
     for (int f = 0; f < _pack->children(); f++) {
         pack[f] = _widgets[f];
         if (_widgets[f] == butt) {
-            _active = f;
+            _active1 = f;
         }
     }
     do_layout();
 }
-void TabsGroup::swap(int from, int to) {
-    auto last = (int) _widgets.size() - 1;
-    if (_widgets.size() < 2 || to < -1 || to > (int) _widgets.size()) {
-        return;
+int TabsGroup::swap(int from, int to) {
+    auto last = static_cast<int>(_widgets.size()) - 1;
+    if (_widgets.size() < 2 || to < -1 || to > static_cast<int>(_widgets.size())) {
+        return _active1;
     }
-    auto active = (_active == from);
+    auto active = (_active1 == from);
     auto pack   = const_cast<Fl_Widget**>(_pack->array());
     if (from == 0 && to == -1) {
         auto widget = _widgets[0];
@@ -10173,19 +11747,25 @@ void TabsGroup::swap(int from, int to) {
             _widgets[f - 1] = _widgets[f];
             pack[f - 1]     = pack[f];
         }
-        from           = last;
-        pack[from]     = widget;
-        _widgets[from] = widget;
+        pack[last]     = widget;
+        _widgets[last] = widget;
+        if (active == true) {
+            _active1 = last;
+        }
+        util::swap_rect(_widgets[last - 1], _widgets[last]);
     }
-    else if (from == last && to == (int) _widgets.size()) {
+    else if (from == last && to == static_cast<int>(_widgets.size())) {
         auto widget = _widgets[last];
         for (int f = last - 1; f >= 0; f--) {
             _widgets[f + 1] = _widgets[f];
             pack[f + 1]     = pack[f];
         }
-        from           = 0;
-        pack[from]     = widget;
-        _widgets[from] = widget;
+        pack[0]     = widget;
+        _widgets[0] = widget;
+        if (active == true) {
+            _active1 = 0;
+        }
+        util::swap_rect(_widgets[0], _widgets[1]);
     }
     else {
         auto widget = _widgets[from];
@@ -10193,12 +11773,12 @@ void TabsGroup::swap(int from, int to) {
         pack[to]       = widget;
         _widgets[from] = _widgets[to];
         _widgets[to]   = widget;
-        from           = to;
+        if (active == true) {
+            _active1 = to;
+        }
+        util::swap_rect(_widgets[from], _widgets[to]);
     }
-    if (active == true) {
-        _active = from;
-    }
-    do_layout();
+    return _active1;
 }
 void TabsGroup::tabs(TABS tabs, int space_max_20) {
     _tabs  = tabs;
@@ -10223,6 +11803,13 @@ void TabsGroup::tabs(TABS tabs, int space_max_20) {
         w->take_focus();
     }
 }
+void TabsGroup::tooltip(const std::string& tooltip, Fl_Widget* widget) {
+    auto num = find(widget);
+    if (num == -1) {
+        return;
+    }
+    _widgets[num]->copy_tooltip(tooltip.c_str());
+}
 void TabsGroup::update_pref(unsigned characters, Fl_Font font, Fl_Fontsize fontsize) {
     _drag = false;
     _pos  = fontsize * characters;
@@ -10232,11 +11819,124 @@ void TabsGroup::update_pref(unsigned characters, Fl_Font font, Fl_Fontsize fonts
     }
 }
 Fl_Widget* TabsGroup::value() const {
-    return (_active >= 0 && _active < (int) _widgets.size()) ? static_cast<_TabsGroupButton*>(_widgets[_active])->widget : nullptr;
+    return (_active1 >= 0 && _active1 < static_cast<int>(_widgets.size())) ? static_cast<_TabsGroupButton*>(_widgets[_active1])->widget : nullptr;
 }
 void TabsGroup::value(int num) {
-    if (num >= 0 && num < (int) _widgets.size()) {
+    if (num >= 0 && num < static_cast<int>(_widgets.size())) {
         TabsGroup::Callback(_widgets[num], this);
+    }
+}
+}
+namespace flw {
+struct _ToolGroupChild {
+    Fl_Widget*                  widget;
+    short                       size;
+    _ToolGroupChild(Fl_Widget* WIDGET, int SIZE) {
+        set(WIDGET, SIZE);
+    }
+    void set(Fl_Widget* WIDGET, int SIZE) {
+        widget = WIDGET;
+        size   = SIZE;
+    }
+};
+ToolGroup::ToolGroup(DIRECTION direction, int X, int Y, int W, int H, const char* l) : Fl_Group(X, Y, W, H, l) {
+    end();
+    clip_children(1);
+    resizable(nullptr);
+    _direction = direction;
+    _expand    = false;
+}
+ToolGroup::~ToolGroup() {
+    for (auto v : _widgets) {
+        delete static_cast<_ToolGroupChild*>(v);
+    }
+}
+void ToolGroup::add(Fl_Widget* widget, int SIZE) {
+    _widgets.push_back(new _ToolGroupChild(widget, SIZE));
+    Fl_Group::add(widget);
+}
+void ToolGroup::clear() {
+    _widgets.clear();
+    Fl_Group::clear();
+}
+Fl_Widget* ToolGroup::remove(Fl_Widget* widget) {
+    for (auto it = _widgets.begin(); it != _widgets.end(); it++) {
+        auto child = static_cast<_ToolGroupChild*>(*it);
+        if (child->widget == widget) {
+            Fl_Group::remove(widget);
+            _widgets.erase(it);
+            delete child;
+            return widget;
+        }
+    }
+    #ifdef DEBUG
+        fprintf(stderr, "error: ToolGroup::remove can't find widget\n");
+    #endif
+    return nullptr;
+}
+void ToolGroup::resize(const int X, const int Y, const int W, const int H) {
+    Fl_Widget::resize(X, Y, W, H);
+    if (children() == 0 || W == 0 || H == 0 || visible() == 0) {
+        return;
+    }
+    auto leftover = (_direction == DIRECTION::HORIZONTAL) ? W : H;
+    auto count    = 0;
+    auto last     = static_cast<Fl_Widget*>(nullptr);
+    auto avg      = 0;
+    auto xpos     = X;
+    auto ypos     = Y;
+    for (auto v : _widgets) {
+        auto child = static_cast<_ToolGroupChild*>(v);
+        last = child->widget;
+        if (child->size > 0) {
+            leftover -= (child->size * flw::PREF_FONTSIZE);
+        }
+        else {
+            count++;
+        }
+    }
+    if (count > 0) {
+        avg = leftover / count;
+    }
+    for (auto v : _widgets) {
+        auto child = static_cast<_ToolGroupChild*>(v);
+        if (child->widget != nullptr) {
+            if (_direction == DIRECTION::HORIZONTAL) {
+                if (_expand == true && child->widget == last) {
+                    child->widget->resize(xpos, Y, X + W - xpos, H);
+                }
+                else if (child->size > 0) {
+                    child->widget->resize(xpos, Y, child->size * flw::PREF_FONTSIZE, H);
+                    xpos += flw::PREF_FONTSIZE * child->size;
+                }
+                else {
+                    child->widget->resize(xpos, Y, avg, H);
+                    xpos += avg;
+                }
+            }
+            else {
+                if (_expand == true && child->widget == last) {
+                    child->widget->resize(X, ypos, W, Y + H - ypos);
+                }
+                else if (child->size > 0) {
+                    child->widget->resize(X, ypos, W, child->size * flw::PREF_FONTSIZE);
+                    ypos += flw::PREF_FONTSIZE * child->size;
+                }
+                else {
+                    child->widget->resize(X, ypos, W, avg);
+                    ypos += avg;
+                }
+            }
+        }
+    }
+}
+void ToolGroup::resize(Fl_Widget* widget, int SIZE) {
+    for (auto v : _widgets) {
+        auto child = static_cast<_ToolGroupChild*>(v);
+        if (child->widget == widget) {
+            child->set(widget, SIZE);
+            return;
+        }
     }
 }
 }
@@ -10487,6 +12187,8 @@ KeyConf KEYS[(size_t) fle::FKEY_SIZE] = {
     { .num = FKEY_SELECT_STYLE,         .alt_d = false, .alt_u = false, .ctrl_d = true,  .ctrl_u = false, .shift_d = true,  .shift_u = false, .kommand_d = false, .kommand_u = false, .key_d = 'd',              .key_u = 0, .help = "Select text with same highlightning code.|Cursor will not be moved." },
     { .num = FKEY_SHIFT_LEFT,           .alt_d = false, .alt_u = false, .ctrl_d = false, .ctrl_u = false, .shift_d = true,  .shift_u = false, .kommand_d = false, .kommand_u = false, .key_d = FL_Tab,           .key_u = 0, .help = "Insert/replace tab or shift lines to the left." },
     { .num = FKEY_SHIFT_RIGHT,          .alt_d = false, .alt_u = false, .ctrl_d = false, .ctrl_u = false, .shift_d = false, .shift_u = false, .kommand_d = false, .kommand_u = false, .key_d = FL_Tab,           .key_u = 0, .help = "Insert/replace tab or shift lines to the right." },
+    { .num = FKEY_SHOW_CUSTOM1,         .alt_d = false, .alt_u = false, .ctrl_d = true,  .ctrl_u = false, .shift_d = true,  .shift_u = false, .kommand_d = false, .kommand_u = false, .key_d = ' ',              .key_u = 0, .help = "Custom command 1" },
+    { .num = FKEY_SHOW_CUSTOM2,         .alt_d = true,  .alt_u = false, .ctrl_d = true,  .ctrl_u = false, .shift_d = true,  .shift_u = false, .kommand_d = false, .kommand_u = false, .key_d = ' ',              .key_u = 0, .help = "Custom command 2" },
     { .num = FKEY_SHOW_FIND_REPLACE,    .alt_d = false, .alt_u = false, .ctrl_d = true,  .ctrl_u = false, .shift_d = false, .shift_u = false, .kommand_d = false, .kommand_u = false, .key_d = 'f',              .key_u = 0, .help = "Show find and replace widget (close with escape)." },
     { .num = FKEY_SORT_ASCENDING,       .alt_d = false, .alt_u = false, .ctrl_d = false, .ctrl_u = false, .shift_d = false, .shift_u = false, .kommand_d = true,  .kommand_u = false, .key_d = 's',              .key_u = 0, .help = "Sort selected lines in ascending order." },
     { .num = FKEY_SORT_DESCENDING,      .alt_d = false, .alt_u = false, .ctrl_d = false, .ctrl_u = false, .shift_d = true,  .shift_u = false, .kommand_d = true,  .kommand_u = false, .key_d = 's',              .key_u = 0, .help = "Sort selected lines in descending order." },
@@ -11024,19 +12726,19 @@ void Config::save_pref(Fl_Preferences& preferences, FindReplace* findreplace) {
         preferences.set(key.c_str(), replace);
     }
 }
-void Config::send_message(std::string message, std::string s, const void* p) {
+void Config::send_message(const std::string& message, const std::string& s1, const std::string& s2, void* p) {
     static int COUNT = 0;
     auto       list  = _list;
     COUNT++;
     for (auto* o1 : list) {
         auto b = Message::CTRL::CONTINUE;
         if (_del == false) {
-            b = o1->message(message, s, p);
+            b = o1->message(message, s1, s2, p);
         }
         else {
             for (auto* o2 : _list) {
                 if (o1 == o2) {
-                    b = o1->message(message, s, p);
+                    b = o1->message(message, s1, s2, p);
                     break;
                 }
             }
@@ -16792,7 +18494,7 @@ void TextBuffer::set(const char* text, FCHECKSUM fchecksum) {
 void TextBuffer::set_dirty(bool value, bool force_send) {
     if (value != _dirty || force_send == true) {
         _dirty = value;
-        _config.send_message(message::TEXT_CHANGED, "", _editor);
+        _config.send_message(message::TEXT_CHANGED, "", "", _editor);
     }
 }
 CursorPos TextBuffer::redo(FUNDO_RANGE fundocount, CursorPos cursor) {
@@ -17945,9 +19647,11 @@ public:
         return _selected;
     }
 };
-AutoComplete::AutoComplete() : Fl_Group(0, 0, 10, 10) {
+AutoComplete::AutoComplete(const std::string& event) : Fl_Group(0, 0, 10, 10) {
     end();
-    _browser = new _AutoCompleteBrowser(0, 0, 10, 10);
+    _event    = event;
+    _word_pos = 0;
+    _browser  = new _AutoCompleteBrowser(0, 0, 10, 10);
     _browser->box(FL_BORDER_BOX);
     add(_browser);
     resizable(_browser);
@@ -17963,11 +19667,12 @@ int AutoComplete::handle(int event) {
     }
     return Fl_Group::handle(event);
 }
-int AutoComplete::populate(Fl_Fontsize fontsize, const std::set<std::string>& words, std::string word, int word_pos) {
-    _word = word;
-    _word_pos = word_pos;
-    static_cast<flw::ScrollBrowser*>(_browser)->update_pref(flw::PREF_FIXED_FONT, fontsize);
-    return static_cast<_AutoCompleteBrowser*>(_browser)->populate(words, word);
+int AutoComplete::populate(Fl_Fontsize fontsize, const std::set<std::string>& words, const std::string& word, int word_pos) {
+    auto browser = static_cast<_AutoCompleteBrowser*>(_browser);
+    _word        = word;
+    _word_pos    = word_pos;
+    browser->update_pref(flw::PREF_FIXED_FONT, fontsize);
+    return browser->populate(words, word);
 }
 void AutoComplete::popup(int X, int Y, int W, int H) {
     Fl_Group::resize(X, Y, W, H);
@@ -18048,6 +19753,7 @@ Fl_Double_Window(0, 0, 10, 10) {
     _test    = new Fl_Button(0, 0, 0, 0, "&Test");
     _trim    = new Fl_Check_Button(0, 0, 0, 0, "&Trim");
     _ret     = false;
+    _run     = false;
     _grid->add(_find,     10,   1,  -1,   4);
     _grid->add(_regex,    10,   6,  15,   4);
     _grid->add(_trim,     25,   6,  15,   4);
@@ -18084,14 +19790,12 @@ Fl_Double_Window(0, 0, 10, 10) {
 }
 void FindDialog::Callback(Fl_Widget* w, void* o) {
     auto* self = static_cast<FindDialog*>(o);
-    if (w == self) {
-        self->hide();
-    }
-    else if (w == self->_cancel) {
+    if (w == self || w == self->_cancel) {
+        self->_run = false;
         self->hide();
     }
     else if (w == self->_help) {
-        flw::dlg::list("Find Lines Help", help::find_lines() + help::pcre(), self, true, 60, 40);
+        flw::dlg::list("Find Lines Help", help::find_lines() + help::pcre(), true, self, 60, 40);
         self->_find->take_focus();
     }
     else if (w == self->_ok || w == self->_find) {
@@ -18102,6 +19806,7 @@ void FindDialog::Callback(Fl_Widget* w, void* o) {
             FindDialog::REGEX = (self->_regex->value() != 0) ? FREGEX::YES : FREGEX::NO;
             FindDialog::TRIM  = (self->_trim->value() != 0) ? FTRIM::YES : FTRIM::NO;
             self->_ret        = true;
+            self->_run        = false;
             self->hide();
         }
     }
@@ -18119,9 +19824,10 @@ void FindDialog::Callback(Fl_Widget* w, void* o) {
     }
 }
 std::string FindDialog::run() {
+    _run = true;
     flw::util::center_window(this, Fl::first_window());
     show();
-    while (visible() != 0) {
+    while (_run == true) {
         Fl::wait();
         Fl::flush();
     }
@@ -18271,7 +19977,7 @@ void FindReplace::fnltab(FNL_TAB fnltab) {
 int FindReplace::handle(int event) {
     if (event == FL_KEYBOARD) {
         if (Fl::event_key() == FL_Escape) {
-            _config.send_message(message::HIDE_FIND, "", this);
+            _config.send_message(message::HIDE_FIND, "", "", this);
         }
         else if (Fl::event_alt() != 0 && Fl::event_key() == '1') {
             _find_input->input()->take_focus();
@@ -18304,10 +20010,10 @@ void FindReplace::take_focus() {
 }
 void FindReplace::update_lists(bool find, bool replace) {
     if (find == true) {
-        _find_input->values(_config.find_list, false);
+        _find_input->values(_config.find_list);
     }
     if (replace == true) {
-        _replace_input->values(_config.replace_list, false);
+        _replace_input->values(_config.replace_list);
     }
 }
 void FindReplace::update_pref() {
@@ -18365,6 +20071,7 @@ _replace(replace) {
     _test          = new Fl_Button(0, 0, 0, 0, "&Test");
     _word          = new Fl_Check_Button(0, 0, 0, 0, "&Word");
     _ret           = false;
+    _run           = false;
     _grid->add(_find_input,     10,   1,  -8,   4);
     _grid->add(_find_nl,        -7,   1,   6,   4);
     _grid->add(_replace_input,  10,   6,  -8,   4);
@@ -18418,14 +20125,12 @@ _replace(replace) {
 }
 void ReplaceDialog::Callback(Fl_Widget* w, void* o) {
     auto* self = static_cast<ReplaceDialog*>(o);
-    if (w == self) {
-        self->hide();
-    }
-    else if (w == self->_cancel) {
+    if (w == self || w == self->_cancel) {
+        self->_run = false;
         self->hide();
     }
     else if (w == self->_help) {
-        flw::dlg::list("Replace Text Help", help::replace_text() + help::pcre(), Fl::first_window(), true, 60, 50);
+        flw::dlg::list("Replace Text Help", help::replace_text() + help::pcre(), true, Fl::first_window(), 60, 50);
     }
     else if (w == self->_regex || w == self->_selection) {
         self->check_buttons();
@@ -18433,7 +20138,7 @@ void ReplaceDialog::Callback(Fl_Widget* w, void* o) {
     else if (w == self->_test) {
         self->test_pcre();
     }
-    else if (w == self->_ok && *self->_find_input->value()) {
+    else if (w == self->_ok && self->_find_input->value() != "") {
         if (self->_regex->value() != 0 && self->test_pcre() == false) {
             self->_find_input->take_focus();
         }
@@ -18441,6 +20146,7 @@ void ReplaceDialog::Callback(Fl_Widget* w, void* o) {
             self->_find    = self->_find_input->value();
             self->_replace = self->_replace_input->value();
             self->_ret     = true;
+            self->_run     = false;
             bool f = self->_regex->value() == 0 && self->_find_nl->value() != 0;
             bool r = self->_replace_nl->value() != 0;
             if (f == true && r == true) {
@@ -18491,9 +20197,10 @@ int ReplaceDialog::handle(int event) {
     return Fl_Group::handle(event);
 }
 bool ReplaceDialog::run() {
+    _run = true;
     flw::util::center_window(this, Fl::first_window());
     show();
-    while (visible() != 0) {
+    while (_run == true) {
         Fl::wait();
         Fl::flush();
     }
@@ -18899,6 +20606,7 @@ public:
     Fl_Menu_Button*             _undo;
     Fl_Menu_Button*             _wrap;
     flw::GridGroup*             _grid;
+    bool                        _run;
     _ConfigDialog(Config& config) :
     Fl_Double_Window(0, 0, 10, 10, "Editor Settings"),
     _config(config) {
@@ -18919,6 +20627,7 @@ public:
         _statusbar    = new Fl_Check_Button(0, 0, 0, 0, "Statusbar");
         _undo         = new Fl_Menu_Button(0, 0, 0, 0, "Undo mode");
         _wrap         = new Fl_Menu_Button(0, 0, 0, 0, "Word wrap");
+        _run          = false;
         _grid->add(_linenumber,     1,   1,  -1,   4);
         _grid->add(_statusbar,      1,   6,  -1,   4);
         _grid->add(_autocomplete,   1,  11,  -1,   4);
@@ -18987,6 +20696,7 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_ConfigDialog*>(o);
         if (w == self || w == self->_close) {
+            self->_run = false;
             self->save();
             self->hide();
         }
@@ -19133,9 +20843,10 @@ public:
         }
     }
     void run() {
+        _run = true;
         flw::util::center_window(this, Fl::first_window());
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -19267,6 +20978,7 @@ class _DlgEditor : public Fl_Double_Window, Message {
     Fl_Button*                  _close;
     bool                        _edit;
     bool                        _res;
+    bool                        _run;
     std::string                 _org;
 public:
     _DlgEditor(Config& config, std::string title, int W, int H) :
@@ -19278,8 +20990,9 @@ public:
         _close   = new Fl_Button(0, 0, 0, 0, "&Close");
         _findbar = new FindBar(config);
         _editor  = new Editor(config, _findbar);
-        _res     = false;
         _edit    = false;
+        _res     = false;
+        _run     = false;
         add(_editor);
         add(_cancel);
         add(_close);
@@ -19302,10 +21015,12 @@ public:
         }
         else if (w == self->_cancel) {
             self->_res = false;
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_close) {
             self->_res = true;
+            self->_run = false;
             self->hide();
         }
     }
@@ -19326,7 +21041,7 @@ public:
         _org = text();
         return true;
     }
-    Message::CTRL message(const std::string& message, const std::string&, const void* p) override {
+    Message::CTRL message(const std::string& message, const std::string&, const std::string&, void* p) override {
         if (message == message::DND_EVENT) {
             auto discard = reinterpret_cast<bool*>(const_cast<void*>(p));
             *discard = false;
@@ -19361,8 +21076,9 @@ public:
         _close->resize   (W - fs * 17,  H - fs * 5,      fs * 16,  fs * 4);
     }
     bool run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -19483,6 +21199,7 @@ public:
     Fl_Check_Button*            _shift[fle::FKEY_SIZE];
     Fl_Int_Input*               _key[fle::FKEY_SIZE];
     Fl_Scroll*                  _scroll;
+    bool                        _run;
     char                        _buff[256];
     flw::GridGroup*             _grid1;
     flw::GridGroup*             _grid2;
@@ -19506,6 +21223,7 @@ public:
         _reset  = new Fl_Button(0, 0, 0, 0, "&Reset");
         _scroll = new Fl_Scroll(0, 0, w(), h());
         _height = 0;
+        _run    = true;
         end();
         for (int f = 0; f < fle::FKEY_SIZE; f++) {
             _alt[f] = new Fl_Check_Button(0, 0, 0, 0);
@@ -19569,6 +21287,7 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_KeyboardDialog*>(o);
         if (w == self->_close && self->save_keys() == true) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_reset) {
@@ -19614,9 +21333,10 @@ public:
         _grid3->resize  (fs,      H - fs * 6,  W - fs * 2,  fs * 6);
     }
     void run() {
+        _run = true;
         flw::util::center_window(this, Fl::first_window());
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -19760,6 +21480,7 @@ public:
     Fl_Menu_Button*             _scheme;
     _SchemeButton*              _bgcolors[style::STYLE_LAST];
     _SchemeButton*              _colors[style::STYLE_LAST];
+    bool                        _run;
     flw::GridGroup*             _grid;
     _SchemeDialog(Config& config) :
     Fl_Double_Window(0, 0, 10, 10, "Select Color Scheme"),
@@ -19769,6 +21490,7 @@ public:
         _grid   = new flw::GridGroup(0, 0, w(), h());
         _reset  = new Fl_Button(0, 0, 0, 0, "Reset");
         _scheme = new Fl_Menu_Button(0, 0, 0, 0);
+        _run    = false;
         _scheme->add(style::SCHEME_DEF, 0, nullptr, nullptr, FL_MENU_RADIO);
         _scheme->add(style::SCHEME_LIGHT, 0, nullptr, nullptr, FL_MENU_RADIO);
         _scheme->add(style::SCHEME_TAN, 0, nullptr, nullptr, FL_MENU_RADIO);
@@ -19873,6 +21595,7 @@ public:
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_SchemeDialog*>(o);
         if (w == self->_close) {
+            self->_run = false;
             self->save_scheme();
             self->hide();
         }
@@ -20006,9 +21729,10 @@ public:
         Fl::redraw();
     }
     void run() {
+        _run = true;
         flw::util::center_window(this, Fl::first_window());
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -20088,6 +21812,7 @@ class _TweakDialog : public Fl_Double_Window {
     Fl_Hor_Slider*              _style_size;
     Fl_Hor_Slider*              _wrap_length;
     flw::GridGroup*             _grid;
+    bool                        _run;
 public:
     _TweakDialog() :
     Fl_Double_Window(0, 0, 10, 10, "Editor Tweaks") {
@@ -20108,6 +21833,7 @@ public:
         _save             = new Fl_Button(0, 0, 0, 0, "Save");
         _style_size       = new Fl_Hor_Slider(0, 0, 0, 0);
         _wrap_length      = new Fl_Hor_Slider(0, 0, 0, 0);
+        _run              = false;
         _grid->add(_force,              1,   1,  -1,   4);
         _grid->add(_file_size,          1,   8,  -1,   4);
         _grid->add(_style_size,         1,  16,  -1,   4);
@@ -20233,7 +21959,10 @@ public:
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_TweakDialog*>(o);
-        if (w == self || w == self->_close) {
+        if (w == self) {
+        }
+        else if (w == self->_close) {
+            self->_run = false;
             self->hide();
         }
         else if (w == self->_reset) {
@@ -20329,8 +22058,9 @@ public:
         _label->label("Settings has been reset to default values.");
     }
     void run() {
+        _run = true;
         show();
-        while (visible() != 0) {
+        while (_run == true) {
             Fl::wait();
             Fl::flush();
         }
@@ -20507,7 +22237,7 @@ bool View::_handle_dnd() {
     auto str = gnu::str::to_string(Fl::event_text());
     if (str != "") {
         auto discard = false;
-        _config.send_message(message::DND_EVENT, str, &discard);
+        _config.send_message(message::DND_EVENT, str, "", &discard);
         if (discard == false) {
             _editor->buffer().lock_undo_tmp();
         }
@@ -20548,7 +22278,7 @@ int View::_handle_key() {
     }
     else if (key == FL_Escape) {
         if (_editor->findreplace().visible() != 0) {
-            _config.send_message(message::HIDE_FIND, "", &_editor->findreplace());
+            _config.send_message(message::HIDE_FIND, "", "", &_editor->findreplace());
         }
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
@@ -20689,8 +22419,16 @@ int View::_handle_key() {
         _editor->text_select_line();
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
+    else if (FLE_VIEW_KOMMAND_KEY(FKEY_SHOW_CUSTOM1)) {
+        _config.send_message(message::SHOW_CUSTOM1, "", "", _editor);
+        FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
+    }
+    else if (FLE_VIEW_KOMMAND_KEY(FKEY_SHOW_CUSTOM2)) {
+        _config.send_message(message::SHOW_CUSTOM2, "", "", _editor);
+        FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
+    }
     else if (FLE_VIEW_KOMMAND_KEY(FKEY_SHOW_FIND_REPLACE)) {
-        _config.send_message(message::SHOW_FIND, "", &_editor->findreplace());
+        _config.send_message(message::SHOW_FIND, "", "", &_editor->findreplace());
         FLE_VIEW_CLEAR_KOMMAND_AND_RET(1)
     }
     else if (FLE_VIEW_KOMMAND_KEY(FKEY_SORT_ASCENDING)) {
@@ -20809,7 +22547,7 @@ void View::init(View* view1) {
     update_pref(false);
     take_focus();
 }
-Message::CTRL View::message(const std::string& message, const std::string&, const void*) {
+Message::CTRL View::message(const std::string& message, const std::string&, const std::string&, void*) {
     if (message == message::FONTSIZE2_CHANGED) {
         update_pref(false);
     }
@@ -20966,6 +22704,7 @@ _editor_flags() {
     _style        = nullptr;
     _findbar      = findbar;
     _autocomplete = nullptr;
+    _custom       = nullptr;
     _regex        = new gnu::pcre8::PCRE();
     _buf1         = new TextBuffer(this, _config);
     _buf2         = new TextBuffer(nullptr, _config);
@@ -21106,16 +22845,19 @@ void Editor::autocomplete_show() {
     auto W   = fs * 18;
     auto H   = fs * 14;
     auto pos = cursor_insert_position();
-    if (_autocomplete != nullptr) {
+    if (_custom != nullptr) {
+        return;
+    }
+    else if (_autocomplete != nullptr) {
         autocomplete_remove();
     }
-    _autocomplete = new AutoComplete();
+    _autocomplete = new AutoComplete("autocomplete");
+    auto word     = _buf1->get_word_left(cursor_insert_position());
     add(_autocomplete);
     if (_words.size() == 0 || _view->position_to_xy(pos, &X, &Y) == 0) {
         return autocomplete_remove();
     }
-    auto word = _buf1->get_word_left(cursor_insert_position());
-    if (_autocomplete->populate(fs, _words, word, pos) == 0) {
+    else if (_autocomplete->populate(fs, _words, word, pos) == 0) {
         return autocomplete_remove();
     }
     if (X + W > x() + w()) {
@@ -21137,6 +22879,10 @@ void Editor::autocomplete_show() {
 void Editor::CallbackAutoComplete(Fl_Widget*, void* o) {
     auto self = static_cast<Editor*>(o);
     self->autocomplete_callback();
+}
+void Editor::CallbackCustom(Fl_Widget*, void* o) {
+    auto self = static_cast<Editor*>(o);
+    self->custom_callback();
 }
 void Editor::CallbackFind(Fl_Widget* w, void* o) {
     auto  self = static_cast<Editor*>(o);
@@ -21307,6 +23053,62 @@ void Editor::cursor_move_to_rowcol(int row, int column) {
     auto pos = _buf1->skip_lines(0, row - 1);
     auto end = _buf1->line_end(pos);
     cursor_move_to_pos(pos + column > end ? end : pos + column - 1, true);
+}
+void Editor::custom_callback() {
+    auto selected = _custom->selected();
+    auto event    = _custom->event();
+    custom_remove();
+    _config.send_message(message::CUSTOM_CALLBACK, selected, event, this);
+}
+void Editor::custom_remove() {
+    if (_custom == nullptr) {
+        take_focus();
+        return;
+    }
+    _custom->callback(nullptr, nullptr);
+    remove(_custom);
+    Fl::delete_widget(_custom);
+    _custom = nullptr;
+    Fl::redraw();
+    Fl::flush();
+    take_focus();
+}
+void Editor::custom_show(const std::set<std::string>& list, const std::string& event, const std::string& word) {
+    auto fs  = _tmp_fixed_fontsize();
+    auto X   = 0;
+    auto Y   = 0;
+    auto W   = fs * 18;
+    auto H   = fs * 14;
+    auto pos = cursor_insert_position();
+    if (_autocomplete != nullptr) {
+        return;
+    }
+    else if (_custom != nullptr) {
+        custom_remove();
+    }
+    _custom = new AutoComplete(event);
+    add(_custom);
+    if (list.size() == 0 || _view->position_to_xy(pos, &X, &Y) == 0) {
+        return custom_remove();
+    }
+    else if (_custom->populate(fs, list, word, pos) == 0) {
+        return custom_remove();
+    }
+    if (X + W > x() + w()) {
+        X = x() + w() - W;
+    }
+    if (Y + H - y() > h() - fs) {
+        Y -= (H + fs);
+        Y -= 4;
+    }
+    else {
+        Y += 4;
+    }
+    _custom->callback(Editor::CallbackCustom, this);
+    _custom->popup(X, Y + fs, W, H);
+    _custom->take_focus();
+    Fl::redraw();
+    Fl::flush();
 }
 void Editor::deactivate() {
     Fl_Group::deactivate();
@@ -21588,7 +23390,7 @@ std::string Editor::file_load(const std::string& filename, bool force_hex) {
     }
     text_set_dirty(dirty, true);
     update_autocomplete(fbuf.c_str());
-    _config.send_message(message::FILE_LOADED, "", this);
+    _config.send_message(message::FILE_LOADED, "", "", this);
     return "";
 }
 std::string Editor::file_save() {
@@ -21695,7 +23497,7 @@ bool Editor::find_replace(FSEARCH_DIR fsearchdir, bool replace_text) {
     auto  find = fr.find_string();
     if (find == "") {
         if (fr.visible() == 0) {
-            _config.send_message(message::SHOW_FIND, "", &fr);
+            _config.send_message(message::SHOW_FIND, "", "", &fr);
         }
         return false;
     }
@@ -21780,7 +23582,7 @@ size_t Editor::find_replace_all(std::string find, std::string replace, FNL_TAB f
     }
     else {
         if (fhide == FHIDE_FIND::YES) {
-            _config.send_message(message::HIDE_FIND, "", &_findbar->findreplace());
+            _config.send_message(message::HIDE_FIND, "", "", &_findbar->findreplace());
         }
         if (fsave == FSAVE_WORD::YES) {
             _findbar->findreplace().add_find_word(find);
@@ -21835,7 +23637,7 @@ void Editor::help() const {
     std::string help;
     help += help::general();
     help += help::flags(_config);
-    flw::dlg::list("Help", help, Fl::first_window(), true, 60, 50);
+    flw::dlg::list("Help", help, true, Fl::first_window(), 60, 50);
 }
 bool Editor::home() {
     if (_editor_flags.fwrap == FWRAP::YES) {
@@ -21855,7 +23657,7 @@ size_t Editor::memory_usage(size_t& buffer, size_t& style, size_t& undo) const {
     undo   = (_buf1->undo() != nullptr) ? _buf1->undo()->capacity() : 0;
     return buffer + style + undo;
 }
-Message::CTRL Editor::message(const std::string& message, const std::string& s, const void*) {
+Message::CTRL Editor::message(const std::string& message, const std::string& s1, const std::string&, void*) {
     if (message == message::PREF_CHANGED) {
         update_pref();
     }
@@ -21867,7 +23669,7 @@ Message::CTRL Editor::message(const std::string& message, const std::string& s, 
     }
     else if (_config.active == this) {
         if (message == message::STATUSBAR_STYLE_CHANGED) {
-            style_from_language(s);
+            style_from_language(s1);
             take_focus();
             return Message::CTRL::ABORT;
         }
@@ -21890,7 +23692,7 @@ Message::CTRL Editor::message(const std::string& message, const std::string& s, 
             return Message::CTRL::ABORT;
         }
         else if (message == message::STATUSBAR_TAB_CHANGED) {
-            _editor_flags.set_tab_from_string(s);
+            _editor_flags.set_tab_from_string(s1);
             _findbar->statusbar().update_menus(this);
             update_pref();
             take_focus();
@@ -22251,7 +24053,7 @@ void Editor::update_after_focus() {
         _config.active = this;
         _findbar->statusbar().update_menus(this);
         _findbar->findreplace().callback(Editor::CallbackFind, this);
-        _config.send_message(message::EDITOR_FOCUS, "", this);
+        _config.send_message(message::EDITOR_FOCUS, "", "", this);
         update_statusbar();
     }
 }
@@ -22664,7 +24466,7 @@ static const bool           CLOSE_EDITOR                        = true;
 static const bool           DONT_CLOSE_EDITOR                   = false;
 static const std::string    NS_PROJECTS                         = "projects";
 static const std::string    NS_SNIPPETS                         = "snippets";
-static std::string FLEDIT_ABOUT = R"(flEdit r4
+static std::string FLEDIT_ABOUT = R"(flEdit r5
 
 Copyright 2024 - 2025 gnuwimp@gmail.com.
 Released under the GNU General Public License 3.0
@@ -22686,6 +24488,8 @@ alt + 'left'           switch to previous editor
 alt + 'right'          switch to next editor
 alt + shift + 'left'   move current editor to the left/up
 alt + shift + 'right'  move current editor to the right/down
+
+shift + ctrl + space to show a list of opened files.
 
 Projects:
 Files can be saved to a project and be restored later.
@@ -22865,6 +24669,7 @@ private:
     Fl_Radio_Round_Button*      _terminal;
     Fl_Return_Button*           _close;
     flw::GridGroup*             _grid;
+    bool                        _loop;
     int                         _last;
     int                         _res;
 };
@@ -22931,7 +24736,6 @@ class ProjectDialog : public Fl_Double_Window {
 public:
                                 ProjectDialog(gnu::db2::DB& db);
                                 ~ProjectDialog();
-    void                        resize(int X, int Y, int W, int H) override;
     std::string                 run(Fl_Window* parent);
     void                        update_pref();
     static void                 Callback(Fl_Widget* w, void* o);
@@ -22943,6 +24747,7 @@ private:
     flw::GridGroup*             _grid;
     gnu::db2::DB&               _db;
     std::string                 _name;
+    bool                        _run;
 };
 class TextDialog : public Fl_Double_Window {
 public:
@@ -22951,7 +24756,6 @@ public:
     void                        close();
     void                        delete_text();
     void                        load_text();
-    void                        resize(int X, int Y, int W, int H) override;
     void                        rename_text();
     std::string                 run(Fl_Window* parent);
     void                        update_text();
@@ -22970,6 +24774,7 @@ private:
     flw::SplitGroup*            _split;
     gnu::db2::DB&               _db;
     std::string                 _res;
+    bool                        _run;
 };
 class FlEdit : public Fl_Double_Window, fle::Message {
 public:
@@ -23000,7 +24805,7 @@ public:
     fle::Editor*                file_load(Fl_Widget* after, std::string filename, bool add_recent = true, int line = 0, bool as_hex = false);
     std::vector<std::string>    file_load_dialog();
     void                        file_load_list(Fl_Widget* after, std::vector<std::string> files, std::vector<int> filelines = std::vector<int>(), bool as_hex = false);
-    void                        file_new(std::string filename);
+    void                        file_new(const std::string& filename);
     void                        file_open(bool as_hex = false)
                                     { file_load_list(_editor, file_load_dialog(), std::vector<int>(), as_hex); }
     void                        file_readonly_mode();
@@ -23018,10 +24823,10 @@ public:
     int                         handle(int event) override;
     void                        help_about();
     void                        help_editor()
-                                    { flw::dlg::list("Keyboard Shortcuts", fle::help::general(), this, true, 60, 50); }
+                                    { flw::dlg::list("Keyboard Shortcuts", fle::help::general(), true, this, 60, 50); }
     void                        help_fledit();
     void                        help_pcre()
-                                    { flw::dlg::list("PCRE", fle::help::pcre(), this, true, 60, 50); }
+                                    { flw::dlg::list("PCRE", fle::help::pcre(), true, this, 60, 50); }
     void                        new_window();
     void                        pref_load(bool all = true);
     void                        pref_save();
@@ -23044,7 +24849,7 @@ public:
     bool                        project_save_to_db(const std::string& name, const std::string& old_name = "");
     void                        project_wordlist();
     bool                        quit();
-    fle::Message::CTRL          message(const std::string& message, const std::string& s, const void* p) override;
+    fle::Message::CTRL          message(const std::string& message, const std::string& s1, const std::string& s2, void* p) override;
     void                        resize(int X, int Y, int W, int H) override;
     void                        settings_backup();
     void                        settings_editor()
@@ -23082,14 +24887,14 @@ public:
     void                        settings_theme()
                                     { flw::dlg::theme(true, true, this); CONFIG.send_message(fle::message::PREF_CHANGED); }
     void                        show_find()
-                                    { CONFIG.send_message(fle::message::SHOW_FIND, "", &_findbar->findreplace()); }
+                                    { CONFIG.send_message(fle::message::SHOW_FIND, "", "", &_findbar->findreplace()); }
     void                        show_one()
                                     { split_view(SPLIT::SHOWONE); }
     void                        show_two()
                                     { split_view(SPLIT::SHOWTWO); }
     void                        split_view(SPLIT value);
     void                        tabs_activate(fle::Editor* editor);
-    void                        tabs_activate_cursor(std::string workpath, std::string filename, int row, int col);
+    void                        tabs_activate_cursor(const std::string& workpath, std::string filename, int row = 0, int col = 0);
     int                         tabs_changed() const;
     void                        tabs_check_empty();
     void                        tabs_check_external_update();
@@ -23099,6 +24904,7 @@ public:
     fle::Editor*                tabs_editor_by_index(int& index);
     fle::Editor*                tabs_editor_by_path(std::string path);
     void                        tabs_find_lines();
+    void                        tabs_list();
     void                        tabs_move_editor()
                                     { tabs_move_group(_editor); do_layout(); }
     void                        tabs_move_all(bool to_left);
@@ -23186,7 +24992,7 @@ private:
 CommandDialog::CommandDialog(CommandVector& commands, Command* select) : Fl_Double_Window(0, 0, 0, 0, "Command Settings"), _commands(commands) {
     end();
     _capture  = new Fl_Radio_Round_Button(0, 0, 0, 0, "Capture");
-    _close    = new Fl_Return_Button(0, 0, 0, 0, "Close");
+    _close    = new Fl_Return_Button(0, 0, 0, 0, "&Close");
     _command  = new Fl_Input(0, 0, 0, 0, "Command");
     _copy     = new Fl_Button(0, 0, 0, 0, "&Copy");
     _delete   = new Fl_Button(0, 0, 0, 0, "Delete");
@@ -23209,6 +25015,7 @@ CommandDialog::CommandDialog(CommandVector& commands, Command* select) : Fl_Doub
     _current  = nullptr;
     _res      = -1;
     _last     = 0;
+    _loop     = false;
     _grid->add(_list,          1,   1,  42,   -6);
     _grid->add(_name,         44,   3,  -1,   4);
     _grid->add(_command,      44,  10,  -1,   4);
@@ -23304,11 +25111,11 @@ CommandDialog::~CommandDialog() {
 void CommandDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<CommandDialog*>(o);
     if (w == self) {
-        CommandDialog::Callback(self->_close, self);
     }
     else if (w == self->_close) {
         if (self->data_save()) {
             self->_current = nullptr;
+            self->_loop = false;
             self->hide();
         }
     }
@@ -23320,6 +25127,7 @@ void CommandDialog::Callback(Fl_Widget* w, void* o) {
         self->_res = self->row(self->_current);
         self->_res--;
         if (self->_res >= 0 && self->data_save() == true) {
+            self->_loop = false;
             self->hide();
         }
     }
@@ -23373,7 +25181,7 @@ void CommandDialog::Callback(Fl_Widget* w, void* o) {
         self->data_set(Command::STREAM_TERMINAL);
     }
     else if (w == self->_help) {
-        flw::dlg::list("Command Help", COMMAND_HELP + fle::help::pcre(), self, true, 60, 40);
+        flw::dlg::list("Command Help", COMMAND_HELP + fle::help::pcre(), true, self, 60, 40);
     }
 }
 bool CommandDialog::data_delete() {
@@ -23583,9 +25391,10 @@ int CommandDialog::row(const Command* command) const {
     return 0;
 }
 Command* CommandDialog::run(Fl_Window* parent) {
+    _loop = true;
     flw::util::center_window(this, parent);
     show();
-    while (visible()) {
+    while (_loop == true) {
         Fl::wait();
         Fl::flush();
     }
@@ -24039,6 +25848,7 @@ _db(db) {
     _load     = new Fl_Button(0, 0, 0, 0, "&Load");
     _projects = new Fl_Hold_Browser(0, 0, 0, 0);
     _remove   = new Fl_Button(0, 0, 0, 0, "&Remove");
+    _run      = false;
     _grid->add(_projects,   1,   1,  -1,  -6);
     _grid->add(_cancel,   -51,  -5,  16,   4);
     _grid->add(_remove,   -34,  -5,  16,   4);
@@ -24064,6 +25874,7 @@ _db(db) {
         ProjectDialog::resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 40);
     }
     size_range(320, 240);
+    _grid->do_layout();
 }
 ProjectDialog::~ProjectDialog() {
     FlEdit::PROJECT_RECT = Fl_Rect(this);
@@ -24072,14 +25883,15 @@ void ProjectDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<ProjectDialog*>(o);
     fl_message_position(self);
     if (w == self) {
-        self->hide();
     }
     else if (w == self->_cancel) {
+        self->_run = false;
         self->hide();
     }
     else if (w == self->_load) {
         self->_name = gnu::str::to_string(self->_projects->text(self->_projects->value()));
         if (self->_name != "") {
+            self->_run = false;
             self->hide();
         }
         else {
@@ -24109,15 +25921,12 @@ void ProjectDialog::Callback(Fl_Widget* w, void* o) {
         }
     }
 }
-void ProjectDialog::resize(int X, int Y, int W, int H) {
-    Fl_Double_Window::resize(X, Y, W, H);
-    _grid->resize(0, 0, W, H);
-}
 std::string ProjectDialog::run(Fl_Window* parent) {
+    _run = true;
     _projects->take_focus();
     flw::util::center_window(this, parent);
     show();
-    while (visible()) {
+    while (_run == true) {
         Fl::wait();
         Fl::flush();
     }
@@ -24130,7 +25939,7 @@ void ProjectDialog::update_pref() {
 }
 static int _TextDialog_LAST_SPLIT = 0;
 TextDialog::TextDialog(gnu::db2::DB& db) :
-Fl_Double_Window(0, 0, 0, 0, TextDialog::LABEL),
+Fl_Double_Window(0, 0, 10, 10, TextDialog::LABEL),
 _db(db) {
     end();
     _buffer = new Fl_Text_Buffer();
@@ -24138,11 +25947,12 @@ _db(db) {
     _close  = new Fl_Button(0, 0, 0, 0, "&Ok");
     _delete = new Fl_Button(0, 0, 0, 0, "Delete");
     _editor = new Fl_Text_Editor(0, 0, 0, 0);
-    _grid   = new flw::GridGroup();
+    _grid   = new flw::GridGroup(0, 0, w(), h());
     _names  = new Fl_Hold_Browser(0, 0, 0, 0);
     _rename = new Fl_Button(0, 0, 0, 0, "&Rename");
     _split  = new flw::SplitGroup();
     _update = new Fl_Button(0, 0, 0, 0, "&Update");
+    _run    = false;
     _split->add(_names, flw::SplitGroup::CHILD::FIRST);
     _split->add(_editor, flw::SplitGroup::CHILD::SECOND);
     _split->direction(flw::SplitGroup::DIRECTION::VERTICAL);
@@ -24190,6 +26000,7 @@ _db(db) {
         TextDialog::resize(0, 0, flw::PREF_FONTSIZE * 80, flw::PREF_FONTSIZE * 50);
     }
     size_range(480, 320);
+    _grid->do_layout();
 }
 TextDialog::~TextDialog() {
     _editor->buffer(nullptr);
@@ -24201,9 +26012,9 @@ void TextDialog::Callback(Fl_Widget* w, void* o) {
     auto self = static_cast<TextDialog*>(o);
     fl_message_position(self);
     if (w == self) {
-        self->hide();
     }
     else if (w == self->_cancel) {
+        self->_run = false;
         self->hide();
     }
     else if (w == self->_close) {
@@ -24232,10 +26043,8 @@ void TextDialog::close() {
         _res = "";
     }
     if (_res != "") {
+        _run = false;
         hide();
-    }
-    else {
-        fl_beep(FL_BEEP_NOTIFICATION);
     }
 }
 void TextDialog::delete_text() {
@@ -24314,16 +26123,13 @@ void TextDialog::rename_text() {
         copy_label((std::string(TextDialog::LABEL) + " - Renamed " + name).c_str());
     }
 }
-void TextDialog::resize(int X, int Y, int W, int H) {
-    Fl_Double_Window::resize(X, Y, W, H);
-    _grid->resize(0, 0, W, H);
-}
 std::string TextDialog::run(Fl_Window* parent) {
+    _run = true;
     _names->take_focus();
     TextDialog::Callback(_names, this);
     flw::util::center_window(this, parent);
     show();
-    while (visible()) {
+    while (_run == true) {
         Fl::wait();
         Fl::flush();
     }
@@ -24357,21 +26163,21 @@ Fl_Rect     FlEdit::TEXT_RECT;
 fle::Config CONFIG;
 FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG) {
     end();
-    FlEdit::SELF     = this;
-    _dir_browser     = new DirBrowser();
-    _findbar         = new fle::FindBar(CONFIG);
-    _menu            = new Fl_Sys_Menu_Bar(0, 0, 0, 0);
-    _output          = new CommandOutput();
-    _split_edit      = new flw::SplitGroup();
-    _split_main      = new flw::SplitGroup();
-    _tabs.split      = new flw::SplitGroup();
-    _tabs.tabs1      = new flw::TabsGroup();
-    _tabs.tabs2      = new flw::TabsGroup();
-    _tabs.active     = _tabs.tabs1;
-    _editor          = nullptr;
-    _tabs.pref1      = flw::TabsGroup::TABS::NORTH;
-    _tabs.pref2      = flw::TabsGroup::TABS::NORTH;
-    _project         = { "", "", "" };
+    FlEdit::SELF      = this;
+    _dir_browser      = new DirBrowser();
+    _findbar          = new fle::FindBar(CONFIG);
+    _menu             = new Fl_Sys_Menu_Bar(0, 0, 0, 0);
+    _output           = new CommandOutput();
+    _split_edit       = new flw::SplitGroup();
+    _split_main       = new flw::SplitGroup();
+    _tabs.split       = new flw::SplitGroup();
+    _tabs.tabs1       = new flw::TabsGroup();
+    _tabs.tabs2       = new flw::TabsGroup();
+    _tabs.active      = _tabs.tabs1;
+    _editor           = nullptr;
+    _tabs.pref1       = flw::TabsGroup::TABS::NORTH;
+    _tabs.pref2       = flw::TabsGroup::TABS::NORTH;
+    _project          = { "", "", "" };
     _paths.start_path = gnu::file::work_dir().filename();
     add(_menu);
     add(_split_main);
@@ -24641,30 +26447,30 @@ void FlEdit::help_about() {
     text += "Open file directory: " + _paths.open_path + "\n";
     text += "Current directory:   " + gnu::file::work_dir().filename() + "\n";
     text += "\n";
-    flw::dlg::list("About", text, this, true, 45, 55);
+    flw::dlg::list("About", text, true, this, 45, 55);
 }
 void FlEdit::help_fledit() {
     std::string text = FLEDIT_HELP;
     text += fle::help::flags(CONFIG);
-    flw::dlg::list("Help", text, this, true, 60, 50);
+    flw::dlg::list("Help", text, true, this, 60, 50);
 }
-fle::Message::CTRL FlEdit::message(const std::string& message, const std::string& s, const void* p) {
+fle::Message::CTRL FlEdit::message(const std::string& message, const std::string& s1, const std::string& s2, void* p) {
     if (message == fle::message::TEXT_CHANGED || message == fle::message::FILE_LOADED) {
         assert(p);
-        auto editor = static_cast<fle::Editor*>(const_cast<void*>(p));
+        auto editor = static_cast<fle::Editor*>(p);
         editor_update_status(editor);
         update_menu();
     }
     else if (message == fle::message::EDITOR_FOCUS) {
         assert(p);
         assert(_tabs.active);
-        _editor      = (fle::Editor*) p;
-        _tabs.active = (flw::TabsGroup*) _editor->parent();
+        _editor      = static_cast<fle::Editor*>(p);
+        _tabs.active = static_cast<flw::TabsGroup*>(_editor->parent());
         update_menu();
     }
     else if (message == fle::message::DND_EVENT) {
-        auto lines   = gnu::str::split(s, "\n");
-        auto discard = static_cast<bool*>(const_cast<void*>(p));
+        auto lines   = gnu::str::split(s1, "\n");
+        auto discard = static_cast<bool*>(p);
         auto files   = std::vector<std::string>();
         *discard = true;
         for (auto line : lines) {
@@ -24701,6 +26507,15 @@ fle::Message::CTRL FlEdit::message(const std::string& message, const std::string
         do_layout();
         Fl::redraw();
         return Message::CTRL::ABORT;
+    }
+    else if (message == fle::message::SHOW_CUSTOM1) {
+        tabs_list();
+    }
+    else if (message == fle::message::CUSTOM_CALLBACK) {
+        if (s2 == "files") {
+            tabs_activate_cursor("", s1);
+            return Message::CTRL::ABORT;
+        }
     }
     return Message::CTRL::CONTINUE;
 }
@@ -24777,10 +26592,7 @@ void FlEdit::settings_output_vertical() {
 }
 void FlEdit::split_view(SPLIT value) {
     bool r = false;
-    if (_tabs.split->visible() == 0) {
-        return;
-    }
-    else if (value == SPLIT::SHOWONE || value == SPLIT::SHOWTWO) {
+    if (value == SPLIT::SHOWONE || value == SPLIT::SHOWTWO) {
         auto other = _tabs.tabs2;
         if (value == SPLIT::SHOWONE) {
             _tabs.active = _tabs.tabs1;
@@ -25071,6 +26883,7 @@ fle::Editor* FlEdit::file_load(Fl_Widget* after, std::string filename, bool add_
         editor->cursor_move_to_rowcol(line, 1);
     }
     _tabs.active->add(editor->filename_short_changed(), editor, after);
+    _tabs.active->tooltip(editor->filename_long(), editor);
     editor_set_style(editor);
     editor_update_status(editor);
     return editor;
@@ -25105,12 +26918,13 @@ void FlEdit::file_load_list(Fl_Widget* after, std::vector<std::string> filenames
     fflush(stdout);
 #endif
 }
-void FlEdit::file_new(std::string filename) {
+void FlEdit::file_new(const std::string& filename) {
     auto editor = new fle::Editor(CONFIG, _findbar);
     _tabs.active->add(editor->filename_short_changed(), editor, _editor);
     if (filename != "") {
         editor->filename_set_new(filename);
     }
+    _tabs.active->tooltip(editor->filename_long(), editor);
     editor_set_style(editor);
     editor_update_status(editor);
     editor->view().take_focus();
@@ -25179,6 +26993,7 @@ bool FlEdit::file_save_as(fle::Editor* editor) {
         fl_alert("%s", err.c_str());
         return false;
     }
+    _tabs.active->tooltip(editor->filename_long(), editor);
     editor_set_style(editor);
     editor_update_status(editor);
     _recent->insert(editor->filename_long());
@@ -25786,7 +27601,7 @@ void FlEdit::tabs_activate(fle::Editor* editor) {
     }
     redraw();
 }
-void FlEdit::tabs_activate_cursor(std::string workpath, std::string filename, int row, int col) {
+void FlEdit::tabs_activate_cursor(const std::string& workpath, std::string filename, int row, int col) {
     auto wpath = gnu::file::File(workpath);
     if (wpath.is_dir() == false) {
         wpath = gnu::file::work_dir();
@@ -25811,11 +27626,15 @@ void FlEdit::tabs_activate_cursor(std::string workpath, std::string filename, in
         editor = tabs_editor_by_index(tabindex);
     }
     if (found != nullptr) {
-        found->cursor_move_to_rowcol(row, col);
+        if (row > 0) {
+            found->cursor_move_to_rowcol(row, col);
+        }
         tabs_activate(found);
     }
     else if (partly != nullptr) {
-        partly->cursor_move_to_rowcol(row, col);
+        if (row > 0) {
+            partly->cursor_move_to_rowcol(row, col);
+        }
         tabs_activate(partly);
     }
     else if (_editor != nullptr) {
@@ -25985,6 +27804,20 @@ void FlEdit::tabs_find_lines() {
     _output->show();
     _output->show_editor();
     do_layout();
+}
+void FlEdit::tabs_list() {
+    if (_editor == nullptr) {
+        return;
+    }
+    auto list     = std::set<std::string>();
+    auto tabindex = 0;
+    auto tmp      = tabs_editor_by_index(tabindex);
+    while (tmp != nullptr) {
+        list.insert(tmp->filename_short());
+        tmp = tabs_editor_by_index(tabindex);
+    }
+    _editor->take_focus();
+    _editor->custom_show(list, "files", "");
 }
 void FlEdit::tabs_move_all(bool to_left) {
     auto from   = (to_left == true) ? _tabs.tabs2 : _tabs.tabs1;

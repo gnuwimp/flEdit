@@ -1,8 +1,5 @@
-// MKALGAM_ON
-// RAW_ON
 // Copyright https://github.com/DOSAYGO-Research/rain
 // Released under the Apache-2.0 license
-// RAW_OFF
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -214,5 +211,3 @@ uint32_t rainbow(unsigned hashsize, const void* in, const size_t in_len, uint8_t
     memcpy(&res, out, 4);
     return res;
 }
-
-// MKALGAM_OFF
