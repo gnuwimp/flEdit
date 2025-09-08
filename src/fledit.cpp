@@ -836,7 +836,7 @@ namespace util {
 namespace theme {
     bool                        is_dark();
     bool                        load(const std::string& name);
-    Fl_Font                     load_font(const std::string& requested_font, Fl_Font def);
+    Fl_Font                     load_font(const std::string& requested_font);
     void                        load_fonts(bool iso8859_only = true);
     void                        load_icon(Fl_Window* win, int win_resource, const char** xpm_resource = nullptr, const char* name = nullptr);
     Fl_Rect                     load_rect_from_pref(Fl_Preferences& pref, const std::string& basename);
@@ -8122,7 +8122,7 @@ bool theme::load(const std::string& name) {
     theme::_scrollbar();
     return true;
 }
-Fl_Font theme::load_font(const std::string& requested_font, Fl_Font def) {
+Fl_Font theme::load_font(const std::string& requested_font) {
     theme::load_fonts();
     auto count = 0;
     for (auto font : flw::PREF_FONTNAMES) {
@@ -8132,7 +8132,7 @@ Fl_Font theme::load_font(const std::string& requested_font, Fl_Font def) {
         }
         count++;
     }
-    return def;
+    return -1;
 }
 void theme::load_fonts(bool iso8859_only) {
     if (flw::PREF_FONTNAMES.size() == 0) {
@@ -8205,8 +8205,8 @@ void theme::load_theme_from_pref(Fl_Preferences& pref) {
     pref.get("regular_name", buffer, "", 4000);
     std::string name = buffer;
     if (name != "" && name != "FL_HELVETICA") {
-        auto font = theme::load_font(name, FL_HELVETICA);
-        if (font != FL_HELVETICA) {
+        auto font = theme::load_font(name);
+        if (font != -1) {
             flw::PREF_FONT     = font;
             flw::PREF_FONTNAME = name;
         }
@@ -8218,8 +8218,8 @@ void theme::load_theme_from_pref(Fl_Preferences& pref) {
     pref.get("mono_name", buffer, "", 1000);
     name = buffer;
     if (name != "" && name != "FL_COURIER") {
-        auto font = theme::load_font(name, FL_COURIER);
-        if (font != FL_COURIER) {
+        auto font = theme::load_font(name);
+        if (font != -1) {
             flw::PREF_FIXED_FONT     = font;
             flw::PREF_FIXED_FONTNAME = name;
         }
@@ -8307,7 +8307,6 @@ void theme::save_theme_to_pref(Fl_Preferences& pref) {
     pref.set("mono_size", flw::PREF_FIXED_FONTSIZE);
 }
 void theme::save_win_to_pref(Fl_Preferences& pref, const std::string& basename, Fl_Window* window) {
-    assert(window);
     pref.set((basename + "x").c_str(), window->x());
     pref.set((basename + "y").c_str(), window->y());
     pref.set((basename + "w").c_str(), window->w());
@@ -10859,9 +10858,7 @@ void GridGroup::resize(Fl_Widget* widget, int X, int Y, int W, int H) {
 }
 #include <algorithm>
 namespace flw {
-namespace inputmenu {
-    static constexpr const char* TOOLTIP = "Use up/down arrows to switch between previous values.\nPress ctrl + space to open menu button (if visible).";
-}
+static constexpr const char* _INPUTMENU_TOOLTIP = "Use up/down arrows to switch between previous values.\nPress ctrl + space to open menu button (if visible).";
 class _InputMenu : public Fl_Input {
 public:
     bool            show_menu;
@@ -10915,8 +10912,8 @@ InputMenu::InputMenu(int X, int Y, int W, int H, const char* l) : Fl_Group(X, Y,
     _input->callback(InputMenu::_CallbackInput, this);
     _input->when(FL_WHEN_ENTER_KEY_ALWAYS);
     _menu->callback(InputMenu::_CallbackMenu, this);
-    _menu->tooltip(inputmenu::TOOLTIP);
-    tooltip(inputmenu::TOOLTIP);
+    _menu->tooltip(_INPUTMENU_TOOLTIP);
+    tooltip(_INPUTMENU_TOOLTIP);
     update_pref();
     resize(X, Y, W, H);
 }
@@ -24488,7 +24485,7 @@ static const bool           CLOSE_EDITOR                        = true;
 static const bool           DONT_CLOSE_EDITOR                   = false;
 static const std::string    NS_PROJECTS                         = "projects";
 static const std::string    NS_SNIPPETS                         = "snippets";
-static std::string FLEDIT_ABOUT = R"(flEdit r6b
+static std::string FLEDIT_ABOUT = R"(flEdit r6
 
 Copyright 2024 - 2025 gnuwimp@gmail.com.
 Released under the GNU General Public License 3.0
