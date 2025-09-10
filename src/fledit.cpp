@@ -1293,7 +1293,7 @@ public:
     explicit                    TabsGroup(int X = 0, int Y = 0, int W = 0, int H = 0, const char* l = nullptr);
     void                        activate(Fl_Widget* widget)
                                     { _activate(widget, false); } ///< @brief Activate and show button and child widget.
-    void                        add(const std::string& label, Fl_Widget* widget, const Fl_Widget* after =  nullptr);
+    void                        add(const std::string& label, Fl_Widget* widget, const Fl_Widget* after =  nullptr, const std::string& tooltip = "");
     void                        border(int n = 0, int s = 0, int w = 0, int e = 0)
                                     { _n = n; _s = s; _w = w; _e = e; do_layout(); } ///< @brief Set border around active child widget.
     Fl_Widget*                  child(int index) const;
@@ -1326,6 +1326,7 @@ public:
     TABS                        tabs() const
                                     { return _tabs; } ///< @brief Pos of the tab buttons (TABS::NORTH, TABS::SOUTH, TABS::EAST, TABS::WEST).
     void                        tabs(TABS value, int space_max_20 = TabsGroup::DEFAULT_SPACE_PX);
+    std::string                 tooltip(Fl_Widget* widget) const;
     void                        tooltip(const std::string& label, Fl_Widget* widget);
     void                        update_pref(unsigned characters = 10, Fl_Font font = flw::PREF_FONT, Fl_Fontsize fontsize = flw::PREF_FONTSIZE);
     Fl_Widget*                  value() const;
@@ -8236,12 +8237,19 @@ void theme::load_theme_from_pref(Fl_Preferences& pref) {
 }
 double theme::load_win_from_pref(Fl_Preferences& pref, const std::string& basename, Fl_Window* window, bool show, int defw, int defh) {
     assert(window);
-    int  x, y, w, h, s;
+    int  x           = 0;
+    int  y           = 0;
+    int  w           = 0;
+    int  h           = 0;
+    int  s           = 0;
+    auto sv          = 0.0;
+    auto def_scaling = Fl::screen_scale(window->screen_num());
     pref.get((basename + "x").c_str(), x, 80);
     pref.get((basename + "y").c_str(), y, 60);
     pref.get((basename + "w").c_str(), w, defw);
     pref.get((basename + "h").c_str(), h, defh);
     pref.get((basename + "s").c_str(), s, 1);
+    pref.get((basename + "sv").c_str(), sv, def_scaling);
     if (x < 0 || x > Fl::w()) {
         x = 0;
     }
@@ -8259,10 +8267,16 @@ double theme::load_win_from_pref(Fl_Preferences& pref, const std::string& basena
         window->show();
     }
 #endif
+    if (sv < 0.5 || sv > 2.0) {
+        sv = def_scaling;
+    }
     flw::PREF_SCALE_ON  = s;
-    flw::PREF_SCALE_VAL = Fl::screen_scale(window->screen_num());
+    flw::PREF_SCALE_VAL = sv;
     if (flw::PREF_SCALE_ON == false) {
         Fl::screen_scale(window->screen_num(), 1.0);
+    }
+    else {
+        Fl::screen_scale(window->screen_num(), sv);
     }
     return flw::PREF_SCALE_VAL;
 }
@@ -8312,6 +8326,7 @@ void theme::save_win_to_pref(Fl_Preferences& pref, const std::string& basename, 
     pref.set((basename + "w").c_str(), window->w());
     pref.set((basename + "h").c_str(), window->h());
     pref.set((basename + "s").c_str(), flw::PREF_SCALE_ON);
+    pref.set((basename + "sv").c_str(), flw::PREF_SCALE_VAL);
 }
 PrintText::PrintText(const std::string& filename,
     Fl_Paged_Device::Page_Format page_format,
@@ -9849,6 +9864,8 @@ class _DlgTheme : public Fl_Double_Window {
     Fl_Button*                  _fixedfont;
     Fl_Button*                  _font;
     Fl_Check_Button*            _scale;
+    Fl_Slider*                  _scale_val;
+    Fl_Window*                  _parent;
     GridGroup*                  _grid;
     bool                        _run;
     int                         _theme_row;
@@ -9863,13 +9880,16 @@ public:
         _font_label  = new Fl_Box(0, 0, 0, 0);
         _grid        = new GridGroup(0, 0, w(), h());
         _scale       = new Fl_Check_Button(0, 0, 0, 0, "Use scaling");
+        _scale_val   = new Fl_Slider(0, 0, 0, 0);
         _theme       = new Fl_Hold_Browser(0, 0, 0, 0);
+        _parent      = (parent != nullptr) ? parent : top_window();
         _theme_row   = 0;
         _run         = false;
         _grid->add(_theme,         1,   1,  -1, -21);
         _grid->add(_font_label,    1, -20,  -1,   4);
         _grid->add(_fixed_label,   1, -15,  -1,   4);
-        _grid->add(_scale,         1, -10,  -1,   4);
+        _grid->add(_scale,         1, -10,  19,   4);
+        _grid->add(_scale_val,    25, -10,  -1,   4);
         _grid->add(_font,        -51,  -5,  16,   4);
         _grid->add(_fixedfont,   -34,  -5,  16,   4);
         _grid->add(_close,       -17,  -5,  16,   4);
@@ -9880,24 +9900,31 @@ public:
         if (enable_fixedfont == false) {
           _fixedfont->deactivate();
         }
-        _close->callback(Callback, this);
+        _close->callback(_DlgTheme::Callback, this);
         _fixed_label->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _fixed_label->box(FL_BORDER_BOX);
         _fixed_label->color(FL_BACKGROUND2_COLOR);
         _fixed_label->tooltip("Default fixed font");
-        _fixedfont->callback(Callback, this);
+        _fixedfont->callback(_DlgTheme::Callback, this);
         _fixedfont->tooltip("Set default fixed font.");
-        _font->callback(Callback, this);
+        _font->callback(_DlgTheme::Callback, this);
         _font->tooltip("Set default font.");
         _font_label->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _font_label->box(FL_BORDER_BOX);
         _font_label->color(FL_BACKGROUND2_COLOR);
         _font_label->tooltip("Default font.");
-        _scale->callback(Callback, this);
-        _scale->tooltip("Turn on/off FLTK scaling for HiDPI screens.\nMight not work as expected in some desktop environments!");
+        _scale->callback(_DlgTheme::Callback, this);
+        _scale->tooltip("Turn on/off FLTK scaling for HiDPI screens.\nSave settings and restart application.");
         _scale->value(flw::PREF_SCALE_ON);
+        _scale_val->range(0.5, 2.0);
+        _scale_val->step(0.05);
+        _scale_val->value(flw::PREF_SCALE_VAL);
+        _scale_val->type(FL_HORIZONTAL);
+        _scale_val->callback(_DlgTheme::Callback, this);
+        _scale_val->align(FL_ALIGN_LEFT);
+        _scale_val->tooltip("Set scaling factor.");
         _theme->box(FL_BORDER_BOX);
-        _theme->callback(Callback, this);
+        _theme->callback(_DlgTheme::Callback, this);
         _theme->textfont(flw::PREF_FONT);
         for (auto& name : flw::PREF_THEMES) {
             _theme->add(name.c_str());
@@ -9905,20 +9932,11 @@ public:
         if (Fl::screen_scaling_supported() == 0) {
             _scale->value(0);
             _scale->deactivate();
+            _scale_val->deactivate();
         }
-        else if (flw::PREF_SCALE_VAL < 0.1) {
-            if (parent != nullptr) {
-                flw::PREF_SCALE_VAL = Fl::screen_scale(parent->screen_num());
-            }
-            else if (Fl::first_window() != nullptr) {
-                flw::PREF_SCALE_VAL = Fl::screen_scale(Fl::first_window()->screen_num());
-            }
-            else {
-                flw::PREF_SCALE_VAL = Fl::screen_scale(0);
-            }
-        }
+        _DlgTheme::Callback(_scale_val, this);
         resizable(_grid);
-        callback(Callback, this);
+        callback(_DlgTheme::Callback, this);
         set_modal();
         update_pref();
         util::center_window(this, parent);
@@ -9955,6 +9973,10 @@ public:
                     flw::PREF_FIXED_FONTSIZE = flw::PREF_FONTSIZE;
                 }
                 self->update_pref();
+                #if defined(__linux__)
+                    self->hide();
+                    self->show();
+                #endif
             }
         }
         else if (w == self->_theme) {
@@ -10002,18 +10024,10 @@ public:
         }
         else if (w == self->_scale) {
             flw::PREF_SCALE_ON = self->_scale->value();
-            if (flw::PREF_SCALE_ON == true) {
-                if (flw::PREF_SCALE_VAL > 0.5 && flw::PREF_SCALE_ON < 4.0) {
-                    Fl::screen_scale(self->top_window()->screen_num(), flw::PREF_SCALE_VAL);
-                }
-                else {
-                    Fl::screen_scale(self->top_window()->screen_num(), 1.0);
-                }
-            }
-            else {
-                Fl::screen_scale(self->top_window()->screen_num(), 1.0);
-            }
-            self->update_pref();
+        }
+        else if (w == self->_scale_val) {
+            flw::PREF_SCALE_VAL = self->_scale_val->value();
+            self->_scale_val->copy_label(util::format("%.2f", flw::PREF_SCALE_VAL).c_str());
         }
     }
     void run() {
@@ -10025,6 +10039,8 @@ public:
         }
     }
     void update_pref() {
+        size(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 32);
+        _grid->resize(0, 0, w(), h());
         Fl_Tooltip::font(flw::PREF_FONT);
         Fl_Tooltip::size(flw::PREF_FONTSIZE);
         util::labelfont(this);
@@ -10034,9 +10050,6 @@ public:
         _fixed_label->labelsize(flw::PREF_FIXED_FONTSIZE);
         _theme->textfont(flw::PREF_FONT);
         _theme->textsize(flw::PREF_FONTSIZE);
-        size(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 32);
-        size_range(flw::PREF_FONTSIZE * 20, flw::PREF_FONTSIZE * 14);
-        _grid->resize(0, 0, w(), h());
         theme::_scrollbar();
         for (int f = 0; f < theme::THEME_NIL; f++) {
             if (flw::PREF_THEME == flw::PREF_THEMES[f]) {
@@ -11373,12 +11386,13 @@ void TabsGroup::_activate(Fl_Widget* widget, bool kludge) {
 Fl_Widget* TabsGroup::_active_button() {
     return (_active1 >= 0 && _active1 < static_cast<int>(_widgets.size())) ? _widgets[_active1] : nullptr;
 }
-void TabsGroup::add(const std::string& label, Fl_Widget* widget, const Fl_Widget* after) {
+void TabsGroup::add(const std::string& label, Fl_Widget* widget, const Fl_Widget* after, const std::string& tooltip) {
     if (find(widget) != -1) {
         return;
     }
     auto button = new _TabsGroupButton(_align, label, widget, this);
     auto idx    = (after != nullptr) ? find(after) : static_cast<int>(_widgets.size());
+    button->copy_tooltip(tooltip.c_str());
     if (idx < 0 || idx >= static_cast<int>(_widgets.size()) - 1) {
         Fl_Group::add(widget);
         _pack->add(button);
@@ -11402,15 +11416,17 @@ Fl_Widget* TabsGroup::child(int index) const {
 void TabsGroup::clear() {
     _active1 = -1;
     _active2 = -1;
+    _widgets.clear();
     _scroll->remove(_pack);
     _scroll->clear();
     _pack->clear();
     Fl_Group::remove(_scroll);
     Fl_Group::clear();
     Fl_Group::add(_scroll);
-    _widgets.clear();
     _scroll->add(_pack);
     update_pref();
+    _pack->need_layout(1);
+    do_layout();
     Fl::redraw();
 }
 void TabsGroup::debug(bool all) const {
@@ -11797,6 +11813,7 @@ int TabsGroup::swap(int from, int to) {
         }
         util::swap_rect(_widgets[from], _widgets[to]);
     }
+    _pack->need_layout(1);
     return _active1;
 }
 void TabsGroup::tabs(TABS tabs, int space_max_20) {
@@ -11821,6 +11838,13 @@ void TabsGroup::tabs(TABS tabs, int space_max_20) {
     if (w != nullptr) {
         w->take_focus();
     }
+}
+std::string TabsGroup::tooltip(Fl_Widget* widget) const {
+    auto num = find(widget);
+    if (num == -1) {
+        return "";
+    }
+    return flw::util::to_string(_widgets[num]->tooltip());
 }
 void TabsGroup::tooltip(const std::string& tooltip, Fl_Widget* widget) {
     auto num = find(widget);
@@ -23418,6 +23442,7 @@ std::string Editor::file_save() {
     auto backup1 = gnu::file::File(filename_backup());
     auto text1   = text_get_buffer(file_line_ending(), FTRIM::NO, FCHECKSUM::YES);
     auto fi      = gnu::file::File(filename_long());
+    auto saved   = false;
     if (text1.size() <= limits::FILE_BACKUP_SIZE_VAL && backup1.filename() != "") {
         auto backup2 = gnu::file::File(backup1.filename() + FileInfo::TodayExt());
         if (fi.size() > 0 && backup2.is_missing() == true) {
@@ -23431,7 +23456,13 @@ std::string Editor::file_save() {
             gnu::file::chmod(backup1.filename(), fi.mode());
         }
     }
-    auto saved = gnu::file::write(filename_long(), text1);
+    if (_file_info.fi.is_link() == true) {
+        auto real = gnu::file::File(filename_long(), true);
+        saved = gnu::file::write(real.filename(), text1);
+    }
+    else {
+        saved = gnu::file::write(filename_long(), text1);
+    }
     update_autocomplete(text1.c_str());
     if (saved == false) {
         _buf1->checksum_clear();
@@ -24390,6 +24421,9 @@ static const char * icon_xpm[] = {
 "                                                                                                "};
 constexpr static const char* MENU_DEBUG                         = "&Debug/Debug";
 constexpr static const char* MENU_DEBUG_COMPARE                 = "&Debug/Compare buffer with file";
+constexpr static const char* MENU_DEBUG_PGO                     = "&PGO";
+constexpr static const char* MENU_DEBUG_PGO_RUN                 = "&PGO/Run";
+constexpr static const char* MENU_DEBUG_PGO_UNDO                = "&PGO/Undo";
 constexpr static const char* MENU_DEBUG_SIZE                    = "&Debug/Debug size";
 constexpr static const char* MENU_FILE_CLOSE                    = "&File/Close file";
 constexpr static const char* MENU_FILE_CLOSEALL                 = "&File/Close all files";
@@ -24483,9 +24517,10 @@ static const bool           ASK_SAVE                            = true;
 static const bool           DONT_ASK_SAVE                       = false;
 static const bool           CLOSE_EDITOR                        = true;
 static const bool           DONT_CLOSE_EDITOR                   = false;
+static const bool           OPEN_FILE_USING_REAL_NAME           = false;
 static const std::string    NS_PROJECTS                         = "projects";
 static const std::string    NS_SNIPPETS                         = "snippets";
-static std::string FLEDIT_ABOUT = R"(flEdit r6
+static std::string FLEDIT_ABOUT = R"(flEdit r6.1
 
 Copyright 2024 - 2025 gnuwimp@gmail.com.
 Released under the GNU General Public License 3.0
@@ -24925,9 +24960,11 @@ public:
     void                        tabs_find_lines();
     void                        tabs_list();
     void                        tabs_move_editor()
-                                    { tabs_move_group(_editor); do_layout(); }
+                                    { tabs_move(_editor); do_layout(); }
     void                        tabs_move_all(bool to_left);
-    void                        tabs_move_group(fle::Editor* editor);
+    void                        tabs_move(fle::Editor* editor);
+    void                        tabs_pgo();
+    void                        tabs_pgo_undo();
     void                        tabs_replace_all();
     void                        tabs_reset_split_size();
     void                        tabs_restore_visibility();
@@ -26175,6 +26212,11 @@ void TextDialog::update_text() {
 }
 #define FLEDIT_CB1(X) [](Fl_Widget*, void* o) { static_cast<FlEdit*>(o)->X; static_cast<FlEdit*>(o)->update_menu(); }, this
 #define FLEDIT_CB2(X,Y) [](Fl_Widget*, void* o) { static_cast<FlEdit*>(o)->X; static_cast<FlEdit*>(o)->Y; static_cast<FlEdit*>(o)->update_menu(); }, this
+#ifdef DEBUG_PGO
+    static bool _PGO = true;
+#else
+    static bool _PGO = false;
+#endif
 FlEdit*     FlEdit::SELF  = nullptr;
 Fl_Rect     FlEdit::COMMAND_RECT;
 Fl_Rect     FlEdit::PROJECT_RECT;
@@ -26306,8 +26348,13 @@ FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG)
 #ifdef DEBUG
     _menu->add(MENU_DEBUG,                      0,                              FLEDIT_CB1(debug()));
     _menu->add(MENU_DEBUG_SIZE,                 0,                              FLEDIT_CB1(debug_size()));
-    _menu->add(MENU_DEBUG_COMPARE,              0,                              FLEDIT_CB1(debug_compare()));
+    _menu->add(MENU_DEBUG_COMPARE,              0,                              FLEDIT_CB1(debug_compare()), FL_MENU_DIVIDER);
 #endif
+    _menu->add(MENU_DEBUG_PGO_RUN,              0,                              FLEDIT_CB1(tabs_pgo()));
+    _menu->add(MENU_DEBUG_PGO_UNDO,             0,                              FLEDIT_CB1(tabs_pgo_undo()));
+    if (_PGO == false) {
+        flw::menu::get_item(_menu, MENU_DEBUG_PGO)->hide();
+    }
     _recent->max_items(20);
     resizable(this);
     size_range(320, 240);
@@ -26878,7 +26925,7 @@ void FlEdit::file_close_all() {
 }
 fle::Editor* FlEdit::file_load(Fl_Widget* after, std::string filename, bool add_recent, int line, bool as_hex) {
     fl_message_position(this);
-    auto fi     = gnu::file::File(filename, true);
+    auto fi     = gnu::file::File(filename, OPEN_FILE_USING_REAL_NAME);
     auto editor = tabs_editor_by_path(fi.filename());
     filename = fi.filename();
     if (fi.is_dir() == true) {
@@ -26995,7 +27042,7 @@ bool FlEdit::file_save_as(fle::Editor* editor) {
     }
     fl_message_position(this);
     auto filename = gnu::str::to_string(fl_file_chooser("Save File As", fle::style::FILE_FILTER, editor->filename_path() != "" ? editor->filename_long().c_str() : _paths.open_path.c_str()));
-    auto new_file = gnu::file::File(filename, true);
+    auto new_file = gnu::file::File(filename, OPEN_FILE_USING_REAL_NAME);
     if (new_file.filename() == "" || new_file.filename() == editor->filename_long() || new_file.is_other() == true) {
         return false;
     }
@@ -27629,12 +27676,12 @@ void FlEdit::tabs_activate_cursor(const std::string& workpath, std::string filen
         filename = wpath.filename() + "/" + filename;
     }
     auto tabindex = 0;
-    auto fi       = gnu::file::File(filename, true);
+    auto fi       = gnu::file::File(filename, OPEN_FILE_USING_REAL_NAME);
     auto editor   = tabs_editor_by_index(tabindex);
     auto found    = (fle::Editor*) nullptr;
     auto partly   = (fle::Editor*) nullptr;
     while (editor != nullptr) {
-        auto tmp = gnu::file::File(editor->filename_long(), true);
+        auto tmp = gnu::file::File(editor->filename_long(), OPEN_FILE_USING_REAL_NAME);
         if (fi.filename() == tmp.filename()) {
             found = editor;
             break;
@@ -27725,12 +27772,9 @@ void FlEdit::tabs_check_external_update() {
 }
 void FlEdit::tabs_close_all() {
     auto wc = flw::WaitCursor();
-    while (_tabs.tabs1->children() > 0) {
-        delete _tabs.tabs1->remove(0);
-    }
-    while (_tabs.tabs2->children() > 0) {
-        delete _tabs.tabs2->remove(0);
-    }
+    _editor = nullptr;
+    _tabs.tabs1->clear();
+    _tabs.tabs2->clear();
     tabs_activate(nullptr);
 }
 int FlEdit::tabs_count() const {
@@ -27838,15 +27882,39 @@ void FlEdit::tabs_list() {
     _editor->take_focus();
     _editor->custom_show(list, "files", "");
 }
+void FlEdit::tabs_move(fle::Editor* editor) {
+    if (editor == nullptr || editor->file_is_empty() == true) {
+        return;
+    }
+    auto tabs = static_cast<flw::TabsGroup*>(editor->parent());
+    if (tabs == nullptr) {
+        return;
+    }
+    auto tip = tabs->tooltip(editor);
+    if (tabs->remove(editor) == nullptr) {
+        return;
+    }
+    if (tabs == _tabs.tabs1) {
+        _tabs.tabs2->add(editor->filename_short_changed(), editor, _tabs.tabs2->value(), tip);
+    }
+    else if (tabs == _tabs.tabs2) {
+        _tabs.tabs1->add(editor->filename_short_changed(), editor, _tabs.tabs1->value(), tip);
+    }
+    tabs_check_empty();
+    editor_update_status(editor);
+    tabs_activate(editor);
+}
 void FlEdit::tabs_move_all(bool to_left) {
+    auto wc     = flw::WaitCursor();
     auto from   = (to_left == true) ? _tabs.tabs2 : _tabs.tabs1;
     auto to     = (to_left == true) ? _tabs.tabs1 : _tabs.tabs2;
     auto editor = (fle::Editor*) nullptr;
     auto old    = (fle::Editor*) _editor;
     while (from->children() > 0) {
         editor = static_cast<fle::Editor*>(from->child(0));
+        auto tip = from->tooltip(editor);
         from->remove(editor);
-        to->add(editor->filename_short_changed(), editor, to->value());
+        to->add(editor->filename_short_changed(), editor, to->value(), tip);
     }
     if (old != nullptr) {
         editor = old;
@@ -27854,24 +27922,30 @@ void FlEdit::tabs_move_all(bool to_left) {
     tabs_check_empty();
     editor_update_status(editor);
     tabs_activate(editor);
+    from->do_layout();
+    to->do_layout();
 }
-void FlEdit::tabs_move_group(fle::Editor* editor) {
-    if (editor == nullptr || editor->file_is_empty() == true) {
-        return;
+void FlEdit::tabs_pgo() {
+    auto tabindex = 0;
+    auto tmp      = tabs_editor_by_index(tabindex);
+    while (tmp != nullptr) {
+        tmp->find_replace_all(" ", "XX", fle::FNL_TAB::NO, fle::FSELECTION::NO, fle::FCASE_COMPARE::YES, fle::FWORD_COMPARE::NO, fle::FREGEX::NO, fle::FSAVE_WORD::NO, fle::FHIDE_FIND::YES);
+        tmp->find_replace_all("^X", "y", fle::FNL_TAB::NO, fle::FSELECTION::NO, fle::FCASE_COMPARE::YES, fle::FWORD_COMPARE::NO, fle::FREGEX::YES, fle::FSAVE_WORD::NO, fle::FHIDE_FIND::YES);
+        tmp->cursor_move_to_pos(tmp->text_length() / 2, true);
+        tmp->text_select_line();
+        for (int f = 0; f < 100; f++) {
+            tmp->text_move_lines(fle::FMOVE_V::DOWN);
+        }
+        tmp = tabs_editor_by_index(tabindex);
     }
-    auto tabs = static_cast<flw::TabsGroup*>(editor->parent());
-    if (tabs == nullptr || tabs->remove(editor) == nullptr) {
-        return;
+}
+void FlEdit::tabs_pgo_undo() {
+    auto tabindex = 0;
+    auto tmp      = tabs_editor_by_index(tabindex);
+    while (tmp != nullptr) {
+        tmp->undo(fle::FUNDO_RANGE::ALL);
+        tmp = tabs_editor_by_index(tabindex);
     }
-    if (tabs == _tabs.tabs1) {
-        _tabs.tabs2->add(editor->filename_short_changed(), editor, _tabs.tabs2->value());
-    }
-    else if (tabs == _tabs.tabs2) {
-        _tabs.tabs1->add(editor->filename_short_changed(), editor, _tabs.tabs1->value());
-    }
-    tabs_check_empty();
-    editor_update_status(editor);
-    tabs_activate(editor);
 }
 void FlEdit::tabs_replace_all() {
     tabs_check_external_update();
