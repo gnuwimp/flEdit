@@ -838,8 +838,10 @@ namespace label {
     extern std::string          DEL;
     extern std::string          DISCARD;
     extern std::string          MONO;
+    extern std::string          NEXT;
     extern std::string          NO;
     extern std::string          OK;
+    extern std::string          PREV;
     extern std::string          PRINT;
     extern std::string          REGULAR;
     extern std::string          SAVE;
@@ -1511,13 +1513,16 @@ namespace flw {
 namespace util {
 class RecentMenu {
 public:
-                                RecentMenu(Fl_Menu_* menu, Fl_Callback* callback, void* userdata = nullptr, const std::string& base_label = "&File/Open recent", const std::string& clear_label = "/Clear");
+                                RecentMenu(Fl_Menu_* menu, Fl_Callback* callback, void* userdata = nullptr, const std::string& base_label = "&File/Open Recent", const std::string& clear_label = "/Clear");
     void                        append(const std::string& item)
                                     { return _add(item, true); }
+    void                        clear()
+                                    { return _add("", false); }
     void                        insert(const std::string& item)
                                     { return _add(item, false); }
     StringVector                items() const
                                     { return _items; }
+    void                        items(const StringVector& names);
     size_t                      max_items() const
                                     { return _max; }
     void                        max_items(size_t max)
@@ -1530,11 +1535,11 @@ public:
                                     { return _user; }
     void                        user_data(void* data)
                                     { _user = data; }
-    static void                 CallbackClear(Fl_Widget*, void* o);
 private:
     void                        _add(const std::string& item, bool append);
     size_t                      _add_string(StringVector& items, size_t max_size, const std::string& string);
     size_t                      _insert_string(StringVector& items, size_t max_size, const std::string& string);
+    static void                 _Callback(Fl_Widget*, void* o);
     std::string                 _base;
     Fl_Callback*                _callback;
     std::string                 _clear;
@@ -1593,7 +1598,7 @@ class TabsGroup : public Fl_Group {
 public:
     static const int            DEFAULT_SPACE             =  2;
     static const int            DEFAULT_MAX_HOR_TAB_WIDTH = 12;
-    static const int            DEFAULT_VER_TAB_WIDTH     = 10;
+    static const int            DEFAULT_VER_TAB_WIDTH     = 12;
     static const int            HEIGHT                    =  8;
     static const int            MAX_SPACE                 = 20;
     static const int            MIN_WIDTH                 =  4;
@@ -1721,6 +1726,7 @@ class FindReplace;
 class Message;
 class TextBuffer;
 class View;
+extern std::string                              APPLICATION;
 typedef std::vector<int>                        IntVector;
 typedef std::set<std::string>                   StringSet;
 typedef std::unordered_map<std::string, int>    StringIntHash;
@@ -1935,28 +1941,28 @@ namespace errors {
 namespace info {
     static const std::string ASK_RELOAD           = "File %s has been changed on disk\nWould you like to load it again and discard changes?";
     static const std::string BACKUP_LOADED        = "file is missing but found backup file!";
-    static const std::string BIN_LOADED           = "binary file has been loaded as text";
-    static const std::string FILE_RELOAD          = "file changed on disk and reloaded";
-    static const std::string FILE_WRAPPED         = "word wrapping has been turned on due to very long text lines";
-    static const std::string FOUND_LINES          = "found %u lines in %d mS";
-    static const std::string FOUND_STRING_POS     = "found string at pos %d";
-    static const std::string FOUND_STRING_LINE    = "found string at line %d";
-    static const std::string FOUND_STRING_LINECOL = "found string at line %d, column %d";
-    static const std::string HEX_LOADED           = "binary file has been loaded as hex";
-    static const std::string NO_SPACES_REPLACED   = "unable to convert spaces to tabs!";
-    static const std::string NO_STRINGS_REPLACED  = "unable to replace <%s> with <%s>";
-    static const std::string NO_STRING_FOUND      = "unable to find <%s>";
-    static const std::string NO_TABS_REPLACED     = "unable to convert tabs to spaces!";
-    static const std::string PAIRS                = "could not found matching pairs";
-    static const std::string REDID_CHANGES        = "redid %d changes";
-    static const std::string REMOVED_TRAILING     = "removed whitespace from %u lines";
-    static const std::string REPLACED_STRINGS     = "replaced %u strings in %d mS";
-    static const std::string SPACES_REPLACED      = "replaced spaces with %d tabs";
-    static const std::string STYLE_OFF            = "styling has been turned off!";
-    static const std::string TABS_REPLACED        = "replaced %d tabs with spaces";
-    static const std::string TEXT_SAME_AS_FILE    = "file and buffer are the same";
-    static const std::string UNDID_CHANGES        = "undid %d changes";
-    static const std::string UNDO_MEMORY          = "warning: memory usage for undo has reached %lld bytes";
+    static const std::string BIN_LOADED           = "Binary file has been loaded as text";
+    static const std::string FILE_RELOAD          = "File changed on disk and reloaded";
+    static const std::string FILE_WRAPPED         = "Word wrapping has been turned on due to very long text lines";
+    static const std::string FOUND_LINES          = "Found %u lines in %d mS";
+    static const std::string FOUND_STRING_POS     = "Found string at pos %d";
+    static const std::string FOUND_STRING_LINE    = "Found string at line %d";
+    static const std::string FOUND_STRING_LINECOL = "Found string at line %d, column %d";
+    static const std::string HEX_LOADED           = "Binary file has been loaded as hex";
+    static const std::string NO_SPACES_REPLACED   = "Unable to convert spaces to tabs!";
+    static const std::string NO_STRINGS_REPLACED  = "Unable to replace <%s> with <%s>";
+    static const std::string NO_STRING_FOUND      = "Unable to find <%s>";
+    static const std::string NO_TABS_REPLACED     = "Unable to convert tabs to spaces!";
+    static const std::string PAIRS                = "Could not found matching pairs";
+    static const std::string REDID_CHANGES        = "Redid %d changes";
+    static const std::string REMOVED_TRAILING     = "Removed whitespace from %u lines";
+    static const std::string REPLACED_STRINGS     = "Replaced %u strings in %d mS";
+    static const std::string SPACES_REPLACED      = "Replaced spaces with %d tabs";
+    static const std::string STYLE_OFF            = "Styling has been turned off!";
+    static const std::string TABS_REPLACED        = "Replaced %d tabs with spaces";
+    static const std::string TEXT_SAME_AS_FILE    = "File and buffer are the same";
+    static const std::string UNDID_CHANGES        = "Undid %d changes";
+    static const std::string UNDO_MEMORY          = "Warning: memory usage for undo has reached %lld bytes";
 }
 namespace message {
     const std::string CUSTOM_AUTOCOMPLETE     = "message: custom wordfile has changed settings";
@@ -3039,17 +3045,17 @@ public:
     gnu::file::Buf              get(FLineEnding flineending, FTrim ftrim, FChecksum fchecksum);
     std::string                 get_first(int pos) const;
     std::string                 get_indent(int pos) const;
+    std::string                 get_letters_to_left(int pos) const;
     std::string                 get_line(int pos) const
                                     { return gnu::str::grab(line_text(pos)); }
     void                        get_line_range(int pos, int& start, int& end) const;
-    std::string                 get_line_range_string(int start, int end) const;
     void                        get_line_range_with_nl(int pos, int& start, int& end) const;
+    std::string                 get_range(int start, int end) const;
     bool                        get_selection(int& start, int& end, bool expand);
     std::string                 get_selection_text()
                                     { return gnu::str::grab(selection_text()); }
     int                         get_word_end(int pos) const;
-    std::string                 get_word_left(int pos) const;
-    int                         get_word_start(int pos, bool move_left) const;
+    int                         get_word_start(int pos) const;
     bool                        has_callback() const
                                     { return mModifyProcs != nullptr; }
     bool                        has_multiline_selection();
@@ -3173,11 +3179,11 @@ public:
                                     { return _word.get(c); }
     static void                 CallbackUndo(const int pos, const int inserted_size, const int deleted_size, const int restyled_size, const char* deleted_text, void* v);
 #ifdef DEBUG
-    CursorPos                   _find_replace_regex_all(gnu::pcre8::PCRE* regex, const std::string replace, int from, int to, FRegexType fregextype, bool selection, bool last = false);
+    CursorPos                   _find_replace_regex_all(gnu::pcre8::PCRE* regex, const std::string replace, int from, int to, FRegexType fregextype, FSelection fselection, bool last = false);
 #endif
 private:
 #ifndef DEBUG
-    CursorPos                   _find_replace_regex_all(gnu::pcre8::PCRE* regex, const std::string replace, int from, int to, FRegexType fregextype, bool selection, bool last = false);
+    CursorPos                   _find_replace_regex_all(gnu::pcre8::PCRE* regex, const std::string replace, int from, int to, FRegexType fregextype, FSelection fselection, bool last = false);
 #endif
     int                         _token(const std::string& string) const;
     Config&                     _config;
@@ -3223,7 +3229,7 @@ class FindDialog : public Fl_Double_Window {
 public:
     static FRegex               REGEX;
     static FTrim                TRIM;
-                                FindDialog(std::string label, const std::vector<std::string>& find_list);
+                                FindDialog(const std::string& label, const std::vector<std::string>& find_list);
     std::string                 run();
     bool                        test_pcre();
     static void                 Callback(Fl_Widget* w, void* o);
@@ -7591,23 +7597,23 @@ static std::string _print(
     int                       pw;
     std::string               res;
     if ((file = fl_fopen(ps_filename.c_str(), "wb")) == nullptr) {
-        return "error: could not open file!";
+        return "Error: could not open file!";
     }
     printer.begin_job(file, 0, format, layout);
     while (cont == true) {
         if (printer.begin_page() != 0) {
-            res = "error: couldn't create new page!";
+            res = "Error: couldn't create new page!";
             goto ERR;
         }
         if (printer.printable_rect(&pw, &ph) != 0) {
-            res = "error: couldn't retrieve page size!";
+            res = "Error: couldn't retrieve page size!";
             goto ERR;
         }
         fl_push_clip(0, 0, pw, ph);
         cont = cb(data, pw, ph, from);
         fl_pop_clip();
         if (printer.end_page() != 0) {
-            res = "error: couldn't end page!";
+            res = "Error: couldn't end page!";
             goto ERR;
         }
         if (from > 0) {
@@ -7936,7 +7942,7 @@ void debug::print(const Fl_Widget* widget, std::string& indent, bool recursive) 
 }
 bool debug::test(bool val, int line, const char* func) {
     if (val == false) {
-        fprintf(stderr, "error: test failed at line %d in %s\n", line, func);
+        fprintf(stderr, "Error: test failed at line %d in %s\n", line, func);
         fflush(stderr);
         return false;
     }
@@ -7947,7 +7953,7 @@ bool debug::test(const char* ref, const char* val, int line, const char* func) {
         return true;
     }
     else if (ref == nullptr || val == nullptr || strcmp(ref, val) != 0) {
-        fprintf(stderr, "error: test failed '%s' != '%s' at line %d in %s\n", ref ? ref : "NULL", val ? val : "NULL", line, func);
+        fprintf(stderr, "Error: test failed '%s' != '%s' at line %d in %s\n", ref ? ref : "NULL", val ? val : "NULL", line, func);
         fflush(stderr);
         return false;
     }
@@ -7955,7 +7961,7 @@ bool debug::test(const char* ref, const char* val, int line, const char* func) {
 }
 bool debug::test(int64_t ref, int64_t val, int line, const char* func) {
     if (ref != val) {
-        fprintf(stderr, "error: test failed '%lld' != '%lld' at line %d in %s\n", (long long int) ref, (long long int) val, line, func);
+        fprintf(stderr, "Error: test failed '%lld' != '%lld' at line %d in %s\n", (long long int) ref, (long long int) val, line, func);
         fflush(stderr);
         return false;
     }
@@ -7963,7 +7969,7 @@ bool debug::test(int64_t ref, int64_t val, int line, const char* func) {
 }
 bool debug::test(double ref, double val, double diff, int line, const char* func) {
     if (fabs(ref - val) > diff) {
-        fprintf(stderr, "error: test failed '%f' != '%f' at line %d in %s\n", ref, val, line, func);
+        fprintf(stderr, "Error: test failed '%f' != '%f' at line %d in %s\n", ref, val, line, func);
         fflush(stderr);
         return false;
     }
@@ -7974,11 +7980,13 @@ std::string label::CANCEL   = "&Cancel";
 std::string label::CLOSE    = "Cl&ose";
 std::string label::DEL      = "&Delete";
 std::string label::DISCARD  = "&Discard";
-std::string label::MONO     = "&Mono font";
+std::string label::MONO     = "&Mono Font";
+std::string label::NEXT     = "&Next";
 std::string label::NO       = "&No";
 std::string label::OK       = "&Ok";
+std::string label::PREV     = "&Previous";
 std::string label::PRINT    = "&Print";
-std::string label::REGULAR  = "&Regular font";
+std::string label::REGULAR  = "&Regular Font";
 std::string label::SAVE     = "&Save";
 std::string label::SAVE_DOT = "&Save...";
 std::string label::SELECT   = "&Select";
@@ -8353,7 +8361,7 @@ std::string util::print(const std::string& ps_filename, Fl_Paged_Device::Page_Fo
 }
 std::string util::print(const std::string& ps_filename, Fl_Paged_Device::Page_Format format, Fl_Paged_Device::Page_Layout layout, PrintCallback cb, void* data, int from, int to) {
     if (from < 1 || from > to) {
-        return "error: invalid from/to range";
+        return "Error: invalid from/to range!";
     }
     return priv::_print(ps_filename, format, layout, cb, data, from, to);
 }
@@ -8547,14 +8555,14 @@ void util::PrintText::_check_for_new_page() {
         if (_page_count > 0) {
             fl_pop_clip();
             if (_printer->end_page() != 0) {
-                throw "error: couldn't end current page";
+                throw "Error: couldn't end current page!";
             }
         }
         if (_printer->begin_page() != 0) {
-            throw "error: couldn't create new page!";
+            throw "Error: couldn't create new page!";
         }
         if (_printer->printable_rect(&_pw, &_ph) != 0) {
-            throw "error: couldn't retrieve page size!";
+            throw "Error: couldn't retrieve page size!";
         }
         fl_font(_font, _fontsize);
         fl_color(FL_BLACK);
@@ -8613,7 +8621,7 @@ std::string util::PrintText::print(const StringVector& lines, unsigned replace_t
         res = ex;
     }
     catch (...) {
-        res = "error: unknown exception!";
+        res = "Error: unknown exception!";
     }
     return res;
 }
@@ -8683,7 +8691,7 @@ void util::PrintText::_print_wrapped_line(const std::string& line) {
 }
 std::string util::PrintText::_start() {
     if ((_file = fl_fopen(_filename.c_str(), "wb")) == nullptr) {
-        return "error: could not open file!";
+        return "Error: could not open file!";
     }
     _lh         = 0;
     _line_count = 0;
@@ -8704,7 +8712,7 @@ std::string util::PrintText::_stop() {
         if (_page_count > 0) {
             fl_pop_clip();
             if (_printer->end_page() != 0) {
-                res = "error: could not end page!";
+                res = "Error: could not end page!";
             }
         }
         _printer->end_job();
@@ -9026,32 +9034,32 @@ static bool         MSG_ACTIVE_COLOR2 = false;
  void _load_plastic_tan();
  void _scrollbar();
 static void _init_printer_formats(Fl_Choice* format, Fl_Choice* layout) {
-    format->add("A0 format");
-    format->add("A1 format");
-    format->add("A2 format");
-    format->add("A3 format");
-    format->add("A4 format");
-    format->add("A5 format");
-    format->add("A6 format");
-    format->add("A7 format");
-    format->add("A8 format");
-    format->add("A9 format");
-    format->add("B0 format");
-    format->add("B1 format");
-    format->add("B2 format");
-    format->add("B3 format");
-    format->add("B4 format");
-    format->add("B5 format");
-    format->add("B6 format");
-    format->add("B7 format");
-    format->add("B8 format");
-    format->add("B9 format");
-    format->add("Executive format");
-    format->add("Folio format");
-    format->add("Ledger format");
-    format->add("Legal format");
-    format->add("Letter format");
-    format->add("Tabloid format");
+    format->add("A0 Format");
+    format->add("A1 Format");
+    format->add("A2 Format");
+    format->add("A3 Format");
+    format->add("A4 Format");
+    format->add("A5 Format");
+    format->add("A6 Format");
+    format->add("A7 Format");
+    format->add("A8 Format");
+    format->add("A9 Format");
+    format->add("B0 Format");
+    format->add("B1 Format");
+    format->add("B2 Format");
+    format->add("B3 Format");
+    format->add("B4 Format");
+    format->add("B5 Format");
+    format->add("B6 Format");
+    format->add("B7 Format");
+    format->add("B8 Format");
+    format->add("B9 Format");
+    format->add("Executive Format");
+    format->add("Folio Format");
+    format->add("Ledger Format");
+    format->add("Legal Format");
+    format->add("Letter Format");
+    format->add("Tabloid Format");
     format->tooltip("Select paper format.");
     format->value(4);
     layout->add("Portrait");
@@ -9173,7 +9181,7 @@ void dlg::options_push() {
     priv::MSG_ACTIVE_COLOR2 = priv::MSG_ACTIVE_COLOR;
 }
 void dlg::panic(const std::string& message) {
-    dlg::msg_error("Application Error", util::format("panic! I have to quit\n%s", message.c_str()));
+    dlg::msg_error("Application Error", util::format("PANIC! I have to quit\n%s", message.c_str()));
     exit(1);
 }
 namespace priv {
@@ -9209,7 +9217,6 @@ public:
         callback(Callback, this);
         copy_label(title.c_str());
         resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 22, flw::PREF_FONTSIZE * 14);
         set_modal();
     }
     static void Callback(Fl_Widget* w, void* o) {
@@ -9268,7 +9275,6 @@ public:
         _html->value(text.c_str());
         callback(_DlgHtml::Callback, this);
         copy_label(title.c_str());
-        size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
         util::center_window(this, priv::PARENT);
@@ -9326,7 +9332,6 @@ public:
         }
         callback(_DlgList::Callback, this);
         copy_label(title.c_str());
-        size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
         util::center_window(this, priv::PARENT);
@@ -9563,7 +9568,6 @@ public:
         resizable(_grid);
         util::labelfont(this);
         util::center_window(this, priv::PARENT);
-        size_range(10, 10);
         _grid->do_layout();
     }
     static void Callback(Fl_Widget* w, void* o) {
@@ -9713,7 +9717,7 @@ public:
         _file->align(FL_ALIGN_TOP | FL_ALIGN_LEFT);
         _file->textfont(flw::PREF_FIXED_FONT);
         _file->textsize(flw::PREF_FONTSIZE);
-        _file->tooltip("Select optional key file");
+        _file->tooltip("Select optional key file.");
         _password1->align(FL_ALIGN_TOP | FL_ALIGN_LEFT);
         _password1->callback(_DlgPassword::Callback, this);
         _password1->textfont(flw::PREF_FIXED_FONT);
@@ -9747,7 +9751,6 @@ public:
         callback(_DlgPassword::Callback, this);
         copy_label(title.c_str());
         size(W, H);
-        size_range(W, H);
         set_modal();
         util::center_window(this, priv::PARENT);
         _grid->do_layout();
@@ -9937,7 +9940,6 @@ public:
         _DlgPrint::Callback(_to, this);
         callback(_DlgPrint::Callback, this);
         copy_label(title.c_str());
-        size_range(flw::PREF_FONTSIZE * 34, flw::PREF_FONTSIZE * 18);
         set_modal();
         resizable(_grid);
         util::center_window(this, priv::PARENT);
@@ -10049,9 +10051,9 @@ public:
         _grid->add(_close,  -17,  -5,  16,   4);
         add(_grid);
         util::labelfont(this);
-        _align->add("Left align");
-        _align->add("Center align");
-        _align->add("Right align");
+        _align->add("Left Align");
+        _align->add("Center Align");
+        _align->add("Right Align");
         _align->tooltip("Line numbers are only used for left aligned text.");
         _align->value(0);
         _align->textfont(flw::PREF_FONT);
@@ -10092,7 +10094,6 @@ public:
         _DlgPrintText::Callback(_tab, this);
         callback(_DlgPrintText::Callback, this);
         copy_label(title.c_str());
-        size_range(flw::PREF_FONTSIZE * 34, flw::PREF_FONTSIZE * 35);
         set_modal();
         resizable(_grid);
         util::center_window(this, priv::PARENT);
@@ -10208,12 +10209,12 @@ public:
     Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 20),
     _labels(strings) {
         end();
-        _all    = new Fl_Button(0, 0, 0, 0, "All on");
+        _all    = new Fl_Button(0, 0, 0, 0, "All On");
         _cancel = new Fl_Button(0, 0, 0, 0, label::CANCEL.c_str());
         _close  = new Fl_Return_Button(0, 0, 0, 0, label::OK.c_str());
         _grid   = new GridGroup(0, 0, w(), h());
         _invert = new Fl_Button(0, 0, 0, 0, "Invert");
-        _none   = new Fl_Button(0, 0, 0, 0, "All off");
+        _none   = new Fl_Button(0, 0, 0, 0, "All Off");
         _scroll = new Fl_Scroll(0, 0, 0, 0);
         _ret    = false;
         _run    = false;
@@ -10241,7 +10242,6 @@ public:
         copy_label(title.c_str());
         set_modal();
         resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 12);
         util::center_window(this, priv::PARENT);
     }
     static void Callback(Fl_Widget* w, void* o) {
@@ -10336,7 +10336,6 @@ public:
         copy_label(title.c_str());
         set_modal();
         resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 6);
         util::center_window(this, priv::PARENT);
         _grid->do_layout();
     }
@@ -10438,7 +10437,6 @@ public:
         callback(_DlgSelectString::Callback, this);
         copy_label(title.c_str());
         activate_button();
-        size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
         util::center_window(this, priv::PARENT);
@@ -10576,7 +10574,6 @@ public:
         copy_label(title.c_str());
         set_modal();
         resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 6);
         util::center_window(this, priv::PARENT);
         _grid->do_layout();
         _slider->value_width((max >= 100'000) ? flw::PREF_FONTSIZE * 10 : flw::PREF_FONTSIZE * 6);
@@ -10666,7 +10663,6 @@ public:
         util::labelfont(this);
         callback(_DlgText::Callback, this);
         copy_label(title.c_str());
-        size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
         set_modal();
         resizable(_grid);
         util::center_window(this, priv::PARENT);
@@ -10744,7 +10740,7 @@ public:
         _font        = new Fl_Button(0, 0, 0, 0, label::REGULAR.c_str());
         _font_label  = new Fl_Box(0, 0, 0, 0);
         _grid        = new GridGroup(0, 0, w(), h());
-        _scale       = new Fl_Check_Button(0, 0, 0, 0, "!! Use scaling");
+        _scale       = new Fl_Check_Button(0, 0, 0, 0, "!! Use Scaling");
         _scale_val   = new Fl_Slider(0, 0, 0, 0);
         _theme       = new Fl_Hold_Browser(0, 0, 0, 0);
         _theme_row   = 0;
@@ -10768,7 +10764,7 @@ public:
         _fixed_label->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
         _fixed_label->box(FL_BORDER_BOX);
         _fixed_label->color(FL_BACKGROUND2_COLOR);
-        _fixed_label->tooltip("Default fixed font");
+        _fixed_label->tooltip("Default fixed font.");
         _fixedfont->callback(_DlgTheme::Callback, this);
         _fixedfont->tooltip("Set default fixed font.");
         _font->callback(_DlgTheme::Callback, this);
@@ -11104,7 +11100,6 @@ void dlg::Font::_create(Fl_Font font, const std::string& fontname, Fl_Fontsize f
     resizable(_grid);
     copy_label(title.c_str());
     callback(Font::Callback, this);
-    size_range(flw::PREF_FONTSIZE * 38, flw::PREF_FONTSIZE * 12);
     set_modal();
     _fonts->take_focus();
     _grid->resize(0, 0, w(), h());
@@ -11176,7 +11171,6 @@ Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 12) {
     util::labelfont(this);
     callback(Progress::Callback, this);
     copy_label(title.c_str());
-    size_range(flw::PREF_FONTSIZE * 24, flw::PREF_FONTSIZE * 12);
     set_modal();
     resizable(_grid);
     _grid->resize(0, 0, w(), h());
@@ -11427,23 +11421,23 @@ GridGroup(X, Y, W, H, l) {
     add(_month_label, 0, 4, 0, 4);
     add(_canvas,      0, 8, 0, 0);
     _b1->callback(flw::DateChooser::_Callback, this);
-    _b1->tooltip("Previous year");
+    _b1->tooltip("Previous year.");
     _b2->callback(flw::DateChooser::_Callback, this);
-    _b2->tooltip("Previous month");
+    _b2->tooltip("Previous month.");
     _b3->callback(flw::DateChooser::_Callback, this);
-    _b3->tooltip("Next month");
+    _b3->tooltip("Next month.");
     _b4->callback(flw::DateChooser::_Callback, this);
-    _b4->tooltip("Next year");
+    _b4->tooltip("Next year.");
     _b5->callback(flw::DateChooser::_Callback, this);
-    _b5->tooltip("Today");
+    _b5->tooltip("Today.");
     _b6->callback(flw::DateChooser::_Callback, this);
-    _b6->tooltip("10 years in the past");
+    _b6->tooltip("10 years in the pas.t");
     _b7->callback(flw::DateChooser::_Callback, this);
-    _b7->tooltip("10 years in the future");
+    _b7->tooltip("10 years in the future.");
     _canvas->callback(flw::DateChooser::_Callback, this);
     _month_label->box(FL_UP_BOX);
     util::labelfont(this);
-    tooltip("Use arrow keys to navigate\nUse ctrl+left/right to change month");
+    tooltip("Use arrow keys to navigate\nUse ctrl+left/right to change month.");
     resizable(this);
     do_layout();
 }
@@ -11607,9 +11601,9 @@ void GridGroup::adjust(Fl_Widget* widget, int L, int R, int T, int B) {
             return;
         }
     }
-    #ifdef DEBUG
-        fprintf(stderr, "error: flw::GridGroup::adjust() failed to find widget (label=%s)\n", widget->label());
-    #endif
+#ifdef DEBUG
+    fprintf(stderr, "Error: flw::GridGroup::adjust() failed to find widget (label=%s)!\n", widget->label());
+#endif
 }
 void GridGroup::clear() {
     _widgets.clear();
@@ -11666,9 +11660,9 @@ Fl_Widget* GridGroup::remove(Fl_Widget* widget) {
             return widget;
         }
     }
-    #ifdef DEBUG
-        fprintf(stderr, "error: GridGroup::remove can't find widget\n");
-    #endif
+#ifdef DEBUG
+    fprintf(stderr, "Error: GridGroup::remove can't find widget!\n");
+#endif
     return nullptr;
 }
 void GridGroup::resize(int X, int Y, int W, int H) {
@@ -11735,9 +11729,9 @@ void GridGroup::resize(Fl_Widget* widget, int X, int Y, int W, int H) {
             return;
         }
     }
-    #ifdef DEBUG
-        fprintf(stderr, "error: flw::GridGroup::resize() failed to find widget (label=%s)\n", widget->label());
-    #endif
+#ifdef DEBUG
+    fprintf(stderr, "Error: flw::GridGroup::resize() failed to find widget (label=%s)!\n", widget->label());
+#endif
 }
 }
 #include <algorithm>
@@ -11892,7 +11886,7 @@ RecentMenu::RecentMenu(Fl_Menu_* menu, Fl_Callback* callback, void* userdata, co
     _clear    = clear_label;
     _user     = userdata;
     _max      = 10;
-    _menu->add((_base + _clear).c_str(), 0, RecentMenu::CallbackClear, this, FL_MENU_DIVIDER);
+    _menu->add((_base + _clear).c_str(), 0, RecentMenu::_Callback, this, FL_MENU_DIVIDER);
 }
 void RecentMenu::_add(const std::string& item, bool append) {
     if (item == "") {
@@ -11907,7 +11901,7 @@ void RecentMenu::_add(const std::string& item, bool append) {
     auto index = _menu->find_index(_base.c_str());
     if (index >= 0) {
         _menu->clear_submenu(index);
-        _menu->add((_base + _clear).c_str(), 0, RecentMenu::CallbackClear, this, FL_MENU_DIVIDER);
+        _menu->add((_base + _clear).c_str(), 0, RecentMenu::_Callback, this, FL_MENU_DIVIDER);
     }
     for (const auto& f : _items) {
         _menu->add((_base + "/" + flw::util::fix_menu_string(f)).c_str(), 0, _callback, _user);
@@ -11926,9 +11920,8 @@ size_t RecentMenu::_add_string(StringVector& items, size_t max_size, const std::
     }
     return items.size();
 }
-void RecentMenu::CallbackClear(Fl_Widget*, void* o) {
-    auto self = static_cast<RecentMenu*>(o);
-    self->_add("", false);
+void RecentMenu::_Callback(Fl_Widget*, void* o) {
+    static_cast<RecentMenu*>(o)->_add("", false);
 }
 size_t RecentMenu::_insert_string(StringVector& items, size_t max_size, const std::string& string) {
     for (auto it = items.begin(); it != items.end(); ++it) {
@@ -11942,6 +11935,12 @@ size_t RecentMenu::_insert_string(StringVector& items, size_t max_size, const st
         items.pop_back();
     }
     return items.size();
+}
+void RecentMenu::items(const StringVector& names) {
+    auto res = StringVector();
+    for (const auto& name : names) {
+        _add(name, true);
+    }
 }
 void RecentMenu::load_pref(Fl_Preferences& pref, const std::string& base_name) {
     auto index = 1;
@@ -12866,6 +12865,8 @@ void TabsGroup::update_pref(Fl_Font font, Fl_Fontsize fontsize) {
     _drag = false;
     labelfont(font);
     labelsize(fontsize);
+    _width1 = flw::PREF_FONTSIZE * TabsGroup::DEFAULT_VER_TAB_WIDTH;
+    _width2 = TabsGroup::DEFAULT_MAX_HOR_TAB_WIDTH;
     for (auto widget : _widgets) {
         widget->labelfont(font);
         widget->labelsize(fontsize);
@@ -13026,9 +13027,9 @@ void ToolGroup::size(unsigned size) {
 }
 }
 namespace flw {
-static const std::string _SCROLLBROWSER_MENU_ALL  = "Copy All Lines";
+static const std::string _SCROLLBROWSER_MENU_ALL  = "Copy all Lines";
 static const std::string _SCROLLBROWSER_MENU_LINE = "Copy Current Line";
-static const std::string _SCROLLBROWSER_TOOLTIP   = "Right click to show the menu";
+static const std::string _SCROLLBROWSER_TOOLTIP   = "Right click to show the menu.";
 ScrollBrowser::ScrollBrowser(int lines, int X, int Y, int W, int H, const char* l) : Fl_Hold_Browser(X, Y, W, H, l) {
     end();
     _menu      = new Fl_Menu_Button(0, 0, 0, 0);
@@ -13154,6 +13155,7 @@ extern "C" {
 }
 #endif
 namespace fle {
+std::string APPLICATION;
 namespace limits {
     const size_t FIND_LIST_MAX               =             30;
     const size_t HEXFILE_DIVIDER             =              5;
@@ -13946,7 +13948,7 @@ gnu::file::Buf string::binary_to_hex(const void* in, size_t in_size, bool wide) 
     return fbuf;
 }
 gnu::file::Buf string::binary_to_text(const void* in, size_t in_size) {
-    static const void*   BUF = "error: binary file to large!";
+    static const void*   BUF = "Error: binary file to large!";
     const unsigned char* buf = static_cast<const unsigned char*>(in);
     size_t               utf = 0;
     for (size_t f = 0; f < in_size; f++) {
@@ -18379,11 +18381,11 @@ CursorPos TextBuffer::comment_line(const std::string& line_comment) {
     auto rx      = gnu::pcre8::PCRE(gnu::str::format("^\\s*(%s)", line_comment.c_str()));
     auto matches = rx.exec(line);
     if (matches.size() == 2) {
-        return _find_replace_regex_all(&rx, "", start2, end2, FRegexType::REPLACE, false, true);
+        return _find_replace_regex_all(&rx, "", start2, end2, FRegexType::REPLACE, FSelection::NO, true);
     }
     else {
         rx.compile("(^\\s*)(\\S+)");
-        return _find_replace_regex_all(&rx, line_comment, start2, end2, FRegexType::INSERT, false, true);
+        return _find_replace_regex_all(&rx, line_comment, start2, end2, FRegexType::INSERT, FSelection::NO, true);
     }
 }
 bool TextBuffer::cut_or_copy_line(int pos, FCopy fcopy) {
@@ -18463,7 +18465,7 @@ int TextBuffer::delete_text_left(int pos, FDelText del) {
         return 1;
     }
     else if (del == FDelText::WORD && selected() == 0) {
-        auto start = get_word_start(pos, true);
+        auto start = get_word_start(pos - 1);
         if (start != -1 && start < pos) {
             remove(start, pos);
             return 1;
@@ -18586,7 +18588,7 @@ size_t TextBuffer::find_lines(
                 out.push_back(s);
             }
             else {
-                out.push_back("error: max number of lines has been reached!");
+                out.push_back("Error: max number of lines has been reached!");
                 break;
             }
         }
@@ -18802,7 +18804,7 @@ CursorPos TextBuffer::find_replace_regex(const std::string& find, const char* re
         sel_c = sel_e - sel_s;
     }
     get_line_range(pos, line_s, line_e);
-    auto line    = get_line_range_string(line_s, line_e);
+    auto line    = get_range(line_s, line_e);
     auto line_i  = sel_s - line_s;
     auto line_c  = (int) line.length();
     if (sel == true && line_i < line_c && replace != nullptr) {
@@ -18817,7 +18819,7 @@ CursorPos TextBuffer::find_replace_regex(const std::string& find, const char* re
                 replace_selection(replace2.c_str());
             }
             get_line_range(line_s, line_s, line_e);
-            line   = get_line_range_string(line_s, line_e);
+            line   = get_range(line_s, line_e);
             line_i = line_i + (int) ((use_cap == true) ? sub.length() : replace2.length());
             line_c = (int) line.length();
         }
@@ -18854,7 +18856,7 @@ CursorPos TextBuffer::find_replace_regex(const std::string& find, const char* re
                 STOP = START;
             }
             get_line_range(pos, line_s, line_e);
-            line   = get_line_range_string(line_s, line_e);
+            line   = get_range(line_s, line_e);
             line_i = 0;
             line_c = (int) line.length();
         }
@@ -18866,8 +18868,8 @@ CursorPos TextBuffer::_find_replace_regex_all(
     std::string         replace,
     int                 from,
     int                 to,
-    FRegexType         fregextype,
-    bool                selection,
+    FRegexType          fregextype,
+    FSelection          fselection,
     bool                last) {
     _count_changes = 0;
     if (to == 0) {
@@ -18879,7 +18881,7 @@ CursorPos TextBuffer::_find_replace_regex_all(
     auto start   = 0;
     auto end     = 0;
     auto use_cap = gnu::pcre8::PCRE::Find("\\$\\d", replace);
-    if (selection == true) {
+    if (fselection == FSelection::YES) {
         from = cursor.start;
         to   = cursor.end;
         pos1 = from;
@@ -18899,7 +18901,7 @@ CursorPos TextBuffer::_find_replace_regex_all(
         auto notbol = false;
         auto noteol = false;
         get_line_range(pos1, start, end);
-        if (selection == true) {
+        if (fselection == FSelection::YES) {
             if (start < cursor.start) {
                 notbol = true;
                 start  = cursor.start;
@@ -19011,10 +19013,10 @@ CursorPos TextBuffer::find_replace_regex_all(gnu::pcre8::PCRE* regex, std::strin
         if (cursor.text_has_selection() == false) {
             return cursor;
         }
-        return _find_replace_regex_all(regex, replace, cursor.start, cursor.end, FRegexType::REPLACE, true);
+        return _find_replace_regex_all(regex, replace, cursor.start, cursor.end, FRegexType::REPLACE, FSelection::YES);
     }
     else {
-        return _find_replace_regex_all(regex, replace, 0, length(), FRegexType::REPLACE, false);
+        return _find_replace_regex_all(regex, replace, 0, length(), FRegexType::REPLACE, FSelection::NO);
     }
 }
 gnu::file::Buf TextBuffer::get(FLineEnding flineending, FTrim ftrim, FChecksum fchecksum) {
@@ -19032,7 +19034,7 @@ std::string TextBuffer::get_first(int pos) const {
     auto start = 0;
     auto end   = 0;
     get_line_range(pos, start, end);
-    return get_line_range_string(start, pos);
+    return get_range(start, pos);
 }
 std::string TextBuffer::get_indent(int pos) const {
     std::string res;
@@ -19046,12 +19048,21 @@ std::string TextBuffer::get_indent(int pos) const {
     }
     return res;
 }
+std::string TextBuffer::get_letters_to_left(int pos) const {
+    auto f = pos;
+    auto t = 0;
+    do {
+        f--;
+        t = _word.get(peek(f));
+    } while (t &  Token::LETTER);
+    if (f < pos - 1) {
+        return gnu::str::grab(text_range(f + 1, pos));
+    }
+    return "";
+}
 void TextBuffer::get_line_range(int pos, int& start, int& end) const {
     start = line_start(pos);
     end   = line_end(pos);
-}
-std::string TextBuffer::get_line_range_string(int start, int end) const {
-    return gnu::str::grab(text_range(start, end));
 }
 void TextBuffer::get_line_range_with_nl(int pos, int& start, int& end) const {
     start = line_start(pos);
@@ -19059,6 +19070,9 @@ void TextBuffer::get_line_range_with_nl(int pos, int& start, int& end) const {
     if (peek(end - 1) != '\n') {
         end++;
     }
+}
+std::string TextBuffer::get_range(int start, int end) const {
+    return gnu::str::grab(text_range(start, end));
 }
 bool TextBuffer::get_selection(int& start, int& end, bool expand) {
     if (selection_position(&start, &end) == 0) {
@@ -19087,24 +19101,12 @@ int TextBuffer::get_word_end(int pos) const {
     }
     return stop;
 }
-std::string TextBuffer::get_word_left(int pos) const {
-    auto f = pos;
-    auto t = 0;
-    do {
-        f--;
-        t = _word.get(peek(f));
-    } while (t &  Token::LETTER);
-    if (f < pos - 1) {
-        return gnu::str::grab(text_range(f + 1, pos));
-    }
-    return "";
-}
-int TextBuffer::get_word_start(int pos, bool move_left) const {
-    auto type = peek_token(pos - move_left);
+int TextBuffer::get_word_start(int pos) const {
+    auto type = peek_token(pos);
     if (type ==  Token::NIL) {
         return -1;
     }
-    auto start = pos - move_left;
+    auto start = pos;
     for (auto f = pos - 1; f >= 0; f--) {
         auto t = peek_token(f);
         if ((type & t) == 0) {
@@ -19329,7 +19331,7 @@ CursorPos TextBuffer::move_line(FMoveV move) {
         _undo->prepare_custom1(gnu::str::format("%d %d %d", cursor.pos1, cursor.start, cursor.end));
     }
     if (selected == true) {
-        text = get_line_range_string(start2, end2);
+        text = get_range(start2, end2);
         if (move == FMoveV::UP) {
             get_line_range(start2 - 1, start3, end3);
             remove(start2, end2);
@@ -19353,7 +19355,7 @@ CursorPos TextBuffer::move_line(FMoveV move) {
         end         += len3;
     }
     else {
-        text = get_line_range_string(start2, end2 + 1);
+        text = get_range(start2, end2 + 1);
         if (move == FMoveV::UP) {
             get_line_range(start2 - 1, start3, end3);
             remove(start2, end2 + 1);
@@ -19518,7 +19520,7 @@ CursorPos TextBuffer::select_pair(bool move_cursor, bool& found) {
 }
 CursorPos TextBuffer::select_word() {
     auto cursor = _editor->cursor(false);
-    auto start  = get_word_start(cursor.pos1, false);
+    auto start  = get_word_start(cursor.pos1);
     auto end    = get_word_end(cursor.pos1);
     if (start == -1 || end == -1 || peek(start) == '\n' || start >= end) {
         return CursorPos();
@@ -20794,7 +20796,7 @@ bool FindBar::visible() const {
 }
 FRegex FindDialog::REGEX = FRegex::NO;
 FTrim  FindDialog::TRIM  = FTrim::NO;
-FindDialog::FindDialog(std::string label, const std::vector<std::string>& find_list) :
+FindDialog::FindDialog(const std::string& label, const std::vector<std::string>& find_list) :
 Fl_Double_Window(0, 0, 10, 10) {
     end();
     _cancel  = new Fl_Button(0, 0, 0, 0, "&Cancel");
@@ -20810,7 +20812,7 @@ Fl_Double_Window(0, 0, 10, 10) {
     _grid->add(_find,     10,   1,  -1,   4, _find->input());
     _grid->add(_regex,    10,   6,  15,   4);
     _grid->add(_trim,     25,   6,  15,   4);
-    _grid->add(_help,    -68,  -5,  16,   4);
+    _grid->add(_help,      1,   -5,  16,   4);
     _grid->add(_test,    -51,  -5,  16,   4);
     _grid->add(_cancel,  -34,  -5,  16,   4);
     _grid->add(_ok,      -17,  -5,  16,   4);
@@ -20834,12 +20836,11 @@ Fl_Double_Window(0, 0, 10, 10) {
     _trim->value(FindDialog::TRIM == FTrim::YES);
     FindDialog::Callback(_regex, this);
     flw::util::labelfont(this);
-    copy_label(label.c_str());
+    copy_label(fle::APPLICATION != "" ? (fle::APPLICATION + " - " + label).c_str() : label.c_str());
     callback(FindDialog::Callback, this);
     set_modal();
     resizable(this);
-    resize(0, 0, flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 8);
-    size_range(flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 8);
+    resize(0, 0, flw::PREF_FONTSIZE * 44, flw::PREF_FONTSIZE * 8);
 }
 void FindDialog::Callback(Fl_Widget* w, void* o) {
     auto* self = static_cast<FindDialog*>(o);
@@ -20908,10 +20909,10 @@ _config(config) {
     _find_input    = new flw::InputMenu(0, 0, 0, 0, "Find:");
     _find_next     = new Fl_Repeat_Button(0, 0, 0, 0, "&Find");
     _find_nl       = new Fl_Check_Button(0, 0, 0, 0, widgets::BUTTON_NL);
-    _find_prev     = new Fl_Repeat_Button(0, 0, 0, 0, "Find &prev");
+    _find_prev     = new Fl_Repeat_Button(0, 0, 0, 0, "Find &Prev");
     _regex         = new Fl_Check_Button(0, 0, 0, 0, "Rege&x");
     _replace       = new Fl_Repeat_Button(0, 0, 0, 0, "&Replace");
-    _replace_all   = new Fl_Button(0, 0, 0, 0, "Replace &all");
+    _replace_all   = new Fl_Button(0, 0, 0, 0, "Replace &All");
     _replace_input = new flw::InputMenu(0, 0, 0, 0, "Replace:");
     _replace_nl    = new Fl_Check_Button(0, 0, 0, 0, widgets::BUTTON_NL);
     _selection     = new Fl_Check_Button(0, 0, 0, 0, "&Selection");
@@ -21105,13 +21106,13 @@ Fl_Double_Window(0, 0, 10, 10),
 _find(find),
 _replace(replace) {
     end();
-    _cancel        = new Fl_Button(0, 0, 0, 0, "Cancel");
-    _case          = new Fl_Check_Button(0, 0, 0, 0, "&Case");
+    _cancel        = new Fl_Button(0, 0, 0, 0, flw::label::CANCEL.c_str());
+    _case          = new Fl_Check_Button(0, 0, 0, 0, "C&ase");
     _find_input    = new flw::InputMenu(0, 0, 0, 0, "Find");
     _find_nl       = new Fl_Check_Button(0, 0, 0, 0, widgets::BUTTON_NL);
     _grid          = new flw::GridGroup(0, 0, w(), h());
     _help          = new Fl_Button(0, 0, 0, 0, "&Help");
-    _ok            = new Fl_Button(0, 0, 0, 0, "Replace &all");
+    _ok            = new Fl_Button(0, 0, 0, 0, "Replace &All");
     _regex         = new Fl_Check_Button(0, 0, 0, 0, "Rege&x");
     _replace_input = new flw::InputMenu(0, 0, 0, 0, "Replace");
     _replace_nl    = new Fl_Check_Button(0, 0, 0, 0, widgets::BUTTON_NL);
@@ -21128,7 +21129,7 @@ _replace(replace) {
     _grid->add(_word,           25,  11,  15,   4);
     _grid->add(_selection,      40,  11,  15,   4);
     _grid->add(_regex,          55,  11,  15,   4);
-    _grid->add(_help,          -68,  -5,  16,   4);
+    _grid->add(_help,            1,  -5,  16,   4);
     _grid->add(_cancel,        -51,  -5,  16,   4);
     _grid->add(_test,          -34,  -5,  16,   4);
     _grid->add(_ok,            -17,  -5,  16,   4);
@@ -21164,12 +21165,11 @@ _replace(replace) {
     tooltip(widgets::TOOLTIP_FIND_JUMP);
     check_buttons();
     flw::util::labelfont(this);
-    copy_label(label.c_str());
+    copy_label(fle::APPLICATION != "" ? (fle::APPLICATION + " - " + label).c_str() : label.c_str());
     callback(ReplaceDialog::Callback, this);
     set_modal();
     resizable(_grid);
     ReplaceDialog::resize(0, 0, flw::PREF_FONTSIZE * 48, flw::PREF_FONTSIZE * 10.5);
-    size_range(flw::PREF_FONTSIZE * 36, flw::PREF_FONTSIZE * 10.5);
 }
 void ReplaceDialog::Callback(Fl_Widget* w, void* o) {
     auto* self = static_cast<ReplaceDialog*>(o);
@@ -21273,7 +21273,7 @@ bool ReplaceDialog::test_pcre() {
 StatusBar::StatusBar(Config& config) :
 flw::GridGroup(),
 _config(config)  {
-    _label_cursor        = new Fl_Box(0, 0, 0, 0, "");
+    _label_cursor      = new Fl_Box(0, 0, 0, 0, "");
     _label_cursor_mode = new Fl_Box(0, 0, 0, 0, "");
     _label_message     = new Fl_Box(0, 0, 0, 0, "");
     _line_menu         = new Fl_Menu_Button(0, 0, 0, 0, "");
@@ -21597,21 +21597,21 @@ void StatusBar::update_pref() {
 #include <FL/Fl_Scroll.H>
 namespace fle {
 namespace widgets2 {
-    constexpr static const char*    CONFIG_BINARY_HEX_16        = "Load binary as hex";
-    constexpr static const char*    CONFIG_BINARY_HEX_32        = "Load binary as hex (wide)";
-    constexpr static const char*    CONFIG_BINARY_NO            = "Don't load binary files";
-    constexpr static const char*    CONFIG_BINARY_TEXT          = "Load binary as text";
-    constexpr static const char*    CONFIG_BLOCK_CURSOR         = "Block cursor";
-    constexpr static const char*    CONFIG_CARET_CURSOR         = "Caret cursor";
-    constexpr static const char*    CONFIG_DIM_CURSOR           = "Dim cursor";
-    constexpr static const char*    CONFIG_HEAVY_CURSOR         = "Heavy cursor";
-    constexpr static const char*    CONFIG_NORMAL_CURSOR        = "Normal cursor";
-    constexpr static const char*    CONFIG_SCROLL3              = "3 lines";
-    constexpr static const char*    CONFIG_SCROLL6              = "6 lines";
-    constexpr static const char*    CONFIG_SCROLL9              = "9 lines";
-    constexpr static const char*    CONFIG_SCROLL12             = "12 lines";
-    constexpr static const char*    CONFIG_SCROLL15             = "15 lines";
-    constexpr static const char*    CONFIG_SCROLL18             = "18 lines";
+    constexpr static const char*    CONFIG_BINARY_HEX_16        = "Load Binary as Hex";
+    constexpr static const char*    CONFIG_BINARY_HEX_32        = "Load Binary as Hex (Wide)";
+    constexpr static const char*    CONFIG_BINARY_NO            = "Don't Load Binary Files";
+    constexpr static const char*    CONFIG_BINARY_TEXT          = "Load Binary as Text";
+    constexpr static const char*    CONFIG_BLOCK_CURSOR         = "Block Cursor";
+    constexpr static const char*    CONFIG_CARET_CURSOR         = "Caret Cursor";
+    constexpr static const char*    CONFIG_DIM_CURSOR           = "Dim Cursor";
+    constexpr static const char*    CONFIG_HEAVY_CURSOR         = "Heavy Cursor";
+    constexpr static const char*    CONFIG_NORMAL_CURSOR        = "Normal Cursor";
+    constexpr static const char*    CONFIG_SCROLL3              = "3 Lines";
+    constexpr static const char*    CONFIG_SCROLL6              = "6 Lines";
+    constexpr static const char*    CONFIG_SCROLL9              = "9 Lines";
+    constexpr static const char*    CONFIG_SCROLL12             = "12 Lines";
+    constexpr static const char*    CONFIG_SCROLL15             = "15 Lines";
+    constexpr static const char*    CONFIG_SCROLL18             = "18 Lines";
     constexpr static const char*    CONFIG_SCROLL_WAYLAND       = "Does not work as intended in Wayland,\nif desktop scroll settings is not set to 3!";
     constexpr static const char*    CONFIG_SIMPLE_CURSOR        = "Simple cursor";
     constexpr static const char*    CONFIG_TOOLTIP_BINARY_FILE  = "You can load binary files with contents converted to hexadecimal.\nDue to increased memory usage max file size is 425MB.\nOr converted to some kind of text.\nIt will be opened as a unsaved unnamed document.";
@@ -21624,13 +21624,13 @@ namespace widgets2 {
     constexpr static const char*    CONFIG_WRAP60               = "60";
     constexpr static const char*    CONFIG_WRAP72               = "72";
     constexpr static const char*    CONFIG_WRAP80               = "80";
-    constexpr static const char*    CONFIG_WRAPWINDOW           = "Wrap window";
+    constexpr static const char*    CONFIG_WRAPWINDOW           = "Wrap Window";
     constexpr static const char*    SCHEME_ATTR_BGCOLOR         = "Background";
-    constexpr static const char*    SCHEME_ATTR_BGCOLOR_EXT     = "Extended bg";
-    constexpr static const char*    SCHEME_ATTR_BGCOLOR_NONE    = "No bg color";
+    constexpr static const char*    SCHEME_ATTR_BGCOLOR_EXT     = "Extended Background";
+    constexpr static const char*    SCHEME_ATTR_BGCOLOR_NONE    = "No Background";
     constexpr static const char*    SCHEME_ATTR_GRAMMAR         = "Grammar";
-    constexpr static const char*    SCHEME_ATTR_NONE            = "No attribute";
-    constexpr static const char*    SCHEME_ATTR_STRIKE          = "Strike through";
+    constexpr static const char*    SCHEME_ATTR_NONE            = "No Attribute";
+    constexpr static const char*    SCHEME_ATTR_STRIKE          = "Strike Through";
     constexpr static const char*    SCHEME_ATTR_UNDERLINE       = "Underline";
     constexpr static const char*    SCHEME_FONT_BOLD            = "Bold";
     constexpr static const char*    SCHEME_FONT_BOLD_ITALIC     = "Bold && Italic";
@@ -21658,7 +21658,7 @@ public:
     flw::GridGroup*             _grid;
     bool                        _run;
     _ConfigDialog(Config& config) :
-    Fl_Double_Window(0, 0, 10, 10, "Editor Settings"),
+    Fl_Double_Window(0, 0, 10, 10),
     _config(config) {
         end();
         _autocomplete = new Fl_Check_Button(0, 0, 0, 0, "Autocomplete");
@@ -21743,6 +21743,7 @@ public:
         init();
         resizable(this);
         update_pref();
+        copy_label(fle::APPLICATION != "" ? (fle::APPLICATION + " - Settings").c_str() : "Settings");
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_ConfigDialog*>(o);
@@ -22013,7 +22014,6 @@ public:
         _wrap->textfont(flw::PREF_FONT);
         _wrap->textsize(flw::PREF_FONTSIZE);
         resize(x(), y(), flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 36);
-        size_range(flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 36);
     }
 };
 void dlg::config(Config& config) {
@@ -22053,7 +22053,6 @@ public:
         _findbar->findreplace().update_lists(true, true, -1);
         copy_label(title.c_str());
         callback(_DlgEditor::Callback, this);
-        size_range(flw::PREF_FONTSIZE * 16, flw::PREF_FONTSIZE * 8);
         set_modal();
         resizable(this);
         update_pref();
@@ -22245,7 +22244,7 @@ public:
     int                         _count;
     int                         _height;
     _KeyboardDialog(Config& config) :
-    Fl_Double_Window(0, 0, 10, 10, "Keyboard Setup"),
+    Fl_Double_Window(0, 0, 10, 10),
     _config(config) {
         end();
         _close  = new Fl_Button(0, 0, 0, 0, "&Close");
@@ -22319,8 +22318,8 @@ public:
         set_modal();
         resizable(this);
         resize(0, 0, flw::PREF_FONTSIZE * 60, flw::PREF_FONTSIZE * 40);
-        size_range(flw::PREF_FONTSIZE * 40, flw::PREF_FONTSIZE * 30);
         load_keys();
+        copy_label(fle::APPLICATION != "" ? (fle::APPLICATION + " - keyboard Settings").c_str() : "keyboard Settings");
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_KeyboardDialog*>(o);
@@ -22522,7 +22521,7 @@ public:
     bool                        _run;
     flw::GridGroup*             _grid;
     _SchemeDialog(Config& config) :
-    Fl_Double_Window(0, 0, 10, 10, "Select Color Scheme"),
+    Fl_Double_Window(0, 0, 10, 10),
     _config(config) {
         end();
         _close  = new Fl_Button(0, 0, 0, 0, "&Close");
@@ -22596,7 +22595,7 @@ public:
             if (f == 3 || f > 6) {
                 _bgcolors[f] = new _SchemeButton("", false);
                 _bgcolors[f]->callback(_SchemeDialog::CallbackColorButton, this);
-                _grid->add(_bgcolors[f], 119, 6 + f * 5, 10, 4);
+                _grid->add(_bgcolors[f], 127, 6 + f * 5, 10, 4);
                 _bgattr[f] = new Fl_Menu_Button(0, 0, 0, 0);
                 _bgattr[f]->add(widgets2::SCHEME_ATTR_BGCOLOR_NONE, 0, nullptr, nullptr, FL_MENU_RADIO);
                 _bgattr[f]->add(widgets2::SCHEME_ATTR_BGCOLOR, 0, nullptr, nullptr, FL_MENU_RADIO);
@@ -22610,7 +22609,7 @@ public:
                     "Set also new color."
                 );
                 flw::menu::setonly_item(_bgattr[f], widgets2::SCHEME_ATTR_BGCOLOR_NONE);
-                _grid->add(_bgattr[f], 100, 6 + f * 5, 18, 4);
+                _grid->add(_bgattr[f], 100, 6 + f * 5, 26, 4);
             }
             else {
                 _bgattr[f]   = nullptr;
@@ -22626,11 +22625,11 @@ public:
         _reset->callback(_SchemeDialog::Callback, this);
         _reset->tooltip("Reset colors values to default values for the current scheme.");
         flw::util::labelfont(this);
+        copy_label(fle::APPLICATION != "" ? (fle::APPLICATION + " - Color Scheme").c_str() : "Color Scheme");
         callback(_SchemeDialog::Callback, this);
         set_modal();
         resizable(_grid);
-        resize(0, 0, flw::PREF_FONTSIZE * 76, flw::PREF_FONTSIZE * 51);
-        size_range(flw::PREF_FONTSIZE * 70, flw::PREF_FONTSIZE * 51);
+        resize(0, 0, flw::PREF_FONTSIZE * 78, flw::PREF_FONTSIZE * 51);
     }
     static void Callback(Fl_Widget* w, void* o) {
         auto self = static_cast<_SchemeDialog*>(o);
@@ -22868,7 +22867,7 @@ class _TweakDialog : public Fl_Double_Window {
     bool                        _run;
 public:
     _TweakDialog() :
-    Fl_Double_Window(0, 0, 10, 10, "Editor Tweaks") {
+    Fl_Double_Window(0, 0, 10, 10) {
         end();
         _auto_file_size   = new Fl_Hor_Slider(0, 0, 0, 0);
         _auto_lines       = new Fl_Hor_Slider(0, 0, 0, 0);
@@ -23015,9 +23014,9 @@ public:
         _TweakDialog::Callback(_style_size, this);
         _TweakDialog::Callback(_wrap_length, this);
         callback(_TweakDialog::Callback, this);
+        copy_label(fle::APPLICATION != "" ? (fle::APPLICATION + " - Tweaks").c_str() : "Tweaks");
         set_modal();
         resizable(_grid);
-        size_range(flw::PREF_FONTSIZE * 25, flw::PREF_FONTSIZE * 56);
         size(flw::PREF_FONTSIZE * 48, flw::PREF_FONTSIZE * 56);
         flw::util::center_window(this, Fl::first_window());
         _grid->do_layout();
@@ -23226,7 +23225,7 @@ void View::CallbackStyleBuffer(const int pos, const int inserted_size, const int
     free(deleted_style);
 #ifdef DEBUG
     if (editor->buffer().length() != editor->style_buffer().length()) {
-        flw::dlg::msg_alert("debug: error in View::CallbackStyleBuffer()", flw::util::format("TEXTSIZE=%d, STYLESIZE=%d !!",  editor->buffer().length(), editor->style_buffer().length()));
+        flw::dlg::msg_alert("Error: in View::CallbackStyleBuffer()", flw::util::format("TEXTSIZE=%d, STYLESIZE=%d !!",  editor->buffer().length(), editor->style_buffer().length()));
     }
 #endif
 }
@@ -23758,48 +23757,48 @@ namespace menu {
 #ifdef DEBUG
 constexpr const char* DEBUG1                      = "Debug/Widget";
 constexpr const char* DEBUG2                      = "Debug/Undo";
-constexpr const char* DEBUG3                      = "Debug/Print style";
-constexpr const char* DEBUG4                      = "Debug/Save style";
-constexpr const char* DEBUG5                      = "Debug/Save style with no pos";
-constexpr const char* DEBUG6                      = "Debug/Print style info";
-constexpr const char* DEBUG7                      = "Debug/Compare text with file";
+constexpr const char* DEBUG3                      = "Debug/Print Style";
+constexpr const char* DEBUG4                      = "Debug/Save Style";
+constexpr const char* DEBUG5                      = "Debug/Save Style with no Pos";
+constexpr const char* DEBUG6                      = "Debug/Print Style Info";
+constexpr const char* DEBUG7                      = "Debug/Compare Text with File";
 #endif
 constexpr const char* BOOKMARKS_CLEAR             = "Bookmarks/Clear";
 constexpr const char* BOOKMARKS_NEXT              = "Bookmarks/Next";
 constexpr const char* BOOKMARKS_PREV              = "Bookmarks/Previous";
 constexpr const char* BOOKMARKS_TOGGLE            = "Bookmarks/Toggle";
-constexpr const char* CASE_LOWER                  = "Case/To lower";
-constexpr const char* CASE_UPPER                  = "Case/To upper";
-constexpr const char* COMMENT_BLOCK               = "Comment/Toggle block";
-constexpr const char* COMMENT_LINE                = "Comment/Toggle line";
+constexpr const char* CASE_LOWER                  = "Case/lowercase";
+constexpr const char* CASE_UPPER                  = "Case/UPPERCASE";
+constexpr const char* COMMENT_BLOCK               = "Comment/Toggle Block";
+constexpr const char* COMMENT_LINE                = "Comment/Toggle Line";
 constexpr const char* EDIT_COPY                   = "Copy";
 constexpr const char* EDIT_CUT                    = "Cut";
 constexpr const char* EDIT_PASTE                  = "Paste";
-constexpr const char* FIND_LINES                  = "Find lines...";
-constexpr const char* KEYBOARD                    = "Keyboard config...";
+constexpr const char* FIND_LINES                  = "Find Lines...";
+constexpr const char* KEYBOARD                    = "Keyboard Config...";
 constexpr const char* HELP                        = "Help...";
 constexpr const char* OUTPUT_HORIZONTAL           = "Output/Horizontal";
 constexpr const char* OUTPUT_TOGGLE               = "Output/Toggle";
 constexpr const char* OUTPUT_VERTICAL             = "Output/Vertical";
 constexpr const char* PRINT                       = "Print...";
 constexpr const char* REDO                        = "Undo/Redo";
-constexpr const char* REDO_ALL                    = "Undo/Redo all";
-constexpr const char* REDO_SAVEPOINT              = "Undo/Redo to savepoint or last";
-constexpr const char* SCHEME                      = "Color scheme...";
+constexpr const char* REDO_ALL                    = "Undo/Redo All";
+constexpr const char* REDO_SAVEPOINT              = "Undo/Redo to Savepoint or Last";
+constexpr const char* SCHEME                      = "Color Scheme...";
 constexpr const char* SETTINGS                    = "Settings...";
 constexpr const char* SORT_LINES_ASCENDING        = "Sort/Ascending";
 constexpr const char* SORT_LINES_DESCENDING       = "Sort/Descending";
-constexpr const char* SPLIT_CLOSE                 = "Split view/Close";
-constexpr const char* SPLIT_HOR                   = "Split view/Horizontal";
-constexpr const char* SPLIT_VER                   = "Split view/Vertical";
-constexpr const char* TRIM_TRAILING               = "Trim trailing whitespace";
+constexpr const char* SPLIT_CLOSE                 = "Split View/Close";
+constexpr const char* SPLIT_HOR                   = "Split View/Horizontal";
+constexpr const char* SPLIT_VER                   = "Split View/Vertical";
+constexpr const char* TRIM_TRAILING               = "Trim Trailing Whitespace";
 constexpr const char* TWEAKS                      = "Tweaks...";
 constexpr const char* UNDO                        = "Undo/Undo";
-constexpr const char* UNDO_ALL                    = "Undo/Undo all";
-constexpr const char* UNDO_SAVEPOINT              = "Undo/Undo to savepoint or first";
+constexpr const char* UNDO_ALL                    = "Undo/Undo All";
+constexpr const char* UNDO_SAVEPOINT              = "Undo/Undo to Savepoint or First";
 constexpr const char* UPDATE_AUTOCOMPLETE         = "Update/Autocomplete";
 constexpr const char* UPDATE_STYLE                = "Update/Style";
-constexpr const char* WRAP                        = "Word wrap";
+constexpr const char* WRAP                        = "Word Wrap";
 }
 #define FLE_EDITOR_CB(X)                    [](Fl_Widget*, void* o) { static_cast<Editor*>(o)->X; static_cast<Editor*>(o)->take_focus(); }, this
 #define FLE_EDITOR_CB_CONFIG(X)             [](Fl_Widget*, void* o) { X(static_cast<Editor*>(o)->_config); static_cast<Editor*>(o)->take_focus(); }, this
@@ -23920,7 +23919,7 @@ void Editor::autocomplete_show() {
         autocomplete_remove();
     }
     _autocomplete = new AutoComplete("autocomplete");
-    auto word     = _buf1->get_word_left(cursor_insert_position());
+    auto word     = _buf1->get_letters_to_left(cursor_insert_position());
     add(_autocomplete);
     if (_words.size() == 0 || _view->position_to_xy(pos, &X, &Y) == 0) {
         return autocomplete_remove();
@@ -25490,95 +25489,95 @@ static const char * icon_xpm[] = {
 "                                                                                                ",
 "                                                                                                "};
 constexpr static const char* MENU_DEBUG                         = "&Debug/Debug";
-constexpr static const char* MENU_DEBUG_COMPARE                 = "&Debug/Compare buffer with file";
+constexpr static const char* MENU_DEBUG_COMPARE                 = "&Debug/Compare Buffer with File";
 constexpr static const char* MENU_DEBUG_PGO                     = "&PGO";
 constexpr static const char* MENU_DEBUG_PGO_RUN                 = "&PGO/Run";
 constexpr static const char* MENU_DEBUG_PGO_UNDO                = "&PGO/Undo";
-constexpr static const char* MENU_DEBUG_SIZE                    = "&Debug/Debug size";
-constexpr static const char* MENU_FILE_CLOSE                    = "&File/Close file";
-constexpr static const char* MENU_FILE_CLOSE_ALL                = "&File/Close all files";
-constexpr static const char* MENU_FILE_NEW                      = "&File/New file";
-constexpr static const char* MENU_FILE_NEW_WINDOW                = "&File/New window";
-constexpr static const char* MENU_FILE_OPEN                     = "&File/Open file...";
-constexpr static const char* MENU_FILE_OPEN_BACKUP              = "&File/Open/Todays backup file";
-constexpr static const char* MENU_FILE_OPEN_HEX                 = "&File/Open/File as hex...";
-constexpr static const char* MENU_FILE_OPEN_RECENT              = "&File/Open/Recent...";
-constexpr static const char* MENU_FILE_OPEN_RELOAD              = "&File/Open/Reload file...";
-constexpr static const char* MENU_FILE_READONLY                 = "&File/Read only mode";
+constexpr static const char* MENU_DEBUG_SIZE                    = "&Debug/Debug Size";
+constexpr static const char* MENU_FILE_CLOSE                    = "&File/Close File";
+constexpr static const char* MENU_FILE_CLOSE_ALL                = "&File/Close All Files";
+constexpr static const char* MENU_FILE_NEW                      = "&File/New File";
+constexpr static const char* MENU_FILE_NEW_WINDOW               = "&File/New Window";
+constexpr static const char* MENU_FILE_OPEN                     = "&File/Open File...";
+constexpr static const char* MENU_FILE_OPEN_BACKUP              = "&File/Open Other/Todays Backup File";
+constexpr static const char* MENU_FILE_OPEN_HEX                 = "&File/Open Other/File As Hex...";
+constexpr static const char* MENU_FILE_OPEN_RECENT              = "&File/Open Recent";
+constexpr static const char* MENU_FILE_OPEN_RELOAD              = "&File/Open Other/Reload File...";
+constexpr static const char* MENU_FILE_READONLY                 = "&File/Read Only mode";
 constexpr static const char* MENU_FILE_QUIT                     = "&File/Quit";
 constexpr static const char* MENU_FILE_SAVE                     = "&File/Save";
-constexpr static const char* MENU_FILE_SAVE_ALL                 = "&File/Save all unsaved";
-constexpr static const char* MENU_FILE_SAVE_AS                  = "&File/Save as...";
+constexpr static const char* MENU_FILE_SAVE_ALL                 = "&File/Save All Unsaved";
+constexpr static const char* MENU_FILE_SAVE_AS                  = "&File/Save As...";
 constexpr static const char* MENU_FILE_TERMINATE                = "&File/Terminate";
 constexpr static const char* MENU_FIND                          = "F&ind/";
-constexpr static const char* MENU_FIND_LINES                    = "F&ind/Find lines in all files...";
-constexpr static const char* MENU_FIND_REPLACE                  = "F&ind/Replace in all files...";
-constexpr static const char* MENU_FIND_SHOW                     = "F&ind/Show find";
-constexpr static const char* MENU_FIND_TRAILING                 = "F&ind/Remove trailing whitespace in all files";
+constexpr static const char* MENU_FIND_LINES                    = "F&ind/Find Lines in All Files...";
+constexpr static const char* MENU_FIND_REPLACE                  = "F&ind/Replace in All Files...";
+constexpr static const char* MENU_FIND_SHOW                     = "F&ind/Show Find";
+constexpr static const char* MENU_FIND_TRAILING                 = "F&ind/Remove Trailing Whitespace in All Files";
 constexpr static const char* MENU_HELP_ABOUT                    = "&Help/About...";
 constexpr static const char* MENU_HELP_EDITOR                   = "&Help/Editor...";
 constexpr static const char* MENU_HELP_FLEDIT                   = "&Help/Help...";
 constexpr static const char* MENU_HELP_PCRE                     = "&Help/PCRE...";
-constexpr static const char* MENU_PROJECT_CLOSE                 = "&Project/Close project";
-constexpr static const char* MENU_PROJECT_CLOSE2                = "&Project/Close project without saving";
-constexpr static const char* MENU_PROJECT_DB_CLOSE              = "&Project/Close database";
-constexpr static const char* MENU_PROJECT_DB_DEFRAG             = "&Project/Defrag database";
-constexpr static const char* MENU_PROJECT_DB_OPEN               = "&Project/Open database...";
-constexpr static const char* MENU_PROJECT_DIR                   = "&Project/Set project directory...";
-constexpr static const char* MENU_PROJECT_LOAD                  = "&Project/Load project...";
-constexpr static const char* MENU_PROJECT_RENAME                = "&Project/Rename project...";
-constexpr static const char* MENU_PROJECT_SAVE                  = "&Project/Save project";
-constexpr static const char* MENU_PROJECT_SAVEAS                = "&Project/Save project as...";
-constexpr static const char* MENU_PROJECT_WORDFILE              = "&Project/Set custom autocomplete wordfile...";
-constexpr static const char* MENU_SETTINGS_BACKUP               = "&Settings/Set backup directory...";
+constexpr static const char* MENU_PROJECT_CLOSE                 = "&Project/Close Project";
+constexpr static const char* MENU_PROJECT_CLOSE2                = "&Project/Close Project Without Saving";
+constexpr static const char* MENU_PROJECT_DB_CLOSE              = "&Project/Close Database";
+constexpr static const char* MENU_PROJECT_DB_DEFRAG             = "&Project/Defrag Database";
+constexpr static const char* MENU_PROJECT_DB_OPEN               = "&Project/Open Database...";
+constexpr static const char* MENU_PROJECT_DIR                   = "&Project/Set Project Directory...";
+constexpr static const char* MENU_PROJECT_LOAD                  = "&Project/Load Project...";
+constexpr static const char* MENU_PROJECT_RENAME                = "&Project/Rename Project...";
+constexpr static const char* MENU_PROJECT_SAVE                  = "&Project/Save Project";
+constexpr static const char* MENU_PROJECT_SAVEAS                = "&Project/Save Project As...";
+constexpr static const char* MENU_PROJECT_WORDFILE              = "&Project/Set Custom Autocomplete Wordfile...";
+constexpr static const char* MENU_SETTINGS_BACKUP               = "&Settings/Set Backup Directory...";
 constexpr static const char* MENU_SETTINGS_EDITOR               = "&Settings/Editor...";
-constexpr static const char* MENU_SETTINGS_LOAD_PREF            = "&Settings/Reload preferences";
-constexpr static const char* MENU_SETTINGS_OUTPUT_CLEAR         = "&Settings/Output group/Clear terminal every time";
-constexpr static const char* MENU_SETTINGS_OUTPUT_HORIZONTAL    = "&Settings/Output group/Horizontal";
-constexpr static const char* MENU_SETTINGS_OUTPUT_SWAP          = "&Settings/Output group/Swap side";
-constexpr static const char* MENU_SETTINGS_OUTPUT_UNKNOWN       = "&Settings/Output group/Show unknown characters in terminal";
-constexpr static const char* MENU_SETTINGS_OUTPUT_VERTICAL      = "&Settings/Output group/Vertical";
-constexpr static const char* MENU_SETTINGS_SAVE_PREF            = "&Settings/Save preferences";
-constexpr static const char* MENU_SETTINGS_SCHEME               = "&Settings/Color scheme...";
-constexpr static const char* MENU_SETTINGS_SPLIT_HORIZONTAL     = "&Settings/Split group/Horizontal";
-constexpr static const char* MENU_SETTINGS_SPLIT_VERTICAL       = "&Settings/Split group/Vertical";
-constexpr static const char* MENU_SETTINGS_TAB_G11              = "&Settings/Tabs group 1/Top";
-constexpr static const char* MENU_SETTINGS_TAB_G12              = "&Settings/Tabs group 1/Bottom";
-constexpr static const char* MENU_SETTINGS_TAB_G13              = "&Settings/Tabs group 1/Left";
-constexpr static const char* MENU_SETTINGS_TAB_G14              = "&Settings/Tabs group 1/Right";
-constexpr static const char* MENU_SETTINGS_TAB_G21              = "&Settings/Tabs group 2/Top";
-constexpr static const char* MENU_SETTINGS_TAB_G22              = "&Settings/Tabs group 2/Bottom";
-constexpr static const char* MENU_SETTINGS_TAB_G23              = "&Settings/Tabs group 2/Left";
-constexpr static const char* MENU_SETTINGS_TAB_G24              = "&Settings/Tabs group 2/Right";
-constexpr static const char* MENU_SETTINGS_TAB_DEF              = "&Settings/Tabs look/Default tab";
-constexpr static const char* MENU_SETTINGS_TAB_BORDER           = "&Settings/Tabs look/Border tab";
-constexpr static const char* MENU_SETTINGS_TAB_FLAT             = "&Settings/Tabs look/Flat tab";
+constexpr static const char* MENU_SETTINGS_LOAD_PREF            = "&Settings/Reload Preferences";
+constexpr static const char* MENU_SETTINGS_OUTPUT_CLEAR         = "&Settings/Output Group/Clear terminal Every Time";
+constexpr static const char* MENU_SETTINGS_OUTPUT_HORIZONTAL    = "&Settings/Output Group/Horizontal";
+constexpr static const char* MENU_SETTINGS_OUTPUT_SWAP          = "&Settings/Output Group/Swap Side";
+constexpr static const char* MENU_SETTINGS_OUTPUT_UNKNOWN       = "&Settings/Output Group/Show Unknown Characters in Terminal";
+constexpr static const char* MENU_SETTINGS_OUTPUT_VERTICAL      = "&Settings/Output Group/Vertical";
+constexpr static const char* MENU_SETTINGS_SAVE_PREF            = "&Settings/Save Preferences";
+constexpr static const char* MENU_SETTINGS_SCHEME               = "&Settings/Color Scheme...";
+constexpr static const char* MENU_SETTINGS_SPLIT_HORIZONTAL     = "&Settings/Split Group/Horizontal";
+constexpr static const char* MENU_SETTINGS_SPLIT_VERTICAL       = "&Settings/Split Group/Vertical";
+constexpr static const char* MENU_SETTINGS_TAB_G11              = "&Settings/Tabs Group 1/Top";
+constexpr static const char* MENU_SETTINGS_TAB_G12              = "&Settings/Tabs Group 1/Bottom";
+constexpr static const char* MENU_SETTINGS_TAB_G13              = "&Settings/Tabs Group 1/Left";
+constexpr static const char* MENU_SETTINGS_TAB_G14              = "&Settings/Tabs Group 1/Right";
+constexpr static const char* MENU_SETTINGS_TAB_G21              = "&Settings/Tabs Group 2/Top";
+constexpr static const char* MENU_SETTINGS_TAB_G22              = "&Settings/Tabs Group 2/Bottom";
+constexpr static const char* MENU_SETTINGS_TAB_G23              = "&Settings/Tabs Group 2/Left";
+constexpr static const char* MENU_SETTINGS_TAB_G24              = "&Settings/Tabs Group 2/Right";
+constexpr static const char* MENU_SETTINGS_TAB_DEF              = "&Settings/Tabs Look/Default Tab";
+constexpr static const char* MENU_SETTINGS_TAB_BORDER           = "&Settings/Tabs Look/Border Tab";
+constexpr static const char* MENU_SETTINGS_TAB_FLAT             = "&Settings/Tabs Look/Flat Tab";
 constexpr static const char* MENU_SETTINGS_THEME                = "&Settings/Theme...";
-constexpr static const char* MENU_TOOLS_CLEAR_OUTPUT            = "&Tools/Clear output";
-constexpr static const char* MENU_TOOLS_CMD                     = "&Tools/Run command...";
-constexpr static const char* MENU_TOOLS_CMDREPEAT               = "&Tools/Run last command";
-constexpr static const char* MENU_TOOLS_NEXTOUTPUT              = "&Tools/Next row in list output";
-constexpr static const char* MENU_TOOLS_PREVOUTPUT              = "&Tools/Previous row in list output";
-constexpr static const char* MENU_TOOLS_SAVE_CLIPBOARD          = "&Tools/Save clipboard as snippet...";
-constexpr static const char* MENU_TOOLS_SAVE_SELECTION          = "&Tools/Save selection as snippet...";
-constexpr static const char* MENU_TOOLS_SAVE_TEXT               = "&Tools/Save current text as snippet";
+constexpr static const char* MENU_TOOLS_CLEAR_OUTPUT            = "&Tools/Clear Output";
+constexpr static const char* MENU_TOOLS_CMD                     = "&Tools/Run Command...";
+constexpr static const char* MENU_TOOLS_CMDREPEAT               = "&Tools/Run Last Command";
+constexpr static const char* MENU_TOOLS_NEXTOUTPUT              = "&Tools/Next Row in List Output";
+constexpr static const char* MENU_TOOLS_PREVOUTPUT              = "&Tools/Previous Row in List Output";
+constexpr static const char* MENU_TOOLS_SAVE_CLIPBOARD          = "&Tools/Save Clipboard As Snippet...";
+constexpr static const char* MENU_TOOLS_SAVE_SELECTION          = "&Tools/Save Selection As Snippet...";
+constexpr static const char* MENU_TOOLS_SAVE_TEXT               = "&Tools/Save Current Text As Snippet";
 constexpr static const char* MENU_TOOLS_SNIPPETS                = "&Tools/Snippets...";
-constexpr static const char* MENU_VIEW_ACTIVATE_ONE             = "&View/Activate group 1";
-constexpr static const char* MENU_VIEW_ACTIVATE_TWO             = "&View/Activate group 2";
-constexpr static const char* MENU_VIEW_MOVE_TO_LEFT             = "&View/Move all from right to left";
-constexpr static const char* MENU_VIEW_MOVE_TO_RIGHT            = "&View/Move all from left to right";
-constexpr static const char* MENU_VIEW_MOVE_OPPOSITE            = "&View/Move file to opposite group";
-constexpr static const char* MENU_VIEW_SORT_LEFT_TABS_ASC       = "&View/Sort left tabs ascending";
-constexpr static const char* MENU_VIEW_SORT_LEFT_TABS_DESC      = "&View/Sort left tabs descending";
-constexpr static const char* MENU_VIEW_SORT_RIGHT_TABS_ASC      = "&View/Sort right tabs ascending";
-constexpr static const char* MENU_VIEW_SORT_RIGHT_TABS_DESC     = "&View/Sort right tabs descending";
-constexpr static const char* MENU_VIEW_TOGGLE_BROWSER           = "&View/Toggle directory browser";
+constexpr static const char* MENU_VIEW_ACTIVATE_ONE             = "&View/Activate Group 1";
+constexpr static const char* MENU_VIEW_ACTIVATE_TWO             = "&View/Activate Group 2";
+constexpr static const char* MENU_VIEW_MOVE_TO_LEFT             = "&View/Move All From Right to Left";
+constexpr static const char* MENU_VIEW_MOVE_TO_RIGHT            = "&View/Move All From Left to Right";
+constexpr static const char* MENU_VIEW_MOVE_OPPOSITE            = "&View/Move File to Opposite Group";
+constexpr static const char* MENU_VIEW_SORT_LEFT_TABS_ASC       = "&View/Sort Left Tabs Ascending";
+constexpr static const char* MENU_VIEW_SORT_LEFT_TABS_DESC      = "&View/Sort Left Tabs Descending";
+constexpr static const char* MENU_VIEW_SORT_RIGHT_TABS_ASC      = "&View/Sort Right Tabs Ascending";
+constexpr static const char* MENU_VIEW_SORT_RIGHT_TABS_DESC     = "&View/Sort Right Tabs Descending";
+constexpr static const char* MENU_VIEW_TOGGLE_BROWSER           = "&View/Toggle Directory Browser";
 constexpr static const char* MENU_VIEW_TOGGLE_FULL              = "&View/Toggle full screen";
-constexpr static const char* MENU_VIEW_TOGGLE_MENU              = "&View/Toggle menu";
-constexpr static const char* MENU_VIEW_TOGGLE_ONE               = "&View/Toggle group 1";
-constexpr static const char* MENU_VIEW_TOGGLE_OUTPUT            = "&View/Toggle output panel";
-constexpr static const char* MENU_VIEW_TOGGLE_TABS              = "&View/Toggle tabs";
-constexpr static const char* MENU_VIEW_TOGGLE_TWO               = "&View/Toggle group 2";
+constexpr static const char* MENU_VIEW_TOGGLE_MENU              = "&View/Toggle Menu";
+constexpr static const char* MENU_VIEW_TOGGLE_ONE               = "&View/Toggle Group 1";
+constexpr static const char* MENU_VIEW_TOGGLE_OUTPUT            = "&View/Toggle Output Panel";
+constexpr static const char* MENU_VIEW_TOGGLE_TABS              = "&View/Toggle Tabs";
+constexpr static const char* MENU_VIEW_TOGGLE_TWO               = "&View/Toggle Group 2";
 #ifdef DEBUG
 constexpr static const char*    USER_NAME                       = "gnuwimp_test";
 #else
@@ -25591,7 +25590,7 @@ static const bool           DONT_CLOSE_EDITOR                   = false;
 static const bool           OPEN_FILE_USING_REAL_NAME           = false;
 static const std::string    NS_PROJECTS                         = "projects";
 static const std::string    NS_SNIPPETS                         = "snippets";
-static std::string FLEDIT_ABOUT = R"(flEdit r8
+static std::string FLEDIT_ABOUT = R"(flEdit r9
 
 Copyright 2024 - 2025 gnuwimp@gmail.com.
 Released under the GNU General Public License 3.0
@@ -25656,7 +25655,9 @@ Enter a unique name to describe the command.
 
 Command:
 Enter command to execute.
-Use $FILE to replace it with current active file.
+Use $FILE to replace it with full path of active file.
+Use $NAME to replace it with active filename.
+Use $PARENT to replace it with directory of active file.
 Use $PROJECT to replace it with project directory (if it has been set).
 Use $SELECTION to replace it with selected text in current editor (if it has been set).
 Use "" around paths that contains spaces.
@@ -25664,7 +25665,9 @@ Use "" around paths that contains spaces.
 Work directory:
 Optional value.
 Enter work directory or use empty to use current.
-Use $FILE or $PROJECT for working directory.
+Use $FILE to use directory of active file.
+Use $PARENT to use parent directory of active file.
+Use $PROJECT for project directory.
 Relative path can be added ($FILE/..).
 Use "" around paths that contains spaces.
 
@@ -25898,7 +25901,6 @@ public:
     void                        update_text();
     static void                 Callback(Fl_Widget* w, void* o);
 private:
-    constexpr static const char* LABEL = "Saved Text Snippets - Copy Text To Clipboard";
     Fl_Button*                  _cancel;
     Fl_Button*                  _close;
     Fl_Button*                  _delete;
@@ -25960,10 +25962,10 @@ public:
     int                         handle(int event) override;
     void                        help_about();
     void                        help_editor()
-                                    { flw::dlg::list("Keyboard Shortcuts", fle::help::general(CONFIG), true, 60, 50); }
+                                    { flw::dlg::list("flEdit - Keyboard Shortcuts", fle::help::general(CONFIG), true, 60, 50); }
     void                        help_fledit();
     void                        help_pcre()
-                                    { flw::dlg::list("PCRE", fle::help::pcre(), true, 60, 50); }
+                                    { flw::dlg::list("flEdit - PCRE", fle::help::pcre(), true, 60, 50); }
     void                        new_window();
     void                        pref_load(bool all = true);
     void                        pref_save();
@@ -26109,6 +26111,7 @@ private:
     std::string                 _search;
     std::string                 _search_all;
     std::vector<std::string>    _old_find_list;
+    std::vector<std::string>    _old_recent_list;
     std::vector<std::string>    _old_replace_list;
     struct {
         Fl_Boxtype              boxtype;
@@ -26133,7 +26136,7 @@ private:
 };
 #include <algorithm>
 CommandDialog::CommandDialog(CommandVector& commands, Command* select) :
-Fl_Double_Window(0, 0, 100, 100, "Command Settings"),
+Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 68, flw::PREF_FONTSIZE * 46, "flEdit - Command Settings"),
 _commands(commands) {
     end();
     _capture_editor   = new Fl_Radio_Round_Button(0, 0, 0, 0, "Capture to editor");
@@ -26145,7 +26148,7 @@ _commands(commands) {
     _delete           = new Fl_Button(0, 0, 0, 0, "Delete");
     _execute          = new Fl_Button(0, 0, 0, 0, "&Execute");
     _filter           = new Fl_Input(0, 0, 0, 0, "Filter parser");
-    _grid             = new flw::GridGroup(0, 0, 100, 100);
+    _grid             = new flw::GridGroup(0, 0, w(), h());
     _help             = new Fl_Button(0, 0, 0, 0, "&Help");
     _label            = new Fl_Box(0, 0, 0, 0);
     _line             = new Fl_Input(0, 0, 0, 0, "Line parser");
@@ -26174,7 +26177,7 @@ _commands(commands) {
     _grid->add(_line,                 44,  57,  -1,   4);
     _grid->add(_string,               44,  64,  -1,   4);
     _grid->add(_label,                44,  70,  -1,   8);
-    _grid->add(_help,               -119,  -5,  16,   4);
+    _grid->add(_help,                  1,  -5,  16,   4);
     _grid->add(_delete,             -102,  -5,  16,   4);
     _grid->add(_copy,                -85,  -5,  16,   4);
     _grid->add(_new,                 -68,  -5,  16,   4);
@@ -26245,13 +26248,10 @@ _commands(commands) {
     callback(CommandDialog::Callback, this);
     set_modal();
     resizable(_grid);
-    size_range(480, 320);
-    if (FlEdit::COMMAND_RECT.w() != 0 && FlEdit::COMMAND_RECT.h() != 0) {
+    if (FlEdit::COMMAND_RECT.w() > 0 && FlEdit::COMMAND_RECT.h() > 0) {
         CommandDialog::resize(FlEdit::COMMAND_RECT.x(), FlEdit::COMMAND_RECT.y(), FlEdit::COMMAND_RECT.w(), FlEdit::COMMAND_RECT.h());
     }
-    else {
-        CommandDialog::resize(0, 0, flw::PREF_FONTSIZE * 68, flw::PREF_FONTSIZE * 42);
-    }
+    _grid->do_layout();
 }
 CommandDialog::~CommandDialog() {
     FlEdit::COMMAND_RECT = Fl_Rect(this);
@@ -26331,7 +26331,7 @@ void CommandDialog::Callback(Fl_Widget* w, void* o) {
         self->data_set(Output::STREAM_TERMINAL);
     }
     else if (w == self->_help) {
-        flw::dlg::list("Command Help", COMMAND_HELP + fle::help::pcre(), true, 60, 40);
+        flw::dlg::list("flEdit - Command Help", COMMAND_HELP + fle::help::pcre(), true, 60, 40);
     }
 }
 bool CommandDialog::data_delete() {
@@ -26549,6 +26549,7 @@ int CommandDialog::row(const Command* command) const {
 }
 Command* CommandDialog::run(Fl_Window* parent) {
     _loop = true;
+    _list->take_focus();
     flw::util::center_window(this, parent);
     show();
     while (_loop == true) {
@@ -26621,19 +26622,27 @@ CommandOutput::CommandOutput(fle::Config& config, fle::FindBar* findbar) : flw::
     tab_pos(flw::TabsGroup::Pos::LEFT);
     _list->callback(FlEdit::CallbackList, this);
     _list->when(FL_WHEN_ENTER_KEY_CHANGED);
-    _terminal->tooltip("Terminal are output only.");
+    _terminal->tooltip("Terminal is output only.");
     value(_list);
 }
 CommandOutput::~CommandOutput() {
 }
 void CommandOutput::create_command_thread(std::string workpath, std::string filename, std::string selection) {
-    auto work = Command::CURRENT->workpath;
-    auto cmd  = Command::CURRENT->command;
-    auto fi   = gnu::file::File(filename);
+    auto work   = Command::CURRENT->workpath;
+    auto cmd    = Command::CURRENT->command;
+    auto fi     = gnu::file::File(filename);
+    auto parent = gnu::file::File(fi.path());
     if (filename != "" && work.find("$FILE") != std::string::npos) {
         gnu::str::replace(work, "$FILE", fi.path());
     }
     else if (filename == "" && work.find("$FILE") != std::string::npos) {
+        flw::dlg::msg_alert("flEdit", "Error: file has not been set!");
+        return;
+    }
+    else if (filename != "" && work.find("$PARENT") != std::string::npos) {
+        gnu::str::replace(work, "$PARENT", parent.path());
+    }
+    else if (filename == "" && work.find("$PARENT") != std::string::npos) {
         flw::dlg::msg_alert("flEdit", "Error: file has not been set!");
         return;
     }
@@ -26648,6 +26657,20 @@ void CommandOutput::create_command_thread(std::string workpath, std::string file
         gnu::str::replace(cmd, "$FILE", filename);
     }
     else if (filename == "" && cmd.find("$FILE") != std::string::npos) {
+        flw::dlg::msg_alert("flEdit", "Error: file has not been set!");
+        return;
+    }
+    if (filename != "" && cmd.find("$NAME") != std::string::npos) {
+        gnu::str::replace(cmd, "$NAME", fi.name());
+    }
+    else if (filename == "" && cmd.find("$NAME") != std::string::npos) {
+        flw::dlg::msg_alert("flEdit", "Error: file has not been set!");
+        return;
+    }
+    if (filename != "" && cmd.find("$PARENT") != std::string::npos) {
+        gnu::str::replace(cmd, "$PARENT", fi.path());
+    }
+    else if (filename == "" && cmd.find("$PARENT") != std::string::npos) {
         flw::dlg::msg_alert("flEdit", "Error: file has not been set!");
         return;
     }
@@ -26779,7 +26802,6 @@ void CommandOutput::set_list_data(const std::vector<std::string>& lines, std::st
     _list->clear();
     _list->activate();
     for (const auto& line : lines) {
-    FLW_PRINTV(line)
         if (line.length() > fle::limits::OUTPUT_LINE_LENGTH_VAL) {
             auto l = line;
             l.resize(fle::limits::OUTPUT_LINE_LENGTH_VAL);
@@ -27049,14 +27071,14 @@ void DirBrowser::update_pref() {
     _browser->textsize(flw::PREF_FONTSIZE);
 }
 ProjectDialog::ProjectDialog(gnu::db2::DB& db) :
-Fl_Double_Window(0, 0, 100, 100, "Load Project"),
+Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 40, "flEdit - Load Project"),
 _db(db) {
     end();
-    _cancel   = new Fl_Button(0, 0, 0, 0, "&Cancel");
+    _cancel   = new Fl_Button(0, 0, 0, 0, flw::label::CANCEL.c_str());
     _grid     = new flw::GridGroup(0, 0, w(), h());
     _load     = new Fl_Button(0, 0, 0, 0, "&Load");
     _projects = new Fl_Hold_Browser(0, 0, 0, 0);
-    _remove   = new Fl_Button(0, 0, 0, 0, "&Remove");
+    _remove   = new Fl_Button(0, 0, 0, 0, flw::label::DEL.c_str());
     _run      = false;
     _grid->add(_projects,   1,   1,  -1,  -6);
     _grid->add(_cancel,   -51,  -5,  16,   4);
@@ -27078,13 +27100,9 @@ _db(db) {
     callback(ProjectDialog::Callback, this);
     set_modal();
     resizable(_grid);
-    if (FlEdit::PROJECT_RECT.w() != 0 && FlEdit::PROJECT_RECT.h() != 0) {
+    if (FlEdit::PROJECT_RECT.w() > 0 && FlEdit::PROJECT_RECT.h() > 0) {
         ProjectDialog::resize(FlEdit::PROJECT_RECT.x(), FlEdit::PROJECT_RECT.y(), FlEdit::PROJECT_RECT.w(), FlEdit::PROJECT_RECT.h());
     }
-    else {
-        ProjectDialog::resize(0, 0, flw::PREF_FONTSIZE * 30, flw::PREF_FONTSIZE * 40);
-    }
-    size_range(320, 240);
     _grid->do_layout();
 }
 ProjectDialog::~ProjectDialog() {
@@ -27142,13 +27160,13 @@ std::string ProjectDialog::run(Fl_Window* parent) {
 }
 static int _TextDialog_LAST_SPLIT = 0;
 TextDialog::TextDialog(gnu::db2::DB& db) :
-Fl_Double_Window(0, 0, 10, 10, TextDialog::LABEL),
+Fl_Double_Window(0, 0, flw::PREF_FONTSIZE * 80, flw::PREF_FONTSIZE * 50, "flEdit - Copy Snippet To Clipboard"),
 _db(db) {
     end();
     _buffer = new Fl_Text_Buffer();
-    _cancel = new Fl_Button(0, 0, 0, 0, "&Cancel");
-    _close  = new Fl_Button(0, 0, 0, 0, "&Ok");
-    _delete = new Fl_Button(0, 0, 0, 0, "Delete");
+    _cancel = new Fl_Button(0, 0, 0, 0, flw::label::CLOSE.c_str());
+    _close  = new Fl_Button(0, 0, 0, 0, flw::label::OK.c_str());
+    _delete = new Fl_Button(0, 0, 0, 0, flw::label::DEL.c_str());
     _editor = new Fl_Text_Editor(0, 0, 0, 0);
     _grid   = new flw::GridGroup(0, 0, w(), h());
     _names  = new Fl_Hold_Browser(0, 0, 0, 0);
@@ -27196,13 +27214,9 @@ _db(db) {
     callback(TextDialog::Callback, this);
     set_modal();
     resizable(_grid);
-    if (FlEdit::TEXT_RECT.w() != 0 && FlEdit::TEXT_RECT.h() != 0) {
+    if (FlEdit::TEXT_RECT.w() > 0 && FlEdit::TEXT_RECT.h() > 0) {
         TextDialog::resize(FlEdit::TEXT_RECT.x(), FlEdit::TEXT_RECT.y(), FlEdit::TEXT_RECT.w(), FlEdit::TEXT_RECT.h());
     }
-    else {
-        TextDialog::resize(0, 0, flw::PREF_FONTSIZE * 80, flw::PREF_FONTSIZE * 50);
-    }
-    size_range(480, 320);
     _grid->do_layout();
 }
 TextDialog::~TextDialog() {
@@ -27249,7 +27263,6 @@ void TextDialog::close() {
 }
 void TextDialog::delete_text() {
     auto row = _names->value();
-    copy_label(TextDialog::LABEL);
     if (row < 1) {
         return;
     }
@@ -27264,7 +27277,6 @@ void TextDialog::delete_text() {
         _names->take_focus();
         _names->value(row <= _names->size() ? row : _names->size());
         TextDialog::Callback(_names, this);
-        copy_label((std::string(TextDialog::LABEL) + " - Deleted " + name).c_str());
     }
 }
 void TextDialog::load_text() {
@@ -27301,7 +27313,6 @@ void TextDialog::load_text() {
 }
 void TextDialog::rename_text() {
     auto r = _names->value();
-    copy_label(TextDialog::LABEL);
     if (r < 1) {
         return;
     }
@@ -27323,7 +27334,6 @@ void TextDialog::rename_text() {
     }
     else {
         _names->text(r, rename.c_str());
-        copy_label((std::string(TextDialog::LABEL) + " - Renamed " + name).c_str());
     }
 }
 std::string TextDialog::run(Fl_Window* parent) {
@@ -27340,7 +27350,6 @@ std::string TextDialog::run(Fl_Window* parent) {
 }
 void TextDialog::update_text() {
     auto r = _names->value();
-    copy_label(TextDialog::LABEL);
     if (r < 1) {
         return;
     }
@@ -27352,9 +27361,6 @@ void TextDialog::update_text() {
     }
     else if (_db.put(NS_SNIPPETS, name, text, -1) == false) {
         flw::dlg::msg_alert("flEdit", flw::util::format("Failed to save snippet!\n%s", _db.err_msg.c_str()));
-    }
-    else {
-        copy_label((std::string(TextDialog::LABEL) + " - Updated " + name).c_str());
     }
 }
 #define FLEDIT_CB1(X) [](Fl_Widget*, void* o) { static_cast<FlEdit*>(o)->X; static_cast<FlEdit*>(o)->update_menu(); }, this
@@ -27416,10 +27422,10 @@ FlEdit::FlEdit(int W, int H) : Fl_Double_Window(W, H, "flEdit"), Message(CONFIG)
     _menu->global();
     _menu->add(MENU_FILE_NEW,                   FL_COMMAND + 'n',               FLEDIT_CB1(file_new("")));
     _menu->add(MENU_FILE_OPEN,                  FL_COMMAND + 'o',               FLEDIT_CB1(file_open()));
+    _recent = new flw::util::RecentMenu(_menu, FlEdit::CallbackRecent, this, MENU_FILE_OPEN_RECENT);
+    _menu->add(MENU_FILE_OPEN_RELOAD,           0,                              FLEDIT_CB1(file_reload()));
     _menu->add(MENU_FILE_OPEN_HEX,              0,                              FLEDIT_CB1(file_open(true)));
     _menu->add(MENU_FILE_OPEN_BACKUP,           0,                              FLEDIT_CB1(file_backup()));
-    _menu->add(MENU_FILE_OPEN_RELOAD,           0,                              FLEDIT_CB1(file_reload()));
-    _recent = new flw::util::RecentMenu(_menu, FlEdit::CallbackRecent, this, MENU_FILE_OPEN_RECENT);
     _menu->add(MENU_FILE_READONLY,              0,                              FLEDIT_CB1(file_readonly_mode()), FL_MENU_DIVIDER | FL_MENU_TOGGLE);
     _menu->add(MENU_FILE_SAVE,                  FL_COMMAND + 's',               FLEDIT_CB1(file_save()));
     _menu->add(MENU_FILE_SAVE_AS,               0,                              FLEDIT_CB1(file_save_as()));
@@ -27664,12 +27670,12 @@ void FlEdit::help_about() {
     text += "Open file directory: " + _paths.open_path + "\n";
     text += "Current directory:   " + gnu::file::work_dir().filename() + "\n";
     text += "\n";
-    flw::dlg::list("About", text, true, 45, 55);
+    flw::dlg::list("flEdit - About", text, true, 45, 55);
 }
 void FlEdit::help_fledit() {
     std::string text = FLEDIT_HELP;
     text += fle::help::flags(CONFIG);
-    flw::dlg::list("Help", text, true, 60, 50);
+    flw::dlg::list("flEdit - Help", text, true, 60, 50);
 }
 fle::Message::CTRL FlEdit::message(const std::string& message, const std::string& s1, const std::string& s2, void* p) {
     if (message == fle::message::TEXT_CHANGED || message == fle::message::FILE_LOADED) {
@@ -28032,6 +28038,7 @@ bool FlEdit::editor_close(fle::Editor* editor, bool ask) {
             return false;
         }
     }
+    _recent->insert(editor->filename_long());
     tabs_delete(editor);
     return true;
 }
@@ -28068,7 +28075,7 @@ void FlEdit::file_backup() {
     }
     auto backup = gnu::file::File(_editor->filename_backup_today());
     if (backup.is_file() == false) {
-        flw::dlg::msg_alert("flEdit", flw::util::format("There is no backup file for today!\n%s", backup.c_str()));
+        flw::dlg::msg_alert("flEdit", flw::util::format("There is no backup file for %s today!", _editor->filename_short().c_str()));
     }
     else {
         file_load(_editor, backup.filename(), false, 0);
@@ -28457,9 +28464,11 @@ bool FlEdit::project_close(bool save) {
         if (save == true && project_save_to_db(_project.name) == false) {
             return false;
         }
-        CONFIG.find_list = _old_find_list;
+        CONFIG.find_list    = _old_find_list;
         CONFIG.replace_list = _old_replace_list;
         _findbar->findreplace().update_lists(true, true, -1);
+        _recent->clear();
+        _recent->items(_old_recent_list);
     }
     _project = { "", "", "" };
     CONFIG.load_custom_wordlist("");
@@ -28528,13 +28537,18 @@ void FlEdit::project_load_from_db(const std::string& project_name) {
         }
         _old_find_list    = CONFIG.find_list;
         _old_replace_list = CONFIG.replace_list;
+        _old_recent_list  = _recent->items();
         CONFIG.find_list.clear();
         CONFIG.replace_list.clear();
+        _recent->clear();
         for (auto& s : project_load_list_from_pile("find", pile)) {
             CONFIG.add_find_word(s, true);
         }
         for (auto& s : project_load_list_from_pile("replace", pile)) {
             CONFIG.add_replace_word(s, true);
+        }
+        for (auto& s : project_load_list_from_pile("recent", pile)) {
+            _recent->append(s);
         }
         _findbar->findreplace().update_lists(true, true, -1);
         auto files = pile.get_int("gui", "files");
@@ -28763,6 +28777,7 @@ bool FlEdit::project_save_to_db(const std::string& name, const std::string& old_
     }
     project_save_list_to_pile("find", CONFIG.find_list, pile);
     project_save_list_to_pile("replace", CONFIG.replace_list, pile);
+    project_save_list_to_pile("recent", _recent->items(), pile);
     auto count    = 1;
     auto tabindex = 0;
     auto editor   = tabs_editor_by_index(tabindex);
@@ -29297,6 +29312,7 @@ int main(int argc, const char** argv) {
         auto arg    = 1;
         auto fledit = FlEdit(800, 600);
         fledit.executable = argv[0];
+        fle::APPLICATION = "flEdit";
         flw::util::sleep(18);
         Fl::check();
         if (argc > arg && fledit.project_exist_in_db(argv[arg]) == true) {
@@ -29329,16 +29345,16 @@ int main(int argc, const char** argv) {
         Fl::run();
     }
     catch (const std::string& e) {
-        flw::dlg::msg_error("flEdit Exception", flw::util::format("Sorry I have to terminate!\n%s", e.c_str()));
+        flw::dlg::msg_error("flEdit", flw::util::format("Sorry I have to terminate!\n%s", e.c_str()));
     }
     catch (const char* e) {
-        flw::dlg::msg_error("flEdit Exception", flw::util::format("Sorry I have to terminate!\n%s", e));
+        flw::dlg::msg_error("flEdit", flw::util::format("Sorry I have to terminate!\n%s", e));
     }
     catch (const std::exception& e) {
-        flw::dlg::msg_error("flEdit Exception", flw::util::format("Sorry I have to terminate!\n%s", e.what()));
+        flw::dlg::msg_error("flEdit", flw::util::format("Sorry I have to terminate!\n%s", e.what()));
     }
     catch (...) {
-        flw::dlg::msg_error("flEdit Exception", "Sorry I have to terminate!");
+        flw::dlg::msg_error("flEdit", "Sorry I have to terminate!");
     }
     return 0;
 }
